@@ -1,334 +1,370 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Detective Sintáctico — Comic Noir Mejorado</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Completador ML — Libros Físicos</title>
 <style>
 :root{
-  --bg:#071020;
-  --card:#0b1220;
-  --accent:#ffd166;
-  --muted:#9aa6b2;
-  --tape:#f9d76e;
+  --bg:#0a0f1a;
+  --card:#111827;
+  --border:#1f2937;
+  --accent:#3b82f6;
+  --accent2:#10b981;
+  --warn:#f59e0b;
+  --err:#ef4444;
+  --text:#f1f5f9;
+  --muted:#94a3b8;
+  --radius:12px;
 }
-html,body{height:100%;margin:0;font-family:"Inter","Comic Sans MS",system-ui,sans-serif;background:linear-gradient(180deg,#03060b 0%,var(--bg) 60%);color:#e6eef6;}
-.wrap{max-width:980px;margin:28px auto;padding:18px;}
-header{display:flex;gap:14px;align-items:center;}
-.badge{width:84px;height:84px;border-radius:12px;background:linear-gradient(135deg,#06121a,#0c2030);display:flex;align-items:center;justify-content:center;font-size:36px;border:2px solid rgba(255,209,102,0.06);box-shadow:0 8px 30px rgba(2,6,12,0.7);}
-h1{margin:0;font-size:26px;letter-spacing:0.4px;}
-.sub{margin:4px 0 0;color:var(--muted);font-size:13px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;padding:24px 16px;}
+.container{max-width:880px;margin:0 auto;}
 
-/* Card */
-.card{margin-top:20px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:16px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.03);position:relative;overflow:hidden;}
-.spot{position:absolute;right:-120px;top:-140px;width:420px;height:420px;background:radial-gradient(circle at 30% 20%, rgba(255,230,180,0.12), transparent 30%),radial-gradient(circle at 80% 70%, rgba(255,200,80,0.06), transparent 20%);transform:rotate(14deg);filter:blur(6px);pointer-events:none;}
-.tape{position:absolute;left:18px;top:18px;padding:6px 10px;border-radius:6px;background:linear-gradient(90deg,#ffd166,#f9a826);color:#2b2b2b;font-weight:800;letter-spacing:1px;box-shadow:0 6px 16px rgba(0,0,0,0.5);transform:rotate(-8deg);}
+/* Header */
+.header{display:flex;align-items:center;gap:16px;margin-bottom:32px;}
+.logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#1d4ed8,#2563eb);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.header-text h1{font-size:22px;font-weight:700;letter-spacing:-0.3px;}
+.header-text p{color:var(--muted);font-size:13px;margin-top:3px;}
 
-/* City skyline background */
-.skyline {
-  position:absolute;left:0;right:0;bottom:0;height:160px;pointer-events:none;
-  background-image: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.35)),
-  url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="160" viewBox="0 0 1200 160"><rect width="1200" height="160" fill="%23060b12"/><g fill="%23161e28"><rect x="10" y="40" width="60" height="120"/><rect x="90" y="56" width="44" height="104"/><rect x="150" y="20" width="120" height="140"/><rect x="280" y="80" width="40" height="80"/><rect x="340" y="32" width="80" height="128"/><rect x="440" y="70" width="60" height="90"/><rect x="520" y="20" width="160" height="140"/><rect x="700" y="52" width="44" height="108"/><rect x="760" y="30" width="90" height="130"/><rect x="880" y="48" width="60" height="112"/><rect x="960" y="10" width="120" height="150"/><rect x="1100" y="68" width="44" height="92"/></g></svg>');
-  background-repeat: repeat-x; background-size: cover; opacity:0.45;
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+.card-title{font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-title span{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;}
+
+/* Form */
+label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px;}
+input[type=text],input[type=password]{width:100%;background:#0d1424;border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;outline:none;transition:border-color .15s;}
+input[type=text]:focus,input[type=password]:focus{border-color:var(--accent);}
+
+/* Drop zones */
+.dropzone{border:2px dashed var(--border);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#0d1424;}
+.dropzone:hover,.dropzone.drag-over{border-color:var(--accent);background:rgba(59,130,246,0.04);}
+.dropzone svg{margin-bottom:10px;opacity:0.5;}
+.dropzone p{font-size:13px;color:var(--muted);}
+.dropzone p strong{color:var(--text);}
+.dropzone input{display:none;}
+
+/* File list */
+.file-list{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
+.file-item{display:flex;align-items:center;gap:10px;background:#0d1424;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;}
+.file-item .icon{font-size:16px;flex-shrink:0;}
+.file-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-item .remove{cursor:pointer;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:4px;}
+.file-item .remove:hover{color:var(--err);background:rgba(239,68,68,0.1);}
+
+/* Button */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;border-radius:9px;border:none;cursor:pointer;font-size:15px;font-weight:600;transition:all .15s;}
+.btn-primary{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;}
+.btn-primary:hover:not(:disabled){background:linear-gradient(135deg,#3b82f6,#2563eb);transform:translateY(-1px);}
+.btn-primary:disabled{opacity:0.45;cursor:not-allowed;transform:none;}
+.btn-full{width:100%;}
+
+/* Progress */
+.progress-wrap{margin-top:20px;display:none;}
+.progress-label{font-size:13px;color:var(--muted);margin-bottom:8px;}
+.progress-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .3s ease;}
+
+/* Results */
+.results{display:none;margin-top:20px;}
+.result-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.result-header .badge{padding:4px 12px;border-radius:99px;font-size:12px;font-weight:600;}
+.badge-ok{background:rgba(16,185,129,0.15);color:var(--accent2);}
+.badge-err{background:rgba(239,68,68,0.12);color:var(--err);}
+
+.book-table{width:100%;border-collapse:collapse;font-size:13px;}
+.book-table th{text-align:left;padding:8px 10px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:500;}
+.book-table td{padding:8px 10px;border-bottom:1px solid rgba(31,41,55,0.6);color:var(--text);}
+.book-table tr:last-child td{border-bottom:none;}
+.book-table .row-num{color:var(--muted);font-variant-numeric:tabular-nums;}
+
+.download-btn{display:flex;align-items:center;gap:10px;margin-top:20px;padding:14px 20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;cursor:pointer;text-decoration:none;color:var(--accent2);font-weight:600;font-size:15px;transition:all .15s;}
+.download-btn:hover{background:rgba(16,185,129,0.18);}
+
+.error-list{margin-top:12px;}
+.error-item{padding:8px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px;color:#fca5a5;margin-bottom:6px;}
+
+/* Steps indicator */
+.steps{display:flex;gap:0;margin-bottom:28px;}
+.step{flex:1;text-align:center;position:relative;}
+.step:not(:last-child)::after{content:'';position:absolute;top:14px;left:50%;width:100%;height:2px;background:var(--border);z-index:0;}
+.step.done::after{background:var(--accent);}
+.step-circle{width:28px;height:28px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin:0 auto 6px;position:relative;z-index:1;}
+.step.active .step-circle{background:var(--accent);color:#fff;}
+.step.done .step-circle{background:var(--accent2);color:#fff;}
+.step-label{font-size:11px;color:var(--muted);}
+.step.active .step-label{color:var(--text);}
+
+/* Info box */
+.info-box{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px 16px;font-size:13px;color:#93c5fd;line-height:1.6;}
+.info-box strong{color:#bfdbfe;}
+
+/* Loading spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+
+/* Responsive */
+@media(max-width:600px){
+  .steps{display:none;}
+  .card{padding:16px;}
 }
-
-/* UI */
-.case-header{display:flex;align-items:center;gap:18px;}
-.case-title{flex:1;text-align:left;}
-.case-title h2{margin:0;font-size:20px;}
-.case-title p{margin:6px 0 0;color:var(--muted);font-size:13px;}
-.ui{display:grid;grid-template-columns:1fr 340px;gap:18px;margin-top:18px;}
-.left{padding:12px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));}
-.right{padding:14px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.00));border:1px solid rgba(255,255,255,0.02);}
-
-/* question and buttons */
-.question{font-size:18px;margin:8px 0 18px;}
-.buttons{display:flex;flex-wrap:wrap;gap:12px;}
-.btn{
-  background:linear-gradient(180deg,#0d2a3a,#06202b);border:2px solid rgba(255,209,102,0.06);color:var(--accent);
-  padding:12px 18px;border-radius:8px;cursor:pointer;font-weight:700;box-shadow:0 6px 18px rgba(2,6,12,0.5);
-  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
-  position:relative;overflow:hidden;
-}
-.btn:hover{transform:translateY(-4px);box-shadow:0 18px 34px rgba(2,6,12,0.6);}
-.btn.secondary{background:transparent;color:var(--muted);border:1px dashed rgba(255,255,255,0.03);font-weight:600;border-radius:10px;padding:10px 14px;}
-
-/* police-label button style (G) */
-.police-label{background:linear-gradient(90deg,#f6d68a,#ffd166);color:#1b1b1b;border-radius:6px;padding:10px 14px;font-weight:900;letter-spacing:0.6px;border:2px solid rgba(0,0,0,0.18);box-shadow:0 8px 14px rgba(0,0,0,0.5);}
-.police-label:active{transform:translateY(2px);}
-
-/* result box */
-.result{margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-left:4px solid var(--accent);color:#fff;}
-
-/* file panel */
-.file{display:flex;flex-direction:column;gap:10px;align-items:flex-start;}
-.panel{width:100%;padding:12px;border-radius:10px;background:var(--card);box-shadow:inset 0 1px 0 rgba(255,255,255,0.02);}
-.hint{font-size:13px;color:var(--muted);}
-
-/* animations */
-.fade-in{animation:fadeIn .42s ease both;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-
-/* spotlight (B) mouse-follow circle */
-.screenOverlay{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;background:radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(255,240,200,0.06) 0px, rgba(255,240,200,0.02) 80px, rgba(0,0,0,0.6) 180px);transition:background .06s linear;mix-blend-mode:overlay;}
-
-/* responsive */
-@media (max-width:900px){.ui{grid-template-columns:1fr;} .right{order:-1}}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="badge">🕵️</div>
-      <div>
-        <h1>Detective Sintáctico — Comic Noir</h1>
-        <p class="sub">Clasifica pronombres personales como modificadores del verbo — ahora con fondo urbano y efectos.</p>
-      </div>
-    </header>
+<div class="container">
 
-    <div class="card fade-in" id="card">
-      <div class="tape">CASO Nº 21</div>
-      <div class="spot"></div>
-
-      <div class="case-header">
-        <div class="case-title">
-          <h2>El caso del pronombre misterioso</h2>
-          <p>Seguí las pistas y encontrá si el <strong>se</strong> / <strong>me</strong> / <strong>te</strong> es OD, OI, reflejo, recíproco, cuasirreflejo, pasiva con se o impersonal.</p>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:12px;color:var(--muted)">Progreso</div>
-          <div id="progress" style="width:220px;height:10px;background:rgba(255,255,255,0.03);border-radius:6px;overflow:hidden;margin-top:8px">
-            <div id="progBar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--accent),#ffb84d);"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="ui">
-        <div class="left">
-          <div id="questionArea" class="fade-in">
-            <div class="question" id="pregunta">Presioná "Comenzar investigación" para iniciar.</div>
-            <div class="buttons" id="opciones">
-              <button class="btn police-label" id="startBtn">🕵️‍♂️ Comenzar investigación</button>
-            </div>
-
-            <div id="resultadoBox" style="display:none" class="result fade-in"></div>
-          </div>
-        </div>
-
-        <aside class="right">
-          <div class="file">
-            <div class="panel">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <strong>Ficha del caso</strong>
-                <small class="hint" id="hint">Sigue el árbol de decisión de la página 21</small>
-              </div>
-              <div style="margin-top:10px;color:var(--muted);font-size:13px">
-                <div>• Verbos: fijate en la concordancia</div>
-                <div>• Refuerzo: probá "a sí mismo" o "entre ellos"</div>
-                <div>• Si no coincide pronombre/ sujeto → OD o OI</div>
-              </div>
-            </div>
-
-            <div class="panel">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <strong>Ejemplos rápidos</strong>
-                <small class="hint">Tocar resultado para repetir sonido</small>
-              </div>
-              <div style="margin-top:10px;color:var(--muted);font-size:14px;line-height:1.5">
-                <div>• <em>Te vi ayer</em> → OD/OI</div>
-                <div>• <em>Juan se peina</em> → Reflejo puro</div>
-                <div>• <em>Ellos se saludaron</em> → Recíproco</div>
-                <div>• <em>Se venden coches</em> → Pasiva con se / impersonal</div>
-              </div>
-            </div>
-
-            <div style="font-size:12px;color:var(--muted);text-align:center">Versión: Comic Noir · Offline · Efectos adicionales</div>
-          </div>
-        </aside>
-      </div>
-
-      <div class="skyline"></div>
-      <footer style="margin-top:16px;text-align:center;color:var(--muted);font-size:13px">Archivo escolar · Mejorado</footer>
-    </div>
-
-    <div style="text-align:center;margin-top:12px">
-      <button id="downloadZipBtn" class="btn secondary">📦 Descargar ZIP (opcional)</button>
+  <div class="header">
+    <div class="logo">📚</div>
+    <div class="header-text">
+      <h1>Completador de Planilla ML — Libros Físicos</h1>
+      <p>Cargá el Excel original de Mercado Libre + imágenes de libros → obtenés la planilla lista para publicar</p>
     </div>
   </div>
 
-  <div class="screenOverlay" id="screenOverlay"></div>
+  <div class="steps">
+    <div class="step done" id="step1"><div class="step-circle">1</div><div class="step-label">Config</div></div>
+    <div class="step active" id="step2"><div class="step-circle">2</div><div class="step-label">Archivos</div></div>
+    <div class="step" id="step3"><div class="step-circle">3</div><div class="step-label">Procesar</div></div>
+    <div class="step" id="step4"><div class="step-circle">4</div><div class="step-label">Descargar</div></div>
+  </div>
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="card-title"><span></span>API Key de Anthropic</div>
+    <label for="apiKey">Ingresá tu API Key de Anthropic (Claude)</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off"/>
+    <div class="info-box" style="margin-top:12px">
+      <strong>¿No tenés API Key?</strong> Creá una en <strong>console.anthropic.com</strong> → API Keys. El procesamiento usa el modelo <strong>claude-opus-4-8</strong> con visión de imágenes. Se descuenta de tu cuenta Anthropic.
+    </div>
+  </div>
+
+  <!-- Excel upload -->
+  <div class="card">
+    <div class="card-title"><span></span>1. Planilla Excel Original de Mercado Libre</div>
+    <div class="dropzone" id="excelZone">
+      <input type="file" id="excelInput" accept=".xlsx,.xls"/>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      <p><strong>Arrastrá el archivo .xlsx</strong> o hacé click para seleccionar</p>
+      <p style="font-size:12px;margin-top:4px;">Solo archivos Excel (.xlsx) — planilla original de MercadoLibre sin modificar</p>
+    </div>
+    <div class="file-list" id="excelList"></div>
+  </div>
+
+  <!-- Images upload -->
+  <div class="card">
+    <div class="card-title"><span></span>2. Imágenes de Libros</div>
+    <div class="dropzone" id="imagesZone">
+      <input type="file" id="imagesInput" accept="image/*" multiple/>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <p><strong>Arrastrá las imágenes de los libros</strong> o hacé click para seleccionar</p>
+      <p style="font-size:12px;margin-top:4px;">JPG, PNG, WEBP — una imagen por libro = una fila en la planilla</p>
+    </div>
+    <div class="file-list" id="imagesList"></div>
+  </div>
+
+  <!-- Process button -->
+  <div class="card">
+    <div class="card-title"><span></span>3. Procesamiento</div>
+    <div class="info-box" style="margin-bottom:16px;">
+      Cada imagen se analiza con Claude para extraer: título, autor, editorial, ISBN, idioma, tipo de tapa, medidas estimadas y más. El proceso puede tardar 10-30 segundos según la cantidad de libros.
+    </div>
+    <button class="btn btn-primary btn-full" id="processBtn" disabled>
+      <span id="btnIcon">⚡</span>
+      <span id="btnText">Completar Planilla</span>
+    </button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label" id="progressLabel">Procesando imágenes con Claude...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="results" id="results">
+      <div class="result-header">
+        <span id="resultBadge" class="badge badge-ok">✓ Listo</span>
+        <span id="resultSummary" style="font-size:14px;color:var(--muted);"></span>
+      </div>
+      <table class="book-table" id="bookTable">
+        <thead>
+          <tr>
+            <th>Fila</th>
+            <th>Archivo</th>
+            <th>Título detectado</th>
+            <th>Autor</th>
+          </tr>
+        </thead>
+        <tbody id="bookTableBody"></tbody>
+      </table>
+      <div class="error-list" id="errorList"></div>
+      <a class="download-btn" id="downloadBtn" href="#" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar Planilla Completada (.xlsx)
+      </a>
+    </div>
+  </div>
+
+</div>
 
 <script>
-/* ---------------------------
-   Árbol de decisión (igual)
-   --------------------------- */
-const pasos = [
-  { pregunta: "¿El pronombre coincide con el sujeto en persona y número?",
-    opciones:[{texto:"Sí", siguiente:1},{texto:"No", resultado:"🔎 Resultado: Objeto Directo u Objeto Indirecto. Ejemplo: «Te vi ayer en la fiesta.»"}] },
-  { pregunta: "¿Admite refuerzos como «a sí mismo», «entre ellos», «mutuamente»?",
-    opciones:[{texto:"Sí", siguiente:2},{texto:"No", siguiente:3}] },
-  { pregunta: "Si admite refuerzos: ¿la acción es mutua entre los miembros del sujeto (uno al otro / entre ellos)?",
-    opciones:[{texto:"Sí, es mutua", resultado:"🤝 Resultado: Pronombre recíproco. Ejemplo: «Ellos se saludaron (uno al otro).»"},{texto:"No, no es mutua", resultado:"🪞 Resultado: Pronombre reflejo puro (puede ser plural). Ejemplo: «Ellos se peinan (cada uno a sí mismo).»"}] },
-  { pregunta: "¿El verbo solo aparece en tercera persona (p. ej. «se vende», «se abrió»)?",
-    opciones:[{texto:"Sí", siguiente:4},{texto:"No", resultado:"😼 Resultado: Pronombre cuasirreflejo. Ejemplo: «Me dormí tarde.»"}] },
-  { pregunta: "¿El verbo concuerda en número con lo que aparece después (p. ej. «Se abrieron las puertas»)?",
-    opciones:[{texto:"Sí", resultado:"🚪 Resultado: Pasiva con se. Ejemplo: «Se abrieron las puertas.»"},{texto:"No", resultado:"🌎 Resultado: Se impersonal. Ejemplo: «Aquí se trabaja mucho.»"}] }
-];
+let excelFile = null;
+const imageFiles = [];
 
-let pasoActual = 0;
+// Drag & Drop helpers
+function setupDropzone(zoneId, inputId, onFiles) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
 
-/* ---------------------------
-   Audio — WebAudio extra sounds (H)
-   We'll define functions for: click, win, folderOpen, camera, teletype
-   --------------------------- */
-const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => onFiles(Array.from(input.files)));
 
-function playTone(freq, time=0.12, type='sine', gain=0.06){
-  const t = AudioCtx.currentTime;
-  const o = AudioCtx.createOscillator();
-  const g = AudioCtx.createGain();
-  o.type = type; o.frequency.setValueAtTime(freq, t);
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(gain, t+0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, t+time);
-  o.connect(g); g.connect(AudioCtx.destination); o.start(t); o.stop(t+time+0.02);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    onFiles(Array.from(e.dataTransfer.files));
+  });
 }
 
-function clickSound(){ playTone(1000, 0.12, 'square', 0.08); }
-function winSound(){ playTone(880, 0.28, 'sine', 0.12); playTone(660, 0.28, 'triangle', 0.08); }
-
-function folderOpenSound(){
-  // short rising arpeggio
-  playTone(540, 0.12, 'sine', 0.06);
-  setTimeout(()=> playTone(720, 0.12, 'sine', 0.06), 110);
-  setTimeout(()=> playTone(960, 0.16, 'sine', 0.06), 220);
+function renderFileItem(name, onRemove) {
+  const div = document.createElement('div');
+  div.className = 'file-item';
+  const isImg = /\.(jpe?g|png|webp|gif)$/i.test(name);
+  div.innerHTML = `<span class="icon">${isImg ? '🖼️' : '📊'}</span><span class="name">${name}</span><span class="remove" title="Quitar">✕</span>`;
+  div.querySelector('.remove').addEventListener('click', onRemove);
+  return div;
 }
 
-function cameraShutter(){
-  // quick click + higher tick
-  playTone(1200, 0.06, 'square', 0.08);
-  setTimeout(()=> playTone(1600, 0.06, 'sine', 0.06), 60);
+// Excel
+setupDropzone('excelZone', 'excelInput', files => {
+  const xls = files.find(f => /\.xlsx?$/i.test(f.name));
+  if (!xls) return alert('Por favor seleccioná un archivo .xlsx');
+  excelFile = xls;
+  const list = document.getElementById('excelList');
+  list.innerHTML = '';
+  list.appendChild(renderFileItem(xls.name, () => { excelFile = null; list.innerHTML = ''; checkReady(); }));
+  checkReady();
+});
+
+// Images
+setupDropzone('imagesZone', 'imagesInput', files => {
+  const imgs = files.filter(f => /image\//i.test(f.type) || /\.(jpe?g|png|webp|gif)$/i.test(f.name));
+  imgs.forEach(img => {
+    imageFiles.push(img);
+    const list = document.getElementById('imagesList');
+    const item = renderFileItem(img.name, () => {
+      const idx = imageFiles.indexOf(img);
+      if (idx > -1) imageFiles.splice(idx, 1);
+      item.remove();
+      checkReady();
+    });
+    list.appendChild(item);
+  });
+  checkReady();
+});
+
+function checkReady() {
+  const btn = document.getElementById('processBtn');
+  const apiKey = document.getElementById('apiKey').value.trim();
+  btn.disabled = !(excelFile && imageFiles.length > 0 && apiKey.length > 10);
+}
+document.getElementById('apiKey').addEventListener('input', checkReady);
+
+// Process
+document.getElementById('processBtn').addEventListener('click', async () => {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) return alert('Ingresá tu API Key de Anthropic');
+  if (!excelFile) return alert('Cargá el archivo Excel');
+  if (!imageFiles.length) return alert('Cargá al menos una imagen de libro');
+
+  const btn = document.getElementById('processBtn');
+  btn.disabled = true;
+  document.getElementById('btnIcon').innerHTML = '<div class="spinner"></div>';
+  document.getElementById('btnText').textContent = 'Procesando...';
+
+  const progressWrap = document.getElementById('progressWrap');
+  progressWrap.style.display = 'block';
+  animateProgress();
+
+  const form = new FormData();
+  form.append('excel_file', excelFile);
+  imageFiles.forEach(img => form.append('images', img));
+  form.append('api_key', apiKey);
+
+  try {
+    const resp = await fetch('/process', { method: 'POST', body: form });
+    const data = await resp.json();
+
+    clearInterval(progressInterval);
+    document.getElementById('progressFill').style.width = '100%';
+
+    if (!resp.ok) {
+      throw new Error(data.detail || 'Error en el servidor');
+    }
+
+    showResults(data);
+  } catch (err) {
+    clearInterval(progressInterval);
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    document.getElementById('btnIcon').textContent = '⚡';
+    document.getElementById('btnText').textContent = 'Completar Planilla';
+  }
+});
+
+let progressInterval;
+function animateProgress() {
+  let val = 0;
+  document.getElementById('progressFill').style.width = '0%';
+  progressInterval = setInterval(() => {
+    val += Math.random() * 8;
+    if (val > 85) val = 85;
+    document.getElementById('progressFill').style.width = val + '%';
+    const n = Math.round(val / 85 * imageFiles.length);
+    document.getElementById('progressLabel').textContent = `Analizando imagen ${Math.min(n+1, imageFiles.length)} de ${imageFiles.length} con Claude...`;
+  }, 1200);
 }
 
-function teletypeSound(){
-  // sequence of short blips
-  const freqs = [700, 600, 760, 680, 720];
-  freqs.forEach((f,i)=> setTimeout(()=> playTone(f, 0.06, 'square', 0.04), i*70));
-}
+function showResults(data) {
+  const results = document.getElementById('results');
+  results.style.display = 'block';
 
-/* ---------------------------
-   DOM helpers & progress
-   --------------------------- */
-const preguntaEl = document.getElementById('pregunta');
-const opcionesEl = document.getElementById('opciones');
-const resultadoBox = document.getElementById('resultadoBox');
-const progBar = document.getElementById('progBar');
-const screenOverlay = document.getElementById('screenOverlay');
+  const badge = document.getElementById('resultBadge');
+  const summary = document.getElementById('resultSummary');
+  const count = data.books_processed || 0;
+  const errCount = (data.errors || []).length;
 
-function actualizarProgreso(){
-  const total = pasos.length;
-  const pct = Math.round( (pasoActual / (total-1)) * 100 );
-  progBar.style.width = pct + '%';
-}
+  badge.textContent = errCount === 0 ? `✓ ${count} libro${count !== 1 ? 's' : ''} procesado${count !== 1 ? 's' : ''}` : `⚠ ${count} ok, ${errCount} error${errCount > 1 ? 'es' : ''}`;
+  badge.className = 'badge ' + (errCount === 0 ? 'badge-ok' : 'badge-err');
+  summary.textContent = `Filas cargadas a partir de la fila 8`;
 
-/* render paso with lighting animation (F) */
-function mostrarPaso(){
-  const paso = pasos[pasoActual];
-  preguntaEl.textContent = paso.pregunta;
-  opcionesEl.innerHTML = '';
-  resultadoBox.style.display = 'none';
-
-  paso.opciones.forEach((op, idx) => {
-    const btn = document.createElement('button');
-    btn.className = idx===0 ? 'btn police-label' : 'btn';
-    btn.textContent = op.texto;
-    btn.onclick = ()=>{
-      // ensure audio context resumed on mobile/Chrome policies
-      if(AudioCtx.state === 'suspended') AudioCtx.resume();
-      clickSound();
-      setTimeout(()=> elegirOpcion(idx), 90);
-    };
-    opcionesEl.appendChild(btn);
+  const tbody = document.getElementById('bookTableBody');
+  tbody.innerHTML = '';
+  (data.books || []).forEach(b => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="row-num">${b.row}</td><td>${b.file}</td><td>${b.titulo || '—'}</td><td>${b.autor || '—'}</td>`;
+    tbody.appendChild(tr);
   });
 
-  const help = document.createElement('button');
-  help.className = 'btn secondary';
-  help.textContent = '❓ Ejemplo';
-  help.onclick = ()=> {
-    resultadoBox.style.display = 'block';
-    resultadoBox.textContent = {
-      0: 'Ejemplo: "Juan se peina" → el pronombre coincide con el sujeto ; "Te vi" → no coincide.',
-      1: 'Refuerzo: probá "a sí mismo" o "entre ellos". Si suena natural, admite refuerzo.',
-      2: 'Mutua = uno al otro. Reflejo puro = la acción recae sobre cada uno.',
-      3: 'Si el verbo aparece solo en 3ª persona (avisos: "se vende") puede ser pasiva/impersonal.',
-      4: 'Mirar si el verbo concuerda con lo que sigue: "Se abrieron las puertas" (concuerda) vs "Aquí se trabaja" (no concuerda).'
-    }[pasoActual] || 'Pista general';
-    // small effect + teletype sound
-    teletypeSound();
-  };
-  opcionesEl.appendChild(help);
+  const errList = document.getElementById('errorList');
+  errList.innerHTML = '';
+  (data.errors || []).forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'error-item';
+    div.textContent = `❌ ${e.file}: ${e.error}`;
+    errList.appendChild(div);
+  });
 
-  // lighting pulse effect
-  spotlightPulse();
-  actualizarProgreso();
-}
-
-/* spotlight pulse (dynamic lighting) */
-function spotlightPulse(){
-  const el = screenOverlay;
-  el.style.transition = 'none';
-  el.style.setProperty('--mx', Math.random()*80 + '%');
-  el.style.setProperty('--my', Math.random()*60 + '%');
-  setTimeout(()=> el.style.transition = 'background 0.6s ease', 10);
-  folderOpenSound();
-}
-
-/* elegir opción */
-function elegirOpcion(idx){
-  const paso = pasos[pasoActual];
-  const opcion = paso.opciones[idx];
-
-  if(opcion.resultado){
-    preguntaEl.textContent = '📁 Caso resuelto';
-    opcionesEl.innerHTML = `<button class="btn" id="volver">🔁 Volver a investigar</button>`;
-    resultadoBox.style.display = 'block';
-    resultadoBox.innerHTML = `<div style="font-size:15px">${opcion.resultado}</div><div style="margin-top:8px;font-size:13px;color:var(--muted)">Tocá este recuadro para escuchar la fanfarria.</div>`;
-    document.getElementById('volver').onclick = ()=> { pasoActual = 0; mostrarPaso(); };
-    winSound();
-    resultadoBox.onclick = ()=> winSound();
-    progBar.style.width = '100%';
-    setTimeout(()=> cameraShutter(), 140);
-  } else if(opcion.siguiente !== undefined){
-    pasoActual = opcion.siguiente;
-    teletypeSound();
-    mostrarPaso();
+  if (data.download_path) {
+    const dlBtn = document.getElementById('downloadBtn');
+    dlBtn.href = data.download_path;
+    dlBtn.style.display = 'flex';
+    dlBtn.setAttribute('download', '');
   }
+
+  // Scroll to results
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-
-/* mouse-follow spotlight (B) */
-document.addEventListener('mousemove', (e)=>{
-  const x = (e.clientX / window.innerWidth) * 100 + '%';
-  const y = (e.clientY / window.innerHeight) * 100 + '%';
-  screenOverlay.style.setProperty('--mx', x);
-  screenOverlay.style.setProperty('--my', y);
-});
-
-/* Start button */
-document.getElementById('startBtn').addEventListener('click', ()=>{
-  if (AudioCtx.state === 'suspended') AudioCtx.resume();
-  pasoActual = 0;
-  mostrarPaso();
-  clickSound();
-  setTimeout(()=> folderOpenSound(), 120);
-});
-
-/* Download ZIP handler: ask the assistant to generate */
-document.getElementById('downloadZipBtn').addEventListener('click', ()=>{
-  alert('Si querés, genero ahora mismo el ZIP con este HTML listo para descargar. Decime "sí, ZIP" y lo creo.');
-});
-
-// init UI
-mostrarPaso();
 </script>
 </body>
 </html>
