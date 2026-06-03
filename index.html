@@ -3,368 +3,494 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Completador ML — Libros Físicos</title>
+<title>Planilla ML — Libros Físicos</title>
 <style>
 :root{
-  --bg:#0a0f1a;
-  --card:#111827;
-  --border:#1f2937;
-  --accent:#3b82f6;
-  --accent2:#10b981;
-  --warn:#f59e0b;
-  --err:#ef4444;
-  --text:#f1f5f9;
-  --muted:#94a3b8;
-  --radius:12px;
+  --bg:#0d1117;--card:#161b22;--border:#30363d;
+  --accent:#58a6ff;--green:#3fb950;--warn:#d29922;--red:#f85149;
+  --text:#e6edf3;--muted:#8b949e;--radius:8px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;padding:24px 16px;}
-.container{max-width:880px;margin:0 auto;}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;padding:20px 16px;font-size:14px;}
+.wrap{max-width:1100px;margin:0 auto;}
 
-/* Header */
-.header{display:flex;align-items:center;gap:16px;margin-bottom:32px;}
-.logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#1d4ed8,#2563eb);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
-.header-text h1{font-size:22px;font-weight:700;letter-spacing:-0.3px;}
-.header-text p{color:var(--muted);font-size:13px;margin-top:3px;}
+h1{font-size:18px;font-weight:600;margin-bottom:4px;}
+.sub{color:var(--muted);font-size:13px;margin-bottom:24px;}
 
-/* Cards */
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
-.card-title{font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
-.card-title span{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;}
+/* sections */
+.section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+.section-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:12px;}
 
-/* Form */
-label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px;}
-input[type=text],input[type=password]{width:100%;background:#0d1424;border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;outline:none;transition:border-color .15s;}
-input[type=text]:focus,input[type=password]:focus{border-color:var(--accent);}
+/* api key */
+.key-row{display:flex;gap:8px;align-items:center;}
+input[type=password],input[type=text]{flex:1;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;}
+input:focus{border-color:var(--accent);}
+.toggle{background:none;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--muted);cursor:pointer;font-size:12px;white-space:nowrap;}
+.toggle:hover{border-color:var(--accent);color:var(--accent);}
 
-/* Drop zones */
-.dropzone{border:2px dashed var(--border);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#0d1424;}
-.dropzone:hover,.dropzone.drag-over{border-color:var(--accent);background:rgba(59,130,246,0.04);}
-.dropzone svg{margin-bottom:10px;opacity:0.5;}
-.dropzone p{font-size:13px;color:var(--muted);}
-.dropzone p strong{color:var(--text);}
-.dropzone input{display:none;}
+/* dropzone */
+.drop{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(88,166,255,.04);}
+.drop p{color:var(--muted);font-size:13px;margin-top:6px;}
+.drop input{display:none;}
 
-/* File list */
-.file-list{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
-.file-item{display:flex;align-items:center;gap:10px;background:#0d1424;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;}
-.file-item .icon{font-size:16px;flex-shrink:0;}
-.file-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.file-item .remove{cursor:pointer;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:4px;}
-.file-item .remove:hover{color:var(--err);background:rgba(239,68,68,0.1);}
+/* thumbs */
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.thumb{position:relative;width:72px;}
+.thumb img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--border);}
+.thumb .del{position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+.thumb .fname{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}
 
-/* Button */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;border-radius:9px;border:none;cursor:pointer;font-size:15px;font-weight:600;transition:all .15s;}
-.btn-primary{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;}
-.btn-primary:hover:not(:disabled){background:linear-gradient(135deg,#3b82f6,#2563eb);transform:translateY(-1px);}
-.btn-primary:disabled{opacity:0.45;cursor:not-allowed;transform:none;}
-.btn-full{width:100%;}
+/* button */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border-radius:6px;border:none;cursor:pointer;font-size:14px;font-weight:500;transition:opacity .15s;}
+.btn-primary{background:var(--accent);color:#0d1117;}
+.btn-primary:hover:not(:disabled){opacity:.85;}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text);}
+.btn-outline:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+.btn-outline:disabled{opacity:.35;cursor:not-allowed;}
+.btn-green{background:var(--green);color:#0d1117;}
+.btn-green:hover{opacity:.85;}
 
-/* Progress */
-.progress-wrap{margin-top:20px;display:none;}
-.progress-label{font-size:13px;color:var(--muted);margin-bottom:8px;}
-.progress-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden;}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .3s ease;}
+/* progress */
+.progress{height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin:10px 0;}
+.progress-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .4s ease;}
+.status{font-size:12px;color:var(--muted);min-height:16px;}
 
-/* Results */
-.results{display:none;margin-top:20px;}
-.result-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-.result-header .badge{padding:4px 12px;border-radius:99px;font-size:12px;font-weight:600;}
-.badge-ok{background:rgba(16,185,129,0.15);color:var(--accent2);}
-.badge-err{background:rgba(239,68,68,0.12);color:var(--err);}
+/* table */
+.table-wrap{overflow-x:auto;margin-top:12px;}
+table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;}
+th{position:sticky;top:0;background:#1c2128;padding:6px 8px;text-align:left;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
+td{padding:5px 8px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:top;}
+td[contenteditable]{outline:none;min-width:60px;white-space:normal;}
+td[contenteditable]:focus{background:rgba(88,166,255,.08);border-radius:3px;}
+tr:last-child td{border-bottom:none;}
+.row-n{color:var(--muted);font-variant-numeric:tabular-nums;text-align:center;}
+.err-row td{background:rgba(248,81,73,.06);}
+.err-msg{color:var(--red);font-size:11px;}
 
-.book-table{width:100%;border-collapse:collapse;font-size:13px;}
-.book-table th{text-align:left;padding:8px 10px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:500;}
-.book-table td{padding:8px 10px;border-bottom:1px solid rgba(31,41,55,0.6);color:var(--text);}
-.book-table tr:last-child td{border-bottom:none;}
-.book-table .row-num{color:var(--muted);font-variant-numeric:tabular-nums;}
+/* badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(63,185,80,.15);color:var(--green);}
+.badge-err{background:rgba(248,81,73,.12);color:var(--red);}
 
-.download-btn{display:flex;align-items:center;gap:10px;margin-top:20px;padding:14px 20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;cursor:pointer;text-decoration:none;color:var(--accent2);font-weight:600;font-size:15px;transition:all .15s;}
-.download-btn:hover{background:rgba(16,185,129,0.18);}
+/* actions row */
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
 
-.error-list{margin-top:12px;}
-.error-item{padding:8px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px;color:#fca5a5;margin-bottom:6px;}
-
-/* Steps indicator */
-.steps{display:flex;gap:0;margin-bottom:28px;}
-.step{flex:1;text-align:center;position:relative;}
-.step:not(:last-child)::after{content:'';position:absolute;top:14px;left:50%;width:100%;height:2px;background:var(--border);z-index:0;}
-.step.done::after{background:var(--accent);}
-.step-circle{width:28px;height:28px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin:0 auto 6px;position:relative;z-index:1;}
-.step.active .step-circle{background:var(--accent);color:#fff;}
-.step.done .step-circle{background:var(--accent2);color:#fff;}
-.step-label{font-size:11px;color:var(--muted);}
-.step.active .step-label{color:var(--text);}
-
-/* Info box */
-.info-box{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px 16px;font-size:13px;color:#93c5fd;line-height:1.6;}
-.info-box strong{color:#bfdbfe;}
-
-/* Loading spinner */
+/* spinner */
 @keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
-
-/* Responsive */
-@media(max-width:600px){
-  .steps{display:none;}
-  .card{padding:16px;}
-}
+.spin{width:14px;height:14px;border:2px solid rgba(13,17,23,.4);border-top-color:#0d1117;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
 </style>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
 
-  <div class="header">
-    <div class="logo">📚</div>
-    <div class="header-text">
-      <h1>Completador de Planilla ML — Libros Físicos</h1>
-      <p>Cargá el Excel original de Mercado Libre + imágenes de libros → obtenés la planilla lista para publicar</p>
-    </div>
+<h1>📚 Completador de Planilla ML — Libros Físicos</h1>
+<p class="sub">Subí imágenes de libros → Claude extrae los datos → copiás el CSV y lo pegás en la planilla desde la fila 8.</p>
+
+<!-- API Key -->
+<div class="section">
+  <div class="section-title">API Key de Anthropic</div>
+  <div class="key-row">
+    <input type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off"/>
+    <button class="toggle" id="toggleKey">mostrar</button>
   </div>
-
-  <div class="steps">
-    <div class="step done" id="step1"><div class="step-circle">1</div><div class="step-label">Config</div></div>
-    <div class="step active" id="step2"><div class="step-circle">2</div><div class="step-label">Archivos</div></div>
-    <div class="step" id="step3"><div class="step-circle">3</div><div class="step-label">Procesar</div></div>
-    <div class="step" id="step4"><div class="step-circle">4</div><div class="step-label">Descargar</div></div>
-  </div>
-
-  <!-- API Key -->
-  <div class="card">
-    <div class="card-title"><span></span>API Key de Anthropic</div>
-    <label for="apiKey">Ingresá tu API Key de Anthropic (Claude)</label>
-    <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off"/>
-    <div class="info-box" style="margin-top:12px">
-      <strong>¿No tenés API Key?</strong> Creá una en <strong>console.anthropic.com</strong> → API Keys. El procesamiento usa el modelo <strong>claude-opus-4-8</strong> con visión de imágenes. Se descuenta de tu cuenta Anthropic.
-    </div>
-  </div>
-
-  <!-- Excel upload -->
-  <div class="card">
-    <div class="card-title"><span></span>1. Planilla Excel Original de Mercado Libre</div>
-    <div class="dropzone" id="excelZone">
-      <input type="file" id="excelInput" accept=".xlsx,.xls"/>
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-      <p><strong>Arrastrá el archivo .xlsx</strong> o hacé click para seleccionar</p>
-      <p style="font-size:12px;margin-top:4px;">Solo archivos Excel (.xlsx) — planilla original de MercadoLibre sin modificar</p>
-    </div>
-    <div class="file-list" id="excelList"></div>
-  </div>
-
-  <!-- Images upload -->
-  <div class="card">
-    <div class="card-title"><span></span>2. Imágenes de Libros</div>
-    <div class="dropzone" id="imagesZone">
-      <input type="file" id="imagesInput" accept="image/*" multiple/>
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      <p><strong>Arrastrá las imágenes de los libros</strong> o hacé click para seleccionar</p>
-      <p style="font-size:12px;margin-top:4px;">JPG, PNG, WEBP — una imagen por libro = una fila en la planilla</p>
-    </div>
-    <div class="file-list" id="imagesList"></div>
-  </div>
-
-  <!-- Process button -->
-  <div class="card">
-    <div class="card-title"><span></span>3. Procesamiento</div>
-    <div class="info-box" style="margin-bottom:16px;">
-      Cada imagen se analiza con Claude para extraer: título, autor, editorial, ISBN, idioma, tipo de tapa, medidas estimadas y más. El proceso puede tardar 10-30 segundos según la cantidad de libros.
-    </div>
-    <button class="btn btn-primary btn-full" id="processBtn" disabled>
-      <span id="btnIcon">⚡</span>
-      <span id="btnText">Completar Planilla</span>
-    </button>
-
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-label" id="progressLabel">Procesando imágenes con Claude...</div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    </div>
-
-    <div class="results" id="results">
-      <div class="result-header">
-        <span id="resultBadge" class="badge badge-ok">✓ Listo</span>
-        <span id="resultSummary" style="font-size:14px;color:var(--muted);"></span>
-      </div>
-      <table class="book-table" id="bookTable">
-        <thead>
-          <tr>
-            <th>Fila</th>
-            <th>Archivo</th>
-            <th>Título detectado</th>
-            <th>Autor</th>
-          </tr>
-        </thead>
-        <tbody id="bookTableBody"></tbody>
-      </table>
-      <div class="error-list" id="errorList"></div>
-      <a class="download-btn" id="downloadBtn" href="#" style="display:none;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Descargar Planilla Completada (.xlsx)
-      </a>
-    </div>
-  </div>
-
+  <p style="color:var(--muted);font-size:12px;margin-top:8px;">La clave se guarda solo en este navegador (localStorage). Nunca se envía a ningún servidor propio.</p>
 </div>
 
+<!-- Images -->
+<div class="section">
+  <div class="section-title">Imágenes de libros <span style="font-weight:400;text-transform:none;letter-spacing:0">(una imagen = una fila)</span></div>
+  <div class="drop" id="drop">
+    <input type="file" id="fileInput" accept="image/*" multiple/>
+    <div style="font-size:28px;">🖼️</div>
+    <p><strong>Arrastrá las fotos aquí</strong> o hacé click para seleccionar</p>
+    <p>JPG · PNG · WEBP — podés subir varias a la vez</p>
+  </div>
+  <div class="thumbs" id="thumbs"></div>
+</div>
+
+<!-- Process -->
+<div class="section">
+  <div class="section-title">Proceso</div>
+  <div class="actions" style="margin-top:0;margin-bottom:10px;">
+    <button class="btn btn-primary" id="processBtn" disabled>
+      <span id="btnIcon">⚡</span> Analizar con Claude
+    </button>
+    <button class="btn btn-outline" id="clearBtn" disabled>Limpiar todo</button>
+  </div>
+  <div class="progress"><div class="progress-fill" id="pbar" style="width:0%"></div></div>
+  <div class="status" id="status"></div>
+</div>
+
+<!-- Results -->
+<div class="section" id="resultSection" style="display:none;">
+  <div class="section-title">Resultados <span id="resultBadge"></span></div>
+  <p style="color:var(--muted);font-size:12px;margin-bottom:8px;">Podés editar cualquier celda antes de exportar. Hacé click en la celda y escribí.</p>
+
+  <div class="table-wrap">
+    <table id="tbl">
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-green" id="csvBtn">⬇ Descargar CSV</button>
+    <button class="btn btn-outline" id="copyBtn">📋 Copiar al portapapeles</button>
+    <span style="color:var(--muted);font-size:12px;">Pegá en la planilla Excel desde la celda A8 (Ctrl+V)</span>
+  </div>
+</div>
+
+</div>
 <script>
-let excelFile = null;
-const imageFiles = [];
+// ── Column definitions (order = CSV column order, matching ML template) ──────
+const COLS = [
+  { key:'titulo_ml',       label:'Título (ML)',                    fixed: null },
+  { key:'condicion',       label:'Condición',                      fixed:'Usado' },
+  { key:'isbn',            label:'ISBN',                           fixed: null },
+  { key:'fotos',           label:'Fotos',                          fixed:'' },
+  { key:'stock',           label:'Stock',                          fixed:'1' },
+  { key:'sku',             label:'SKU',                            fixed:'' },
+  { key:'precio',          label:'Precio',                         fixed:'' },
+  { key:'descripcion',     label:'Descripción',                    fixed:'Librería Los Siete Pilares / Buen estado. Se retira por zona de Paraguay y Reconquista' },
+  { key:'ancho',           label:'Ancho (cm)',                     fixed: null },
+  { key:'alto',            label:'Alto (cm)',                      fixed: null },
+  { key:'profundidad',     label:'Profundidad (cm)',               fixed: null },
+  { key:'peso',            label:'Peso físico (kg)',               fixed: null },
+  { key:'envio',           label:'Forma de envío',                 fixed:'Mercado Envíos | Mercado Envío Flex' },
+  { key:'costo_envio',     label:'Costo de envío',                 fixed:'A cargo del comprador' },
+  { key:'retiro',          label:'Retiro en persona',              fixed:'Acepto' },
+  { key:'tipo_garantia',   label:'Tipo de garantía',               fixed:'Garantía del vendedor' },
+  { key:'tiempo_garantia', label:'Tiempo de garantía',             fixed:'1' },
+  { key:'unidad_garantia', label:'Unidad de Tiempo de garantía',   fixed:'meses' },
+  { key:'titulo_libro',    label:'Título del libro',               fixed: null },
+  { key:'autor',           label:'Autor',                          fixed: null },
+  { key:'editorial',       label:'Editorial del libro',            fixed: null },
+  { key:'subtitulo',       label:'Subtítulo del libro',            fixed: null },
+  { key:'serie',           label:'Serie',                          fixed: null },
+  { key:'edicion',         label:'Edición del libro',              fixed: null },
+  { key:'volumen',         label:'Volumen del libro',              fixed: null },
+  { key:'anio',            label:'Año de publicación',             fixed: null },
+  { key:'idioma',          label:'Idioma',                         fixed: null },
+  { key:'tapa',            label:'Tapa del libro',                 fixed: null },
+];
 
-// Drag & Drop helpers
-function setupDropzone(zoneId, inputId, onFiles) {
-  const zone = document.getElementById(zoneId);
-  const input = document.getElementById(inputId);
-
-  zone.addEventListener('click', () => input.click());
-  input.addEventListener('change', () => onFiles(Array.from(input.files)));
-
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault(); zone.classList.remove('drag-over');
-    onFiles(Array.from(e.dataTransfer.files));
-  });
+function truncateTitle(s, max=60) {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > 0 ? cut.slice(0, sp) : cut).trim();
 }
 
-function renderFileItem(name, onRemove) {
-  const div = document.createElement('div');
-  div.className = 'file-item';
-  const isImg = /\.(jpe?g|png|webp|gif)$/i.test(name);
-  div.innerHTML = `<span class="icon">${isImg ? '🖼️' : '📊'}</span><span class="name">${name}</span><span class="remove" title="Quitar">✕</span>`;
-  div.querySelector('.remove').addEventListener('click', onRemove);
-  return div;
+function buildMlTitle(titulo, autor) {
+  const raw = `${titulo} ${autor} Microcentro`.replace(/\s+/g, ' ').trim();
+  return truncateTitle(raw, 60);
 }
 
-// Excel
-setupDropzone('excelZone', 'excelInput', files => {
-  const xls = files.find(f => /\.xlsx?$/i.test(f.name));
-  if (!xls) return alert('Por favor seleccioná un archivo .xlsx');
-  excelFile = xls;
-  const list = document.getElementById('excelList');
-  list.innerHTML = '';
-  list.appendChild(renderFileItem(xls.name, () => { excelFile = null; list.innerHTML = ''; checkReady(); }));
-  checkReady();
+function rowFromBook(book) {
+  const row = {};
+  COLS.forEach(c => { row[c.key] = c.fixed !== null ? c.fixed : ''; });
+  row.titulo_libro  = book.titulo_libro  || '';
+  row.autor         = book.autor         || '';
+  row.editorial     = book.editorial     || '';
+  row.subtitulo     = book.subtitulo     || '';
+  row.serie         = book.serie         || '';
+  row.edicion       = book.edicion       || '';
+  row.volumen       = book.volumen       || '';
+  row.anio          = book.anio_publicacion || '';
+  row.isbn          = book.isbn          || '';
+  row.idioma        = book.idioma        || 'Español';
+  row.tapa          = book.tapa          || '';
+  row.ancho         = book.ancho_cm      != null ? String(book.ancho_cm)      : '';
+  row.alto          = book.alto_cm       != null ? String(book.alto_cm)       : '';
+  row.profundidad   = book.profundidad_cm != null ? String(book.profundidad_cm) : '';
+  row.peso          = book.peso_kg       != null ? String(book.peso_kg)       : '';
+  if (row.titulo_libro) {
+    row.titulo_ml = buildMlTitle(row.titulo_libro, row.autor);
+  }
+  return row;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const images = []; // {file, url}
+let results  = []; // {row, error, data}
+
+// ── Persist API key ───────────────────────────────────────────────────────────
+const keyInput = document.getElementById('apiKey');
+keyInput.value = localStorage.getItem('ml_api_key') || '';
+keyInput.addEventListener('input', () => localStorage.setItem('ml_api_key', keyInput.value.trim()));
+document.getElementById('toggleKey').addEventListener('click', function(){
+  const show = keyInput.type === 'password';
+  keyInput.type = show ? 'text' : 'password';
+  this.textContent = show ? 'ocultar' : 'mostrar';
 });
 
-// Images
-setupDropzone('imagesZone', 'imagesInput', files => {
-  const imgs = files.filter(f => /image\//i.test(f.type) || /\.(jpe?g|png|webp|gif)$/i.test(f.name));
-  imgs.forEach(img => {
-    imageFiles.push(img);
-    const list = document.getElementById('imagesList');
-    const item = renderFileItem(img.name, () => {
-      const idx = imageFiles.indexOf(img);
-      if (idx > -1) imageFiles.splice(idx, 1);
-      item.remove();
-      checkReady();
-    });
-    list.appendChild(item);
+// ── Dropzone ──────────────────────────────────────────────────────────────────
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const thumbsEl = document.getElementById('thumbs');
+
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files]); });
+
+function addFiles(files) {
+  files.filter(f => f.type.startsWith('image/')).forEach(f => {
+    const url = URL.createObjectURL(f);
+    images.push({file: f, url});
+    renderThumb(images.length - 1);
   });
   checkReady();
-});
+}
 
+function renderThumb(i) {
+  const {file, url} = images[i];
+  const wrap = document.createElement('div');
+  wrap.className = 'thumb';
+  wrap.dataset.idx = i;
+  wrap.innerHTML = `<img src="${url}" alt=""/><button class="del" title="Quitar">✕</button><div class="fname">${file.name}</div>`;
+  wrap.querySelector('.del').addEventListener('click', () => {
+    images.splice(i, 1);
+    thumbsEl.innerHTML = '';
+    images.forEach((_, j) => renderThumb(j));
+    checkReady();
+  });
+  thumbsEl.appendChild(wrap);
+}
+
+// ── Readiness ─────────────────────────────────────────────────────────────────
 function checkReady() {
-  const btn = document.getElementById('processBtn');
-  const apiKey = document.getElementById('apiKey').value.trim();
-  btn.disabled = !(excelFile && imageFiles.length > 0 && apiKey.length > 10);
+  const ok = keyInput.value.trim().length > 10 && images.length > 0;
+  document.getElementById('processBtn').disabled = !ok;
+  document.getElementById('clearBtn').disabled   = images.length === 0 && results.length === 0;
 }
-document.getElementById('apiKey').addEventListener('input', checkReady);
+keyInput.addEventListener('input', checkReady);
 
-// Process
+document.getElementById('clearBtn').addEventListener('click', () => {
+  images.length = 0;
+  results.length = 0;
+  thumbsEl.innerHTML = '';
+  document.getElementById('resultSection').style.display = 'none';
+  setStatus(''); setPbar(0);
+  checkReady();
+});
+
+// ── Claude API call ───────────────────────────────────────────────────────────
+async function analyzeImage(apiKey, file) {
+  const b64 = await toBase64(file);
+  const mt   = file.type || 'image/jpeg';
+
+  const prompt = `Analizá esta imagen de un libro y devolvé SOLO un objeto JSON con estas claves (sin markdown, sin texto extra):
+{
+  "titulo_libro": "título exacto",
+  "autor": "nombre del autor tal como aparece",
+  "editorial": "editorial o null",
+  "subtitulo": "subtítulo o null",
+  "serie": "serie/colección o null",
+  "edicion": "número de edición o null",
+  "volumen": "número de volumen o null",
+  "anio_publicacion": "año o null",
+  "isbn": "ISBN completo si es CLARAMENTE visible, sino null",
+  "idioma": "Español / Inglés / etc.",
+  "tapa": "Dura o Blanda",
+  "ancho_cm": número entero (ancho del libro en cm),
+  "alto_cm": número entero (alto del libro en cm),
+  "profundidad_cm": número entero (grosor del libro en cm),
+  "peso_kg": número entero (peso estimado, generalmente 1)
+}
+Medidas típicas: bolsillo 19×13×2 cm, estándar 23×16×3 cm, grande 28×22×4 cm.
+NO inventar ISBN. Si no se ve claramente, null.`;
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-8',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mt, data: b64 } },
+          { type: 'text',  text: prompt }
+        ]
+      }]
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  let raw = data.content[0].text.trim();
+  raw = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'');
+  return JSON.parse(raw);
+}
+
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ── Process ───────────────────────────────────────────────────────────────────
 document.getElementById('processBtn').addEventListener('click', async () => {
-  const apiKey = document.getElementById('apiKey').value.trim();
-  if (!apiKey) return alert('Ingresá tu API Key de Anthropic');
-  if (!excelFile) return alert('Cargá el archivo Excel');
-  if (!imageFiles.length) return alert('Cargá al menos una imagen de libro');
+  const apiKey = keyInput.value.trim();
+  if (!apiKey) return;
+
+  results.length = 0;
+  document.getElementById('resultSection').style.display = 'none';
 
   const btn = document.getElementById('processBtn');
   btn.disabled = true;
-  document.getElementById('btnIcon').innerHTML = '<div class="spinner"></div>';
-  document.getElementById('btnText').textContent = 'Procesando...';
+  document.getElementById('btnIcon').innerHTML = '<div class="spin"></div>';
 
-  const progressWrap = document.getElementById('progressWrap');
-  progressWrap.style.display = 'block';
-  animateProgress();
-
-  const form = new FormData();
-  form.append('excel_file', excelFile);
-  imageFiles.forEach(img => form.append('images', img));
-  form.append('api_key', apiKey);
-
-  try {
-    const resp = await fetch('/process', { method: 'POST', body: form });
-    const data = await resp.json();
-
-    clearInterval(progressInterval);
-    document.getElementById('progressFill').style.width = '100%';
-
-    if (!resp.ok) {
-      throw new Error(data.detail || 'Error en el servidor');
+  for (let i = 0; i < images.length; i++) {
+    const {file} = images[i];
+    setPbar(Math.round((i / images.length) * 90));
+    setStatus(`Analizando ${i + 1} de ${images.length}: ${file.name}…`);
+    try {
+      const book = await analyzeImage(apiKey, file);
+      results.push({ file: file.name, row: 8 + i, data: rowFromBook(book), error: null });
+    } catch(e) {
+      results.push({ file: file.name, row: 8 + i, data: null, error: e.message });
     }
-
-    showResults(data);
-  } catch (err) {
-    clearInterval(progressInterval);
-    alert('Error: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    document.getElementById('btnIcon').textContent = '⚡';
-    document.getElementById('btnText').textContent = 'Completar Planilla';
   }
+
+  setPbar(100);
+  setStatus(`Listo — ${results.filter(r => !r.error).length} libro(s) procesado(s).`);
+  btn.disabled = false;
+  document.getElementById('btnIcon').textContent = '⚡';
+
+  renderTable();
+  checkReady();
 });
 
-let progressInterval;
-function animateProgress() {
-  let val = 0;
-  document.getElementById('progressFill').style.width = '0%';
-  progressInterval = setInterval(() => {
-    val += Math.random() * 8;
-    if (val > 85) val = 85;
-    document.getElementById('progressFill').style.width = val + '%';
-    const n = Math.round(val / 85 * imageFiles.length);
-    document.getElementById('progressLabel').textContent = `Analizando imagen ${Math.min(n+1, imageFiles.length)} de ${imageFiles.length} con Claude...`;
-  }, 1200);
-}
+// ── Table ─────────────────────────────────────────────────────────────────────
+function renderTable() {
+  const section = document.getElementById('resultSection');
+  section.style.display = '';
 
-function showResults(data) {
-  const results = document.getElementById('results');
-  results.style.display = 'block';
+  // badge
+  const ok  = results.filter(r => !r.error).length;
+  const err = results.filter(r =>  r.error).length;
+  document.getElementById('resultBadge').innerHTML =
+    `<span class="badge badge-ok">${ok} ok</span>` +
+    (err ? ` <span class="badge badge-err">${err} error</span>` : '');
 
-  const badge = document.getElementById('resultBadge');
-  const summary = document.getElementById('resultSummary');
-  const count = data.books_processed || 0;
-  const errCount = (data.errors || []).length;
+  // header
+  const thead = document.getElementById('thead');
+  thead.innerHTML = '<tr><th>#</th><th>Archivo</th>' +
+    COLS.map(c => `<th>${c.label}</th>`).join('') + '</tr>';
 
-  badge.textContent = errCount === 0 ? `✓ ${count} libro${count !== 1 ? 's' : ''} procesado${count !== 1 ? 's' : ''}` : `⚠ ${count} ok, ${errCount} error${errCount > 1 ? 'es' : ''}`;
-  badge.className = 'badge ' + (errCount === 0 ? 'badge-ok' : 'badge-err');
-  summary.textContent = `Filas cargadas a partir de la fila 8`;
-
-  const tbody = document.getElementById('bookTableBody');
+  // body
+  const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
-  (data.books || []).forEach(b => {
+
+  results.forEach(r => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="row-num">${b.row}</td><td>${b.file}</td><td>${b.titulo || '—'}</td><td>${b.autor || '—'}</td>`;
+    if (r.error) {
+      tr.className = 'err-row';
+      tr.innerHTML = `<td class="row-n">${r.row}</td><td>${r.file}</td>` +
+        `<td colspan="${COLS.length}" class="err-msg">❌ ${r.error}</td>`;
+    } else {
+      tr.innerHTML = `<td class="row-n">${r.row}</td><td>${r.file}</td>` +
+        COLS.map(c => `<td contenteditable="true" data-key="${c.key}" data-row="${r.row}">${esc(r.data[c.key] ?? '')}</td>`).join('');
+    }
     tbody.appendChild(tr);
   });
 
-  const errList = document.getElementById('errorList');
-  errList.innerHTML = '';
-  (data.errors || []).forEach(e => {
-    const div = document.createElement('div');
-    div.className = 'error-item';
-    div.textContent = `❌ ${e.file}: ${e.error}`;
-    errList.appendChild(div);
+  // sync edits back to results
+  tbody.addEventListener('input', e => {
+    const td = e.target.closest('td[contenteditable]');
+    if (!td) return;
+    const row = parseInt(td.dataset.row);
+    const key = td.dataset.key;
+    const found = results.find(r => r.row === row);
+    if (found && found.data) found.data[key] = td.innerText;
   });
-
-  if (data.download_path) {
-    const dlBtn = document.getElementById('downloadBtn');
-    dlBtn.href = data.download_path;
-    dlBtn.style.display = 'flex';
-    dlBtn.setAttribute('download', '');
-  }
-
-  // Scroll to results
-  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function buildCsvContent() {
+  const rows = results.filter(r => !r.error);
+  if (!rows.length) return '';
+  const lines = rows.map(r =>
+    COLS.map(c => csvCell(r.data[c.key] ?? '')).join(',')
+  );
+  return lines.join('\r\n');
+}
+
+function csvCell(v) {
+  const s = String(v ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+document.getElementById('csvBtn').addEventListener('click', () => {
+  const csv = buildCsvContent();
+  if (!csv) return alert('No hay datos para exportar.');
+  const blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8'});
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: 'libros_ml.csv'
+  });
+  a.click();
+});
+
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const csv = buildCsvContent();
+  if (!csv) return alert('No hay datos para copiar.');
+  // Convert CSV to tab-separated for direct paste into Excel
+  const tsv = csv.split('\r\n').map(line => {
+    // simple CSV→TSV: split by comma respecting quotes
+    return parseCsvLine(line).join('\t');
+  }).join('\r\n');
+  try {
+    await navigator.clipboard.writeText(tsv);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ Copiado';
+    setTimeout(() => btn.textContent = '📋 Copiar al portapapeles', 2000);
+  } catch {
+    alert('No se pudo copiar. Usá el botón "Descargar CSV" en su lugar.');
+  }
+});
+
+function parseCsvLine(line) {
+  const out = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === ',' && !inQ) { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setPbar(pct)   { document.getElementById('pbar').style.width = pct + '%'; }
 </script>
 </body>
 </html>
