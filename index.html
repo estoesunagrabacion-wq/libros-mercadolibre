@@ -105,7 +105,7 @@ tr:last-child td{border-bottom:none;}
     <input type="file" id="fileInput" accept="image/*" multiple/>
     <div style="font-size:28px;">🖼️</div>
     <p><strong>Arrastrá las fotos aquí</strong> o hacé click para seleccionar</p>
-    <p>JPG · PNG · WEBP — podés subir varias a la vez</p>
+    <p>JPG · PNG · WEBP — una foto puede tener varios libros; cada uno genera su propia fila</p>
   </div>
   <div class="thumbs" id="thumbs"></div>
 </div>
@@ -283,7 +283,11 @@ async function analyzeImage(apiKey, file) {
   const b64 = await toBase64(file);
   const mt   = file.type || 'image/jpeg';
 
-  const prompt = `Analizá esta imagen de un libro y devolvé SOLO un objeto JSON con estas claves (sin markdown, sin texto extra):
+  const prompt = `Analizá esta imagen. Puede mostrar UNO o VARIOS libros.
+Devolvé SOLO un array JSON — un objeto por cada libro visible — sin markdown ni texto extra.
+Si hay un solo libro, devolvé igual un array con un elemento.
+
+Formato de cada objeto:
 {
   "titulo_libro": "título exacto",
   "autor": "nombre del autor tal como aparece",
@@ -296,13 +300,14 @@ async function analyzeImage(apiKey, file) {
   "isbn": "ISBN completo si es CLARAMENTE visible, sino null",
   "idioma": "Español / Inglés / etc.",
   "tapa": "Dura o Blanda",
-  "ancho_cm": número entero (ancho del libro en cm),
-  "alto_cm": número entero (alto del libro en cm),
-  "profundidad_cm": número entero (grosor del libro en cm),
+  "ancho_cm": número entero (ancho en cm),
+  "alto_cm": número entero (alto en cm),
+  "profundidad_cm": número entero (grosor en cm),
   "peso_kg": número entero (peso estimado, generalmente 1)
 }
 Medidas típicas: bolsillo 19×13×2 cm, estándar 23×16×3 cm, grande 28×22×4 cm.
-NO inventar ISBN. Si no se ve claramente, null.`;
+NO inventar ISBN. Si no se ve claramente, null.
+Incluí TODOS los libros que puedas identificar en la imagen.`;
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -333,7 +338,9 @@ NO inventar ISBN. Si no se ve claramente, null.`;
   const data = await resp.json();
   let raw = data.content[0].text.trim();
   raw = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'');
-  return JSON.parse(raw);
+  const parsed = JSON.parse(raw);
+  // Normalise: always return an array
+  return Array.isArray(parsed) ? parsed : [parsed];
 }
 
 function toBase64(file) {
@@ -357,20 +364,24 @@ document.getElementById('processBtn').addEventListener('click', async () => {
   btn.disabled = true;
   document.getElementById('btnIcon').innerHTML = '<div class="spin"></div>';
 
+  let nextRow = 8;
   for (let i = 0; i < images.length; i++) {
     const {file} = images[i];
     setPbar(Math.round((i / images.length) * 90));
-    setStatus(`Analizando ${i + 1} de ${images.length}: ${file.name}…`);
+    setStatus(`Analizando imagen ${i + 1} de ${images.length}: ${file.name}…`);
     try {
-      const book = await analyzeImage(apiKey, file);
-      results.push({ file: file.name, row: 8 + i, data: rowFromBook(book), error: null });
+      const books = await analyzeImage(apiKey, file);
+      books.forEach(book => {
+        results.push({ file: file.name, row: nextRow++, data: rowFromBook(book), error: null });
+      });
     } catch(e) {
-      results.push({ file: file.name, row: 8 + i, data: null, error: e.message });
+      results.push({ file: file.name, row: nextRow++, data: null, error: e.message });
     }
   }
 
   setPbar(100);
-  setStatus(`Listo — ${results.filter(r => !r.error).length} libro(s) procesado(s).`);
+  const librosOk = results.filter(r => !r.error).length;
+  setStatus(`Listo — ${librosOk} libro(s) detectado(s) en ${images.length} imagen(es).`);
   btn.disabled = false;
   document.getElementById('btnIcon').textContent = '⚡';
 
