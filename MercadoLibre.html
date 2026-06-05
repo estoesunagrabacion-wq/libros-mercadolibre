@@ -316,7 +316,7 @@ Medidas típicas: bolsillo 19×13×2 cm, estándar 23×16×3 cm, grande 28×22×
 NO inventar ISBN. Si no se ve claramente, null.
 Incluí TODOS los libros que puedas identificar en la imagen.`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   const resp = await fetch(url, {
     method: 'POST',
@@ -334,11 +334,17 @@ Incluí TODOS los libros que puedas identificar en la imagen.`;
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+    const msg = err?.error?.message || `HTTP ${resp.status}`;
+    if (resp.status === 400) throw new Error(`Clave inválida o modelo no disponible: ${msg}`);
+    if (resp.status === 403) throw new Error(`Clave sin permisos o no activada: ${msg}`);
+    if (resp.status === 429) throw new Error(`Límite de uso alcanzado, esperá un momento.`);
+    throw new Error(msg);
   }
 
   const data = await resp.json();
-  let raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  const raw_text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!raw_text) throw new Error('Gemini no devolvió texto. Revisá que la imagen sea legible.');
+  let raw = raw_text.trim();
   raw = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'');
   const parsed = JSON.parse(raw);
   return Array.isArray(parsed) ? parsed : [parsed];
@@ -376,7 +382,8 @@ document.getElementById('processBtn').addEventListener('click', async () => {
         results.push({ file: file.name, row: nextRow++, data: rowFromBook(book), error: null });
       });
     } catch(e) {
-      results.push({ file: file.name, row: nextRow++, data: null, error: e.message });
+      const msg = e.message.includes('fetch') ? 'Error de red — verificá tu conexión o que la clave sea correcta.' : e.message;
+      results.push({ file: file.name, row: nextRow++, data: null, error: msg });
     }
   }
 
