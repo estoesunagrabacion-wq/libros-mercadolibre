@@ -88,19 +88,21 @@ tr:last-child td{border-bottom:none;}
 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
   <div>
     <h1>📚 Completador de Planilla ML — Libros Físicos</h1>
-    <p class="sub">Subí imágenes de libros → Claude extrae los datos → copiás el CSV y lo pegás en la planilla desde la fila 8.</p>
+    <p class="sub">Subí imágenes de libros → Gemini extrae los datos → copiás el CSV y lo pegás en la planilla desde la fila 8.</p>
   </div>
   <a href="MercadoLibre.html" download="MercadoLibre.html" class="btn btn-outline" style="font-size:12px;padding:7px 14px;white-space:nowrap;flex-shrink:0;">⬇ Guardar herramienta</a>
 </div>
 
 <!-- API Key -->
 <div class="section">
-  <div class="section-title">API Key de Anthropic</div>
+  <div class="section-title">API Key de Google Gemini <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--green);">— gratis</span></div>
   <div class="key-row">
-    <input type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off"/>
+    <input type="password" id="apiKey" placeholder="AIza…" autocomplete="off"/>
     <button class="toggle" id="toggleKey">mostrar</button>
   </div>
-  <p style="color:var(--muted);font-size:12px;margin-top:8px;">La clave se guarda solo en este navegador (localStorage). Nunca se envía a ningún servidor propio.</p>
+  <p style="color:var(--muted);font-size:12px;margin-top:8px;">
+    Obtené tu clave gratis en <strong style="color:var(--text);">aistudio.google.com</strong> → Get API Key → Create API key. Tier gratuito: 1.500 imágenes/día. La clave se guarda solo en este navegador.
+  </p>
 </div>
 
 <!-- Images -->
@@ -223,8 +225,8 @@ let results  = []; // {row, error, data}
 
 // ── Persist API key ───────────────────────────────────────────────────────────
 const keyInput = document.getElementById('apiKey');
-keyInput.value = localStorage.getItem('ml_api_key') || '';
-keyInput.addEventListener('input', () => localStorage.setItem('ml_api_key', keyInput.value.trim()));
+keyInput.value = localStorage.getItem('ml_gemini_key') || '';
+keyInput.addEventListener('input', () => localStorage.setItem('ml_gemini_key', keyInput.value.trim()));
 document.getElementById('toggleKey').addEventListener('click', function(){
   const show = keyInput.type === 'password';
   keyInput.type = show ? 'text' : 'password';
@@ -283,10 +285,10 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   checkReady();
 });
 
-// ── Claude API call ───────────────────────────────────────────────────────────
+// ── Gemini API call ───────────────────────────────────────────────────────────
 async function analyzeImage(apiKey, file) {
   const b64 = await toBase64(file);
-  const mt   = file.type || 'image/jpeg';
+  const mt  = file.type || 'image/jpeg';
 
   const prompt = `Analizá esta imagen. Puede mostrar UNO o VARIOS libros.
 Devolvé SOLO un array JSON — un objeto por cada libro visible — sin markdown ni texto extra.
@@ -314,24 +316,19 @@ Medidas típicas: bolsillo 19×13×2 cm, estándar 23×16×3 cm, grande 28×22×
 NO inventar ISBN. Si no se ve claramente, null.
 Incluí TODOS los libros que puedas identificar en la imagen.`;
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+  const resp = await fetch(url, {
     method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-opus-4-8',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mt, data: b64 } },
-          { type: 'text',  text: prompt }
+      contents: [{
+        parts: [
+          { inline_data: { mime_type: mt, data: b64 } },
+          { text: prompt }
         ]
-      }]
+      }],
+      generationConfig: { temperature: 0.1 }
     })
   });
 
@@ -341,10 +338,9 @@ Incluí TODOS los libros que puedas identificar en la imagen.`;
   }
 
   const data = await resp.json();
-  let raw = data.content[0].text.trim();
+  let raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
   raw = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'');
   const parsed = JSON.parse(raw);
-  // Normalise: always return an array
   return Array.isArray(parsed) ? parsed : [parsed];
 }
 
