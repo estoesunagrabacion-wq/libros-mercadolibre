@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --paper: #f6f1e7;
+      --card: #fffdf8;
+      --ink: #2b2620;
+      --muted: #857b6b;
+      --line: #e4dccb;
+      --venta: #2f7d55;
+      --venta-soft: #e4f2e9;
+      --gasto: #b1442e;
+      --gasto-soft: #f7e6e0;
+      --accent: #8a6d3b;
+      --shadow: 0 6px 22px rgba(60, 48, 30, .10);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.4;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 18px 16px 60px; }
+
+    header { text-align: center; margin: 8px 0 18px; }
+    header h1 { margin: 0; font-size: 1.45rem; letter-spacing: .2px; }
+    header .fecha { color: var(--muted); font-size: .92rem; margin-top: 3px; text-transform: capitalize; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    /* Selector Venta / Gasto */
+    .segmento { display: flex; gap: 8px; background: #eee6d6; border-radius: 14px; padding: 6px; }
+    .segmento button {
+      flex: 1; border: 0; background: transparent; color: var(--muted);
+      font-size: 1.05rem; font-weight: 700; padding: 13px 0; border-radius: 10px;
+      cursor: pointer; transition: all .15s;
+    }
+    .segmento button.on-venta { background: var(--venta); color: #fff; box-shadow: var(--shadow); }
+    .segmento button.on-gasto { background: var(--gasto); color: #fff; box-shadow: var(--shadow); }
+
+    label { display: block; font-size: .9rem; font-weight: 600; color: var(--muted); margin: 16px 0 6px; }
+    input[type="text"], input[type="number"] {
+      width: 100%; border: 1.5px solid var(--line); border-radius: 12px;
+      padding: 14px; font-size: 1.1rem; background: #fff; color: var(--ink);
+      font-family: inherit;
+    }
+    input:focus { outline: none; border-color: var(--accent); }
+
+    .preview { font-size: .9rem; color: var(--muted); margin-top: 6px; min-height: 1.1em; }
+
+    /* Botones de medio de pago */
+    .medios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .medios button {
+      border: 1.5px solid var(--line); background: #fff; color: var(--ink);
+      padding: 13px 6px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: all .12s;
+    }
+    .medios button.sel { border-color: var(--venta); background: var(--venta-soft); color: var(--venta); }
+
+    .usd-toggle { margin-top: 16px; font-size: .92rem; color: var(--accent); cursor: pointer; user-select: none; font-weight: 600; }
+    .usd-box { display: none; }
+    .usd-box.abierto { display: block; }
+
+    .guardar {
+      width: 100%; border: 0; border-radius: 14px; color: #fff;
+      font-size: 1.2rem; font-weight: 800; padding: 17px; margin-top: 22px; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .guardar.venta { background: var(--venta); }
+    .guardar.gasto { background: var(--gasto); }
+    .guardar:disabled { opacity: .55; cursor: default; }
+
+    /* Resumen */
+    .resumen h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .res-block { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fffdf8; }
+    .res-block .tit { font-weight: 700; font-size: .95rem; margin-bottom: 8px; }
+    .res-row { display: flex; justify-content: space-between; font-size: .92rem; padding: 2px 0; }
+    .res-row .k { color: var(--muted); }
+    .res-row.ing .v { color: var(--venta); font-weight: 700; }
+    .res-row.egr .v { color: var(--gasto); font-weight: 700; }
+    .res-row.neto { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; font-weight: 800; }
+    .res-detalle { font-size: .82rem; color: var(--muted); margin-top: 8px; }
+
+    /* Toast */
+    #toast {
+      position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(80px);
+      background: #2b2620; color: #fff; padding: 14px 20px; border-radius: 12px;
+      font-weight: 600; box-shadow: var(--shadow); opacity: 0; transition: all .25s;
+      max-width: 90%; text-align: center; z-index: 50;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.error { background: var(--gasto); }
+    #toast.ok { background: var(--venta); }
+
+    .hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📚 Ventas y Gastos</h1>
+      <div class="fecha" id="fechaHoy"></div>
+    </header>
+
+    <div class="card">
+      <div class="segmento">
+        <button id="btnVenta" class="on-venta" onclick="setTipo('ingreso')">Venta</button>
+        <button id="btnGasto" onclick="setTipo('egreso')">Gasto</button>
+      </div>
+
+      <label id="lblDetalle" for="detalle">Nombre del ítem</label>
+      <input type="text" id="detalle" autocomplete="off" placeholder="Ej: Rayuela, de Cortázar">
+
+      <label for="importe">Importe en pesos ($)</label>
+      <input type="number" id="importe" inputmode="decimal" min="0" step="0.01" placeholder="0" oninput="actualizarPreview()">
+      <div class="preview" id="previewImporte"></div>
+
+      <div id="bloqueMedio">
+        <label>¿Cómo se pagó?</label>
+        <div class="medios">
+          <button type="button" data-medio="Efectivo" class="sel" onclick="setMedio(this)">Efectivo</button>
+          <button type="button" data-medio="Tarjeta" onclick="setMedio(this)">Tarjeta</button>
+          <button type="button" data-medio="Otros" onclick="setMedio(this)">Otros</button>
+        </div>
+      </div>
+
+      <div class="usd-toggle" id="usdToggle" onclick="toggleUsd()">＋ ¿También en dólares (USD)?</div>
+      <div class="usd-box" id="usdBox">
+        <label for="usd">Importe en dólares (USD)</label>
+        <input type="number" id="usd" inputmode="decimal" min="0" step="0.01" placeholder="0">
+      </div>
+
+      <button id="guardar" class="guardar venta" onclick="guardar()">Guardar venta</button>
+      <div class="hint">La fecha y la hora se registran automáticamente.</div>
+    </div>
+
+    <div class="card resumen">
+      <h2>Resumen</h2>
+      <div class="res-grid">
+        <div class="res-block" id="resHoy"></div>
+        <div class="res-block" id="resMes"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    var tipo = 'ingreso';
+    var medio = 'Efectivo';
+
+    var fmtArs = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+    var fmtUsd = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+    function pesos(n) { return fmtArs.format(Number(n) || 0); }
+    function dolares(n) { return fmtUsd.format(Number(n) || 0); }
+
+    // Fecha de hoy en el encabezado.
+    (function () {
+      var d = new Date();
+      var txt = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('fechaHoy').textContent = txt;
+    })();
+
+    function setTipo(t) {
+      tipo = t;
+      var esVenta = (t === 'ingreso');
+      document.getElementById('btnVenta').className = esVenta ? 'on-venta' : '';
+      document.getElementById('btnGasto').className = esVenta ? '' : 'on-gasto';
+      document.getElementById('lblDetalle').textContent = esVenta ? 'Nombre del ítem' : 'Concepto del gasto';
+      document.getElementById('detalle').placeholder = esVenta ? 'Ej: Rayuela, de Cortázar' : 'Ej: Compra a cartonero, alquiler, luz';
+      document.getElementById('bloqueMedio').style.display = esVenta ? 'block' : 'none';
+      var g = document.getElementById('guardar');
+      g.textContent = esVenta ? 'Guardar venta' : 'Guardar gasto';
+      g.className = 'guardar ' + (esVenta ? 'venta' : 'gasto');
+    }
+
+    function setMedio(btn) {
+      medio = btn.getAttribute('data-medio');
+      var todos = document.querySelectorAll('.medios button');
+      for (var i = 0; i < todos.length; i++) { todos[i].className = ''; }
+      btn.className = 'sel';
+    }
+
+    function toggleUsd() {
+      var box = document.getElementById('usdBox');
+      var tog = document.getElementById('usdToggle');
+      var abierto = box.classList.toggle('abierto');
+      tog.textContent = abierto ? '－ Quitar dólares (USD)' : '＋ ¿También en dólares (USD)?';
+      if (!abierto) { document.getElementById('usd').value = ''; }
+    }
+
+    function actualizarPreview() {
+      var v = parseFloat(document.getElementById('importe').value);
+      document.getElementById('previewImporte').textContent = (v > 0) ? pesos(v) : '';
+    }
+
+    function toast(msg, clase) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'show ' + (clase || '');
+      setTimeout(function () { t.className = ''; }, 2800);
+    }
+
+    function guardar() {
+      var detalle = document.getElementById('detalle').value.trim();
+      var importe = parseFloat(document.getElementById('importe').value) || 0;
+      var usd = parseFloat(document.getElementById('usd').value) || 0;
+
+      if (!detalle) { toast('Escribí el ' + (tipo === 'ingreso' ? 'nombre del ítem' : 'concepto') + '.', 'error'); return; }
+      if (importe <= 0 && usd <= 0) { toast('Ingresá un importe mayor a cero.', 'error'); return; }
+
+      var datos = { tipo: tipo, detalle: detalle, importe: importe, medio: medio, usd: usd };
+
+      var btn = document.getElementById('guardar');
+      btn.disabled = true;
+      var textoOriginal = btn.textContent;
+      btn.textContent = 'Guardando…';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          btn.textContent = textoOriginal;
+          limpiar();
+          renderResumen(res);
+          toast('✓ ' + (tipo === 'ingreso' ? 'Venta' : 'Gasto') + ' guardado', 'ok');
+        })
+        .withFailureHandler(function (err) {
+          btn.disabled = false;
+          btn.textContent = textoOriginal;
+          toast('Error: ' + err.message, 'error');
+        })
+        .guardar(datos);
+    }
+
+    function limpiar() {
+      document.getElementById('detalle').value = '';
+      document.getElementById('importe').value = '';
+      document.getElementById('usd').value = '';
+      document.getElementById('previewImporte').textContent = '';
+      var box = document.getElementById('usdBox');
+      if (box.classList.contains('abierto')) { toggleUsd(); }
+      document.getElementById('detalle').focus();
+    }
+
+    function bloqueResumen(titulo, d) {
+      var html = '<div class="tit">' + titulo + '</div>';
+      html += '<div class="res-row ing"><span class="k">Ingresos</span><span class="v">' + pesos(d.ingresos) + '</span></div>';
+      html += '<div class="res-row egr"><span class="k">Egresos</span><span class="v">' + pesos(d.egresos) + '</span></div>';
+      html += '<div class="res-row neto"><span class="k">Neto</span><span class="v">' + pesos(d.neto) + '</span></div>';
+      html += '<div class="res-detalle">Efectivo ' + pesos(d.efectivo) + ' · Tarjeta ' + pesos(d.tarjeta) + ' · Otros ' + pesos(d.otros);
+      if (d.usd > 0) { html += ' · ' + dolares(d.usd); }
+      html += '<br>' + d.cant + ' movimiento' + (d.cant === 1 ? '' : 's') + '</div>';
+      return html;
+    }
+
+    function renderResumen(res) {
+      if (!res) { return; }
+      document.getElementById('resHoy').innerHTML = bloqueResumen('Hoy', res.hoy);
+      document.getElementById('resMes').innerHTML = bloqueResumen('Este mes', res.mes);
+    }
+
+    // Carga inicial del resumen.
+    google.script.run
+      .withSuccessHandler(renderResumen)
+      .withFailureHandler(function () {})
+      .getResumen();
+  </script>
+</body>
+</html>
