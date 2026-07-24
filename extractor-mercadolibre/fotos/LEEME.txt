@@ -1,0 +1,3 @@
+Poné acá adentro las fotos de las tapas de los libros (jpg / png / webp).
+Después ejecutá:  python extractor.py
+Se va a generar el archivo salida.xlsx en la carpeta de la herramienta.
