@@ -176,6 +176,65 @@
     #toast.error { border-color: var(--gasto); }
     #toast.ok { border-color: var(--venta); }
 
+    /* Botón "Ver detalle" */
+    .ver-detalle {
+      display: block; width: 100%; margin-top: 18px; cursor: pointer;
+      background: transparent; border: 0; border-top: 1px solid var(--line-soft);
+      padding: 16px 0 4px; color: var(--gold); font-family: var(--serif-text);
+      font-style: italic; font-size: 1.02rem; transition: color .15s;
+    }
+    .ver-detalle:hover { color: var(--gold-bright); }
+
+    /* Ventana de detalle */
+    .modal {
+      position: fixed; inset: 0; z-index: 80; display: none;
+      background: rgba(8, 6, 4, .74); backdrop-filter: blur(2px);
+      padding: 24px 14px;
+    }
+    .modal.abierto { display: flex; align-items: flex-start; justify-content: center; }
+    .modal-box {
+      width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--line); border-radius: 4px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6); margin-top: 2vh;
+    }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px; }
+    .modal-title {
+      font-family: var(--serif-display); font-weight: 600; font-size: .92rem;
+      letter-spacing: .22em; text-transform: uppercase; color: var(--gold-bright);
+    }
+    .cerrar { background: transparent; border: 1px solid var(--line); color: var(--gold); cursor: pointer;
+      width: 34px; height: 34px; border-radius: 3px; font-size: 1rem; line-height: 1; }
+    .cerrar:hover { color: var(--gold-bright); border-color: var(--gold); }
+
+    .tabs { display: flex; gap: 10px; padding: 0 20px 14px; }
+    .tabs button {
+      flex: 1; cursor: pointer; padding: 11px 0; border-radius: 3px;
+      font-family: var(--serif-display); font-weight: 600; font-size: .82rem;
+      letter-spacing: .14em; text-transform: uppercase;
+      background: transparent; color: var(--gold); border: 1px solid var(--line); transition: all .15s;
+    }
+    .tabs button.on { background: rgba(199,162,78,.14); color: var(--gold-bright); border-color: var(--gold); }
+
+    .detalle-resumen {
+      padding: 0 20px 12px; margin: 0 0 4px; color: #b8a878; font-size: .9rem; font-style: italic;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .detalle-cont { overflow-y: auto; padding: 6px 20px 20px; }
+
+    .mov { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+    .mov:last-child { border-bottom: 0; }
+    .mov .info { flex: 1; min-width: 0; }
+    .mov .det { color: var(--parchment); font-size: 1.05rem; }
+    .mov .meta { color: var(--gold-dim); font-size: .8rem; margin-top: 2px; }
+    .mov .chip { font-family: var(--serif-display); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase;
+      border: 1px solid var(--line); border-radius: 2px; padding: 2px 6px; color: var(--gold); margin-left: 8px; }
+    .mov .monto { font-variant-numeric: tabular-nums; font-size: 1.05rem; font-weight: 600; white-space: nowrap; }
+    .mov.ingreso .monto { color: #7fc79b; }
+    .mov.egreso .monto { color: #d98b78; }
+    .mov .usd { display: block; font-size: .78rem; color: var(--gold-dim); font-weight: 400; text-align: right; }
+    .vacio { text-align: center; color: var(--gold-dim); font-style: italic; padding: 30px 0; }
+
     @media (max-width: 430px) {
       header h1 { font-size: 1.7rem; }
       .res-grid { grid-template-columns: 1fr; }
@@ -254,6 +313,23 @@
         <div class="res-block" id="resHoy"></div>
         <div class="res-block" id="resMes"></div>
       </div>
+      <button class="ver-detalle" onclick="abrirDetalle()">Ver detalle del día y del mes →</button>
+    </div>
+  </div>
+
+  <!-- Ventana de detalle (movimiento por movimiento) -->
+  <div id="modal" class="modal" onclick="fondoModal(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div class="modal-title">Detalle de movimientos</div>
+        <button class="cerrar" onclick="cerrarDetalle()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="tabs">
+        <button id="tabHoy" class="on" onclick="verTab('hoy')">Hoy</button>
+        <button id="tabMes" onclick="verTab('mes')">Este mes</button>
+      </div>
+      <div id="detalleResumen" class="detalle-resumen"></div>
+      <div id="detalleCont" class="detalle-cont"></div>
     </div>
   </div>
 
@@ -372,6 +448,72 @@
       document.getElementById('resHoy').innerHTML = bloqueResumen('Hoy', res.hoy);
       document.getElementById('resMes').innerHTML = bloqueResumen('Este mes', res.mes);
     }
+
+    /* ── Ventana de detalle ── */
+    var detalleData = null;
+    var tabActual = 'hoy';
+
+    function abrirDetalle() {
+      document.getElementById('modal').classList.add('abierto');
+      document.getElementById('detalleResumen').textContent = '';
+      document.getElementById('detalleCont').innerHTML = '<div class="vacio">Cargando…</div>';
+      google.script.run
+        .withSuccessHandler(function (d) { detalleData = d; verTab(tabActual); })
+        .withFailureHandler(function (e) {
+          document.getElementById('detalleCont').innerHTML = '<div class="vacio">No se pudo cargar: ' + e.message + '</div>';
+        })
+        .getDetalle();
+    }
+
+    function cerrarDetalle() { document.getElementById('modal').classList.remove('abierto'); }
+    function fondoModal(e) { if (e.target === document.getElementById('modal')) { cerrarDetalle(); } }
+
+    function verTab(t) {
+      tabActual = t;
+      document.getElementById('tabHoy').className = (t === 'hoy') ? 'on' : '';
+      document.getElementById('tabMes').className = (t === 'mes') ? 'on' : '';
+      if (detalleData) { renderDetalle(detalleData[t] || []); }
+    }
+
+    function renderDetalle(lista) {
+      var cont = document.getElementById('detalleCont');
+      var resu = document.getElementById('detalleResumen');
+      if (!lista.length) {
+        resu.textContent = '';
+        cont.innerHTML = '<div class="vacio">Todavía no hay movimientos ' + (tabActual === 'hoy' ? 'hoy' : 'este mes') + '.</div>';
+        return;
+      }
+      var ing = 0, egr = 0, usd = 0;
+      lista.forEach(function (m) {
+        if (m.tipo === 'Egreso') { egr += m.monto; } else { ing += m.monto; }
+        usd += m.usd || 0;
+      });
+      var linea = lista.length + ' movimiento' + (lista.length === 1 ? '' : 's') +
+                  ' · Ingresos ' + pesos(ing) + ' · Egresos ' + pesos(egr);
+      if (usd > 0) { linea += ' · ' + dolares(usd); }
+      resu.textContent = linea;
+
+      var html = '';
+      lista.forEach(function (m) {
+        var esEgr = (m.tipo === 'Egreso');
+        html += '<div class="mov ' + (esEgr ? 'egreso' : 'ingreso') + '">';
+        html += '<div class="info"><div class="det">' + escapar(m.detalle) +
+                (m.medio ? '<span class="chip">' + m.medio + '</span>' : '') + '</div>';
+        html += '<div class="meta">' + m.hora + '</div></div>';
+        html += '<div class="monto">' + (m.monto > 0 ? (esEgr ? '−' : '') + pesos(m.monto) : '—');
+        if (m.usd > 0) { html += '<span class="usd">' + dolares(m.usd) + '</span>'; }
+        html += '</div></div>';
+      });
+      cont.innerHTML = html;
+    }
+
+    function escapar(s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { cerrarDetalle(); } });
 
     google.script.run
       .withSuccessHandler(renderResumen)

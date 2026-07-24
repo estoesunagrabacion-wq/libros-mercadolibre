@@ -209,3 +209,53 @@ function acumular_(o, mov) {
   o.neto += mov.efectivo + mov.tarjeta + mov.otros - mov.egresos;
   o.cant += 1;
 }
+
+/**
+ * Devuelve el detalle (movimiento por movimiento) de HOY y del MES en curso,
+ * ordenado del más reciente al más antiguo. Lo usa la vista "Ver detalle".
+ * @return {Object} { hoy: [movimiento...], mes: [movimiento...] }
+ */
+function getDetalle() {
+  var hoja = getHojaRegistro_();
+  var ultima = hoja.getLastRow();
+  var out = { hoy: [], mes: [] };
+  if (ultima < 2) {
+    return out;
+  }
+
+  var valores = hoja.getRange(2, 1, ultima - 1, ENCABEZADOS.length).getValues();
+  var hoyStr = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  var mesStr = Utilities.formatDate(new Date(), TZ, 'yyyy-MM');
+
+  valores.forEach(function (f) {
+    var fecha = f[0];
+    if (!(fecha instanceof Date)) {
+      return;
+    }
+    var fStr = Utilities.formatDate(fecha, TZ, 'yyyy-MM-dd');
+    var fMes = Utilities.formatDate(fecha, TZ, 'yyyy-MM');
+
+    var ef = Number(f[3]) || 0, ta = Number(f[4]) || 0,
+        ot = Number(f[5]) || 0, eg = Number(f[6]) || 0, us = Number(f[7]) || 0;
+
+    var esEgreso = (eg > 0 && ef === 0 && ta === 0 && ot === 0);
+    var medio = ta > 0 ? 'Tarjeta' : (ot > 0 ? 'Otros' : (ef > 0 ? 'Efectivo' : ''));
+
+    var item = {
+      orden: fecha.getTime(),
+      hora: Utilities.formatDate(fecha, TZ, 'dd/MM HH:mm'),
+      detalle: f[2],
+      tipo: esEgreso ? 'Egreso' : 'Ingreso',
+      medio: esEgreso ? '' : medio,
+      monto: esEgreso ? eg : (ef + ta + ot),
+      usd: us
+    };
+
+    if (fMes === mesStr) { out.mes.push(item); }
+    if (fStr === hoyStr) { out.hoy.push(item); }
+  });
+
+  out.hoy.sort(function (a, b) { return b.orden - a.orden; });
+  out.mes.sort(function (a, b) { return b.orden - a.orden; });
+  return out;
+}
