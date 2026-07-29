@@ -145,6 +145,11 @@
 
     .hint { text-align: center; color: var(--gold-dim); font-size: .84rem; margin-top: 12px; font-style: italic; }
 
+    /* Pie con datos de la librería */
+    .pie { text-align: center; margin-top: 26px; }
+    .pie-nombre { font-family: var(--serif-display); font-size: .78rem; letter-spacing: .22em; text-indent: .22em; text-transform: uppercase; color: var(--gold-dim); }
+    .pie-dir { font-style: italic; font-size: .85rem; margin-top: 4px; color: #9a8b64; }
+
     /* Resumen */
     .resumen h2 {
       font-family: var(--serif-display); font-weight: 600; font-size: .82rem;
@@ -216,6 +221,14 @@
     }
     .tabs button.on { background: rgba(199,162,78,.14); color: var(--gold-bright); border-color: var(--gold); }
 
+    .filtros { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 14px; }
+    .filtros button {
+      cursor: pointer; font-family: var(--serif-text); font-size: .82rem; padding: 5px 11px;
+      border-radius: 2px; background: transparent; color: var(--gold-dim);
+      border: 1px solid var(--line-soft); transition: all .12s;
+    }
+    .filtros button.on { color: var(--gold-bright); border-color: var(--gold); background: rgba(199,162,78,.12); }
+
     .detalle-resumen {
       padding: 0 20px 12px; margin: 0 0 4px; color: #b8a878; font-size: .9rem; font-style: italic;
       border-bottom: 1px solid var(--line-soft);
@@ -242,7 +255,7 @@
   </style>
 </head>
 <body>
-  <div class="bg-quote" aria-hidden="true">
+  <div class="bg-quote" id="bgQuote" aria-hidden="true">
     I loved you, so I drew these tides of men into my hands and wrote my will across the sky in stars, to earn you Freedom, the seven-pillared worthy house, that your eyes might be shining for me when we came. Death seemed my servant on the road, till we were near and saw you waiting: when you smiled, and in sorrowful envy he outran me and took you apart: into his quietness. Love, the way-weary, groped to your body, our brief wage ours for the moment before earth's soft hand explored your shape, and the blind worms grew fat upon your substance. Men prayed me that I set our work, the inviolate house, as a memory of you. But for fit monument I shattered it, unfinished: and now the little things creep out to patch themselves hovels in the marred shadow of your gift. I loved you, so I drew these tides of men into my hands and wrote my will across the sky in stars, to earn you Freedom, the seven-pillared worthy house, that your eyes might be shining for me when we came. Death seemed my servant on the road, till we were near and saw you waiting: when you smiled, and in sorrowful envy he outran me and took you apart: into his quietness.
   </div>
   <div class="frame" aria-hidden="true"></div>
@@ -250,20 +263,22 @@
   <div class="wrap">
     <header>
       <!-- Sables cruzadas — emblema Los Siete Pilares -->
-      <svg class="emblema" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <g stroke="#c7a24e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M115 148 C 100 118, 82 72, 46 16" />
-          <path d="M85 148 C 100 118, 118 72, 154 16"/>
-          <path d="M99 141 L 124 129" />
-          <path d="M101 141 L 76 129" />
+      <svg class="emblema" viewBox="0 0 200 152" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Hojas curvas que bajan desde las empuñaduras y se cruzan abajo (copa) -->
+        <g fill="none" stroke="#c7a24e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M74 44 C 54 76, 74 108, 118 134"/>
+          <path d="M126 44 C 146 76, 126 108, 82 134"/>
+          <!-- Cañas de las empuñaduras -->
+          <path d="M74 44 L 64 24"/>
+          <path d="M126 44 L 136 24"/>
+          <!-- Gavilanes (guardas) -->
+          <path d="M56 42 C 60 32, 74 34, 82 48"/>
+          <path d="M144 42 C 140 32, 126 34, 118 48"/>
         </g>
+        <!-- Pomos -->
         <g fill="#c7a24e">
-          <circle cx="117" cy="151" r="4"/>
-          <circle cx="83" cy="151" r="4"/>
-        </g>
-        <g stroke="#c7a24e" stroke-width="3" stroke-linecap="round">
-          <path d="M46 16 L 41 11"/>
-          <path d="M154 16 L 159 11"/>
+          <circle cx="62" cy="20" r="4.5"/>
+          <circle cx="138" cy="20" r="4.5"/>
         </g>
       </svg>
       <div class="kicker">Librería</div>
@@ -315,6 +330,11 @@
       </div>
       <button class="ver-detalle" onclick="abrirDetalle()">Ver detalle del día y del mes →</button>
     </div>
+
+    <footer class="pie">
+      <div class="pie-nombre">Héctor Tito Delgado</div>
+      <div class="pie-dir">Paraguay 439 · (1057) CABA</div>
+    </footer>
   </div>
 
   <!-- Ventana de detalle (movimiento por movimiento) -->
@@ -327,6 +347,14 @@
       <div class="tabs">
         <button id="tabHoy" class="on" onclick="verTab('hoy')">Hoy</button>
         <button id="tabMes" onclick="verTab('mes')">Este mes</button>
+      </div>
+      <div class="filtros" id="filtros">
+        <button data-f="todos" class="on" onclick="setFiltro('todos')">Todos</button>
+        <button data-f="ventas" onclick="setFiltro('ventas')">Ventas</button>
+        <button data-f="gastos" onclick="setFiltro('gastos')">Gastos</button>
+        <button data-f="efectivo" onclick="setFiltro('efectivo')">Efectivo</button>
+        <button data-f="tarjeta" onclick="setFiltro('tarjeta')">Tarjeta</button>
+        <button data-f="otros" onclick="setFiltro('otros')">Otros</button>
       </div>
       <div id="detalleResumen" class="detalle-resumen"></div>
       <div id="detalleCont" class="detalle-cont"></div>
@@ -349,6 +377,13 @@
       var d = new Date();
       var txt = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       document.getElementById('fechaHoy').textContent = txt;
+    })();
+
+    /* Rellena el fondo repitiendo una frase, para cubrir toda la pantalla. */
+    (function () {
+      var frase = 'I loved you, so I drew these tides of men into my hands and wrote my will across the sky in stars, to earn you Freedom, the seven-pillared worthy house, that your eyes might be shining for me when we came. ';
+      var el = document.getElementById('bgQuote');
+      if (el) { el.textContent = frase.repeat(30); }
     })();
 
     function setTipo(t) {
@@ -452,13 +487,15 @@
     /* ── Ventana de detalle ── */
     var detalleData = null;
     var tabActual = 'hoy';
+    var filtroActual = 'todos';
 
     function abrirDetalle() {
       document.getElementById('modal').classList.add('abierto');
+      setFiltro('todos');
       document.getElementById('detalleResumen').textContent = '';
       document.getElementById('detalleCont').innerHTML = '<div class="vacio">Cargando…</div>';
       google.script.run
-        .withSuccessHandler(function (d) { detalleData = d; verTab(tabActual); })
+        .withSuccessHandler(function (d) { detalleData = d; pintar(); })
         .withFailureHandler(function (e) {
           document.getElementById('detalleCont').innerHTML = '<div class="vacio">No se pudo cargar: ' + e.message + '</div>';
         })
@@ -472,7 +509,30 @@
       tabActual = t;
       document.getElementById('tabHoy').className = (t === 'hoy') ? 'on' : '';
       document.getElementById('tabMes').className = (t === 'mes') ? 'on' : '';
-      if (detalleData) { renderDetalle(detalleData[t] || []); }
+      pintar();
+    }
+
+    function setFiltro(f) {
+      filtroActual = f;
+      var botones = document.querySelectorAll('#filtros button');
+      for (var i = 0; i < botones.length; i++) {
+        botones[i].className = (botones[i].getAttribute('data-f') === f) ? 'on' : '';
+      }
+      if (detalleData) { pintar(); }
+    }
+
+    function filtrar(lista) {
+      return lista.filter(function (m) {
+        if (filtroActual === 'todos') { return true; }
+        if (filtroActual === 'ventas') { return m.tipo === 'Ingreso'; }
+        if (filtroActual === 'gastos') { return m.tipo === 'Egreso'; }
+        return m.tipo === 'Ingreso' && String(m.medio || '').toLowerCase() === filtroActual;
+      });
+    }
+
+    function pintar() {
+      if (!detalleData) { return; }
+      renderDetalle(filtrar(detalleData[tabActual] || []));
     }
 
     function renderDetalle(lista) {
@@ -480,7 +540,7 @@
       var resu = document.getElementById('detalleResumen');
       if (!lista.length) {
         resu.textContent = '';
-        cont.innerHTML = '<div class="vacio">Todavía no hay movimientos ' + (tabActual === 'hoy' ? 'hoy' : 'este mes') + '.</div>';
+        cont.innerHTML = '<div class="vacio">No hay movimientos con este filtro.</div>';
         return;
       }
       var ing = 0, egr = 0, usd = 0;

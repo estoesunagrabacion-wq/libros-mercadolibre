@@ -72,6 +72,18 @@ Se crean **dos pestañas nuevas** en tu archivo (no se toca nada de lo que ya te
 6. **Guardar**. Listo: aparece en la pestaña `Registro` al instante y se actualiza
    el resumen del día y del mes.
 
+### Ver detalle y filtros
+
+Con el botón **"Ver detalle del día y del mes"** se abre una ventana con el
+listado de cada movimiento (hora, detalle, medio de pago e importe), con solapas
+**Hoy / Este mes** y filtros: **Todos, Ventas, Gastos, Efectivo, Tarjeta, Otros**.
+Los filtros viven dentro de esa ventana para no recargar la pantalla principal.
+
+### Separación por día en la planilla
+
+Cuando cambia el día, la app deja **una fila en blanco** en la pestaña `Registro`,
+para distinguir de un vistazo dónde termina una jornada y empieza la siguiente.
+
 ---
 
 ## Preguntas frecuentes

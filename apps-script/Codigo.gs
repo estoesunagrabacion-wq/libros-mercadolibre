@@ -148,6 +148,19 @@ function guardar(datos) {
     }
   }
 
+  // Deja una fila en blanco cuando cambia el día, para separarlos a la vista.
+  var ultima = hoja.getLastRow();
+  if (ultima >= 2) {
+    var ultimaFecha = hoja.getRange(ultima, 1).getValue();
+    if (ultimaFecha instanceof Date) {
+      var ultDia = Utilities.formatDate(ultimaFecha, TZ, 'yyyy-MM-dd');
+      var hoyDia = Utilities.formatDate(ahora, TZ, 'yyyy-MM-dd');
+      if (ultDia !== hoyDia) {
+        hoja.appendRow(['', '', '', '', '', '', '', '']);
+      }
+    }
+  }
+
   var fila = [ahora, mes, detalle, efectivo, tarjeta, otros, egresos, usd > 0 ? usd : ''];
   hoja.appendRow(fila);
 
