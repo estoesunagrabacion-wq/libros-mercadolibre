@@ -154,24 +154,25 @@ function guardar(datos) {
     }
   }
 
-  // Deja una fila en blanco cuando cambia el día, para separarlos a la vista.
+  // Medio de pago: en ventas es con qué se cobró; en gastos, con qué se pagó.
+  var medioPago = datos.medio || 'Efectivo';
+
+  var fila = [ahora, mes, detalle, efectivo, tarjeta, otros, egresos, usd > 0 ? usd : '', medioPago];
+
+  // Calcula en qué fila escribir. Cuando cambia el día, salta una fila para
+  // dejar una separación en blanco entre jornadas.
+  // (No se usa appendRow porque ignora las filas vacías y pisaría la separación.)
   var ultima = hoja.getLastRow();
+  var destino = ultima + 1;
   if (ultima >= 2) {
     var ultimaFecha = hoja.getRange(ultima, 1).getValue();
     if (ultimaFecha instanceof Date) {
       var ultDia = Utilities.formatDate(ultimaFecha, TZ, 'yyyy-MM-dd');
       var hoyDia = Utilities.formatDate(ahora, TZ, 'yyyy-MM-dd');
-      if (ultDia !== hoyDia) {
-        hoja.appendRow(['', '', '', '', '', '', '', '', '']);
-      }
+      if (ultDia !== hoyDia) { destino += 1; }
     }
   }
-
-  // Medio de pago: en ventas es con qué se cobró; en gastos, con qué se pagó.
-  var medioPago = datos.medio || 'Efectivo';
-
-  var fila = [ahora, mes, detalle, efectivo, tarjeta, otros, egresos, usd > 0 ? usd : '', medioPago];
-  hoja.appendRow(fila);
+  hoja.getRange(destino, 1, 1, fila.length).setValues([fila]);
 
   return getResumen();
 }
