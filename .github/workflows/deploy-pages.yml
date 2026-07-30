@@ -29,10 +29,10 @@ jobs:
         with:
           enablement: true
 
-      - name: Subir la carpeta de la web
+      - name: Subir el sitio (extractor en la raíz, juego en /juego)
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./extractor-mercadolibre/web
+          path: .
 
       - name: Desplegar
         id: deployment

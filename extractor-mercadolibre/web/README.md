@@ -1,6 +1,14 @@
 # 📱 Versión web (para el celular)
 
-Una sola página (`index.html`) que abrís en el navegador del teléfono para:
+Ya está **publicada y online**. Abrila desde el celular en:
+
+### 👉 https://estoesunagrabacion-wq.github.io/detective-sintactico/
+
+(El código de la página es el archivo `index.html` de la **raíz del repositorio**; se
+publica solo con GitHub Pages cada vez que se actualiza `main`. El juego "Detective
+Sintáctico" quedó en `/juego/`.)
+
+Una sola página que abrís en el navegador del teléfono para:
 
 1. **Sacar la foto** de la tapa del libro con la cámara.
 2. Que la IA lea el libro y te muestre los datos en campos editables, cada uno con
@@ -13,25 +21,13 @@ No necesita servidor: es un solo archivo. Tu clave y tus fotos quedan en tu tel�
 
 ---
 
-## Cómo ponerla en tu celular
+## Cómo usarla en tu celular
 
-Tenés dos opciones:
+Simplemente abrí la dirección de arriba en el navegador del teléfono. Si querés tenerla
+como app, usá el menú del navegador → **"Agregar a pantalla de inicio"**.
 
-### Opción A — Publicarla con GitHub Pages (recomendada)
-Así te queda una dirección web que abrís desde cualquier teléfono.
-
-1. En el repositorio de GitHub, andá a **Settings → Pages**.
-2. En "Build and deployment", elegí **Deploy from a branch**, rama `main` (o la que uses),
-   carpeta `/root`, y guardá.
-3. La página va a quedar disponible en una URL tipo
-   `https://TU-USUARIO.github.io/detective-sintactico/extractor-mercadolibre/web/`.
-4. Abrí esa URL en el celular y, si querés, "Agregar a pantalla de inicio" para tenerla como app.
-
-### Opción B — Abrir el archivo directamente
-Pasá el archivo `index.html` al teléfono (por mail, Drive, etc.) y abrilo con el navegador.
-> Nota: algunos servicios de IA bloquean las llamadas cuando la página se abre como archivo
-> local (`file://`). Si te da error de red, usá la Opción A (GitHub Pages) o probá con **Gemini**,
-> que suele funcionar igual.
+> La publicación es automática: cada cambio que se sube a la rama `main` republica la web
+> (workflow `.github/workflows/deploy-pages.yml`).
 
 ---
 
