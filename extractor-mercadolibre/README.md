@@ -7,6 +7,12 @@ una **fila lista para pegar en la planilla de Mercado Libre**.
 Pensada para vender **libros usados / antiguos / raros** (incluso en otros
 idiomas: italiano, ruso, francés, etc.), donde muchas veces no hay código de barras.
 
+Viene en **dos versiones**:
+- 💻 **De escritorio** (este README): procesás una **carpeta de fotos en lote** desde la compu.
+- 📱 **Web para el celular** (carpeta `web/`): sacás la **foto con la cámara** del teléfono,
+  ves los datos con botón de **copiar** (ideal para cargar de a uno) y descargás un **CSV**
+  con todos los libros juntos (ideal para **carga masiva**). Ver `web/README.md`.
+
 ## Qué hace
 
 1. Tomás fotos de las tapas y las ponés en la carpeta `fotos/`.
