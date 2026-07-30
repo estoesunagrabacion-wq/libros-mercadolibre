@@ -1,0 +1,10 @@
+# No subir tu clave ni tus fotos ni las salidas
+config.json
+fotos/*
+!fotos/LEEME.txt
+*.xlsx
+!plantilla_*.xlsx
+__pycache__/
+*.pyc
+.venv/
+venv/

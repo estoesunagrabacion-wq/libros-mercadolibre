@@ -1,0 +1,13 @@
+{
+  "proveedor": "gemini",
+  "api_key": "PEGA-TU-API-KEY-ACA",
+  "modelo": "",
+  "carpeta_fotos": "fotos",
+  "archivo_salida": "salida.xlsx",
+  "moneda": "ARS",
+  "etiqueta_titulo": "Microcentro",
+  "sku_por_defecto": "",
+  "precio": "manual",
+  "stock": 1,
+  "max_largo_titulo": 60
+}
