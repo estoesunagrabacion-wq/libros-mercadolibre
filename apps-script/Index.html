@@ -301,7 +301,7 @@
       <div class="preview" id="previewImporte"></div>
 
       <div id="bloqueMedio">
-        <label>¿Cómo se pagó?</label>
+        <label id="lblMedio">¿Cómo se pagó? (cobro)</label>
         <div class="medios">
           <button type="button" data-medio="Efectivo" class="sel" onclick="setMedio(this)">Efectivo</button>
           <button type="button" data-medio="Tarjeta" onclick="setMedio(this)">Tarjeta</button>
@@ -353,6 +353,7 @@
         <button data-f="efectivo" onclick="setFiltro('efectivo')">Efectivo</button>
         <button data-f="tarjeta" onclick="setFiltro('tarjeta')">Tarjeta</button>
         <button data-f="otros" onclick="setFiltro('otros')">Otros</button>
+        <button data-f="caja" onclick="setFiltro('caja')">Caja</button>
       </div>
       <div id="detalleResumen" class="detalle-resumen"></div>
       <div id="detalleCont" class="detalle-cont"></div>
@@ -391,7 +392,7 @@
       document.getElementById('btnGasto').className = esVenta ? '' : 'on-gasto';
       document.getElementById('lblDetalle').textContent = esVenta ? 'Nombre del ítem' : 'Concepto del gasto';
       document.getElementById('detalle').placeholder = esVenta ? 'Ej: Rayuela, de Cortázar' : 'Ej: Compra a cartonero, alquiler, luz';
-      document.getElementById('bloqueMedio').style.display = esVenta ? 'block' : 'none';
+      document.getElementById('lblMedio').textContent = esVenta ? '¿Cómo se pagó? (cobro)' : '¿Cómo se pagó? (egreso)';
       var g = document.getElementById('guardar');
       g.textContent = esVenta ? 'Guardar venta' : 'Guardar gasto';
       g.className = 'guardar ' + (esVenta ? 'venta' : 'gasto');
@@ -524,6 +525,7 @@
         if (filtroActual === 'todos') { return true; }
         if (filtroActual === 'ventas') { return m.tipo === 'Ingreso'; }
         if (filtroActual === 'gastos') { return m.tipo === 'Egreso'; }
+        if (filtroActual === 'caja') { return String(m.medio || '').toLowerCase() === 'efectivo'; }
         return m.tipo === 'Ingreso' && String(m.medio || '').toLowerCase() === filtroActual;
       });
     }
@@ -537,7 +539,9 @@
       var cont = document.getElementById('detalleCont');
       var resu = document.getElementById('detalleResumen');
       if (!lista.length) {
-        resu.textContent = '';
+        resu.textContent = (filtroActual === 'caja')
+          ? 'En caja: ' + pesos(0) + ' · sin movimientos en efectivo ' + (tabActual === 'hoy' ? 'hoy' : 'este mes')
+          : '';
         cont.innerHTML = '<div class="vacio">No hay movimientos con este filtro.</div>';
         return;
       }
@@ -546,9 +550,15 @@
         if (m.tipo === 'Egreso') { egr += m.monto; } else { ing += m.monto; }
         usd += m.usd || 0;
       });
-      var linea = lista.length + ' movimiento' + (lista.length === 1 ? '' : 's') +
-                  ' · Ingresos ' + pesos(ing) + ' · Egresos ' + pesos(egr);
-      if (usd > 0) { linea += ' · ' + dolares(usd); }
+      var linea;
+      if (filtroActual === 'caja') {
+        linea = 'En caja: ' + pesos(ing - egr) +
+                ' · Cobrado efectivo ' + pesos(ing) + ' · Gastos efectivo ' + pesos(egr);
+      } else {
+        linea = lista.length + ' movimiento' + (lista.length === 1 ? '' : 's') +
+                ' · Ingresos ' + pesos(ing) + ' · Egresos ' + pesos(egr);
+        if (usd > 0) { linea += ' · ' + dolares(usd); }
+      }
       resu.textContent = linea;
 
       var html = '';

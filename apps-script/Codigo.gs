@@ -17,7 +17,7 @@ var HOJA_REGISTRO = 'Registro';
 var HOJA_RESUMEN = 'Resumen';
 
 // Orden de las columnas de la pestaña "Registro".
-var ENCABEZADOS = ['Fecha', 'Mes', 'Detalle', 'Efectivo', 'Tarjeta', 'Otros', 'Egresos', 'USD'];
+var ENCABEZADOS = ['Fecha', 'Mes', 'Detalle', 'Efectivo', 'Tarjeta', 'Otros', 'Egresos', 'USD', 'Medio'];
 
 /**
  * Sirve la página web (la app) cuando se abre la URL publicada.
@@ -58,6 +58,12 @@ function getHojaRegistro_() {
     hoja.getRange('D:G').setNumberFormat('#,##0');              // Montos en $
     hoja.getRange('H:H').setNumberFormat('#,##0.00');           // Montos en USD
     hoja.setColumnWidth(3, 340);                                // Detalle más ancho
+  }
+  // Compatibilidad: si a una planilla anterior le falta la columna "Medio", la agrega.
+  if (hoja.getRange(1, 9).getValue() === '') {
+    hoja.getRange(1, 9)
+      .setValue('Medio')
+      .setFontWeight('bold').setBackground('#2b2b2b').setFontColor('#ffffff');
   }
   return hoja;
 }
@@ -156,12 +162,15 @@ function guardar(datos) {
       var ultDia = Utilities.formatDate(ultimaFecha, TZ, 'yyyy-MM-dd');
       var hoyDia = Utilities.formatDate(ahora, TZ, 'yyyy-MM-dd');
       if (ultDia !== hoyDia) {
-        hoja.appendRow(['', '', '', '', '', '', '', '']);
+        hoja.appendRow(['', '', '', '', '', '', '', '', '']);
       }
     }
   }
 
-  var fila = [ahora, mes, detalle, efectivo, tarjeta, otros, egresos, usd > 0 ? usd : ''];
+  // Medio de pago: en ventas es con qué se cobró; en gastos, con qué se pagó.
+  var medioPago = datos.medio || 'Efectivo';
+
+  var fila = [ahora, mes, detalle, efectivo, tarjeta, otros, egresos, usd > 0 ? usd : '', medioPago];
   hoja.appendRow(fila);
 
   return getResumen();
@@ -250,16 +259,17 @@ function getDetalle() {
 
     var ef = Number(f[3]) || 0, ta = Number(f[4]) || 0,
         ot = Number(f[5]) || 0, eg = Number(f[6]) || 0, us = Number(f[7]) || 0;
+    var medioTxt = f[8] ? String(f[8]).trim() : '';
 
     var esEgreso = (eg > 0 && ef === 0 && ta === 0 && ot === 0);
-    var medio = ta > 0 ? 'Tarjeta' : (ot > 0 ? 'Otros' : (ef > 0 ? 'Efectivo' : ''));
+    var medioIng = ta > 0 ? 'Tarjeta' : (ot > 0 ? 'Otros' : (ef > 0 ? 'Efectivo' : ''));
 
     var item = {
       orden: fecha.getTime(),
       hora: Utilities.formatDate(fecha, TZ, 'dd/MM HH:mm'),
       detalle: f[2],
       tipo: esEgreso ? 'Egreso' : 'Ingreso',
-      medio: esEgreso ? '' : medio,
+      medio: esEgreso ? medioTxt : (medioIng || medioTxt),
       monto: esEgreso ? eg : (ef + ta + ot),
       usd: us
     };
