@@ -229,6 +229,22 @@
     }
     .filtros button.on { color: var(--gold-bright); border-color: var(--gold); background: rgba(199,162,78,.12); }
 
+    .rango-box { display: none; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 0 20px 14px; }
+    .rango-lbl {
+      display: flex; flex-direction: column; gap: 4px; margin: 0;
+      font-family: var(--serif-text); font-size: .78rem; letter-spacing: .02em;
+      text-transform: none; color: var(--gold-dim);
+    }
+    .rango-box input[type="date"] {
+      background: var(--parchment); color: var(--ink); border: 1px solid #cbbd9c;
+      border-radius: 3px; padding: 8px 10px; font-family: var(--serif-text); font-size: .95rem;
+    }
+    .rango-btn {
+      cursor: pointer; font-family: var(--serif-display); font-size: .76rem;
+      letter-spacing: .14em; text-transform: uppercase; color: var(--gold-bright);
+      background: rgba(199,162,78,.14); border: 1px solid var(--gold); border-radius: 3px; padding: 9px 16px;
+    }
+
     .detalle-resumen {
       padding: 0 20px 12px; margin: 0 0 4px; color: #b8a878; font-size: .9rem; font-style: italic;
       border-bottom: 1px solid var(--line-soft);
@@ -345,6 +361,12 @@
       <div class="tabs">
         <button id="tabHoy" class="on" onclick="verTab('hoy')">Hoy</button>
         <button id="tabMes" onclick="verTab('mes')">Este mes</button>
+        <button id="tabRango" onclick="verTab('rango')">Período</button>
+      </div>
+      <div class="rango-box" id="rangoBox">
+        <label class="rango-lbl">Desde<input type="date" id="desde"></label>
+        <label class="rango-lbl">Hasta<input type="date" id="hasta"></label>
+        <button class="rango-btn" onclick="verRango()">Ver</button>
       </div>
       <div class="filtros" id="filtros">
         <button data-f="todos" class="on" onclick="setFiltro('todos')">Todos</button>
@@ -485,11 +507,22 @@
 
     /* ── Ventana de detalle ── */
     var detalleData = null;
+    var detalleRango = null;
     var tabActual = 'hoy';
     var filtroActual = 'todos';
 
+    function periodoTexto() {
+      return tabActual === 'hoy' ? 'hoy' : (tabActual === 'mes' ? 'este mes' : 'el período');
+    }
+
     function abrirDetalle() {
       document.getElementById('modal').classList.add('abierto');
+      tabActual = 'hoy';
+      detalleRango = null;
+      document.getElementById('tabHoy').className = 'on';
+      document.getElementById('tabMes').className = '';
+      document.getElementById('tabRango').className = '';
+      document.getElementById('rangoBox').style.display = 'none';
       setFiltro('todos');
       document.getElementById('detalleResumen').textContent = '';
       document.getElementById('detalleCont').innerHTML = '<div class="vacio">Cargando…</div>';
@@ -508,7 +541,35 @@
       tabActual = t;
       document.getElementById('tabHoy').className = (t === 'hoy') ? 'on' : '';
       document.getElementById('tabMes').className = (t === 'mes') ? 'on' : '';
-      pintar();
+      document.getElementById('tabRango').className = (t === 'rango') ? 'on' : '';
+      document.getElementById('rangoBox').style.display = (t === 'rango') ? 'flex' : 'none';
+      if (t === 'rango') {
+        var dd = document.getElementById('desde'), hh = document.getElementById('hasta');
+        if (!dd.value || !hh.value) {
+          var hoy = new Date();
+          var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+          dd.value = hoy.getFullYear() + '-' + pad(hoy.getMonth() + 1) + '-01';
+          hh.value = hoy.getFullYear() + '-' + pad(hoy.getMonth() + 1) + '-' + pad(hoy.getDate());
+        }
+        verRango();
+      } else {
+        pintar();
+      }
+    }
+
+    function verRango() {
+      var desde = document.getElementById('desde').value;
+      var hasta = document.getElementById('hasta').value;
+      if (!desde || !hasta) { toast('Elegí las dos fechas.', 'error'); return; }
+      if (desde > hasta) { toast('El "Desde" es posterior al "Hasta".', 'error'); return; }
+      document.getElementById('detalleResumen').textContent = '';
+      document.getElementById('detalleCont').innerHTML = '<div class="vacio">Cargando…</div>';
+      google.script.run
+        .withSuccessHandler(function (lista) { detalleRango = lista; pintar(); })
+        .withFailureHandler(function (e) {
+          document.getElementById('detalleCont').innerHTML = '<div class="vacio">No se pudo cargar: ' + e.message + '</div>';
+        })
+        .getDetalleRango(desde, hasta);
     }
 
     function setFiltro(f) {
@@ -517,7 +578,7 @@
       for (var i = 0; i < botones.length; i++) {
         botones[i].className = (botones[i].getAttribute('data-f') === f) ? 'on' : '';
       }
-      if (detalleData) { pintar(); }
+      pintar();
     }
 
     function filtrar(lista) {
@@ -525,14 +586,26 @@
         if (filtroActual === 'todos') { return true; }
         if (filtroActual === 'ventas') { return m.tipo === 'Ingreso'; }
         if (filtroActual === 'gastos') { return m.tipo === 'Egreso'; }
-        if (filtroActual === 'caja') { return String(m.medio || '').toLowerCase() === 'efectivo'; }
+        if (filtroActual === 'caja') {
+          var med = String(m.medio || '').toLowerCase();
+          // Ingresos: solo efectivo. Gastos: efectivo o sin medio especificado.
+          if (m.tipo === 'Egreso') { return med === 'efectivo' || med === ''; }
+          return med === 'efectivo';
+        }
         return m.tipo === 'Ingreso' && String(m.medio || '').toLowerCase() === filtroActual;
       });
     }
 
     function pintar() {
-      if (!detalleData) { return; }
-      renderDetalle(filtrar(detalleData[tabActual] || []));
+      var lista;
+      if (tabActual === 'rango') {
+        if (!detalleRango) { return; }
+        lista = detalleRango;
+      } else {
+        if (!detalleData) { return; }
+        lista = detalleData[tabActual] || [];
+      }
+      renderDetalle(filtrar(lista));
     }
 
     function renderDetalle(lista) {
@@ -540,7 +613,7 @@
       var resu = document.getElementById('detalleResumen');
       if (!lista.length) {
         resu.textContent = (filtroActual === 'caja')
-          ? 'En caja: ' + pesos(0) + ' · sin movimientos en efectivo ' + (tabActual === 'hoy' ? 'hoy' : 'este mes')
+          ? 'En caja: ' + pesos(0) + ' · sin movimientos en efectivo ' + periodoTexto()
           : '';
         cont.innerHTML = '<div class="vacio">No hay movimientos con este filtro.</div>';
         return;

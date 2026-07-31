@@ -76,14 +76,18 @@ Se crean **dos pestañas nuevas** en tu archivo (no se toca nada de lo que ya te
 
 Con el botón **"Ver detalle del día y del mes"** se abre una ventana con el
 listado de cada movimiento (hora, detalle, medio de pago e importe), con solapas
-**Hoy / Este mes** y filtros: **Todos, Ventas, Gastos, Efectivo, Tarjeta, Otros, Caja**.
-Los filtros viven dentro de esa ventana para no recargar la pantalla principal.
+**Hoy / Este mes / Período** y filtros: **Todos, Ventas, Gastos, Efectivo, Tarjeta,
+Otros, Caja**. Los filtros viven dentro de esa ventana para no recargar la pantalla
+principal.
 
+- **Período:** la solapa *Período* permite elegir un rango **Desde / Hasta** y ver
+  los movimientos (y la Caja) de ese lapso a elección.
 - **Caja:** muestra el efectivo que debería haber en el cajón =
-  *efectivo cobrado − gastos pagados en efectivo*, según la solapa (Hoy o Este mes).
-  Para que salga bien, cada **gasto** ahora pide **cómo se pagó** (Efectivo / Tarjeta /
-  Otros), igual que las ventas. Ese dato se guarda en la columna **`Medio`** de la
-  pestaña `Registro`.
+  *efectivo cobrado − gastos en efectivo*, según la solapa activa (Hoy, Este mes o
+  el Período elegido). Los **gastos** pueden indicar **cómo se pagaron** (Efectivo /
+  Tarjeta / Otros), guardado en la columna **`Medio`**. Para la Caja se restan los
+  gastos en **Efectivo** y también los que **no** tengan medio indicado; quedan afuera
+  solo los marcados como Tarjeta u Otros (ej. alquiler por transferencia).
 
 ### Separación por día en la planilla
 

@@ -238,6 +238,33 @@ function acumular_(o, mov) {
  * ordenado del más reciente al más antiguo. Lo usa la vista "Ver detalle".
  * @return {Object} { hoy: [movimiento...], mes: [movimiento...] }
  */
+/**
+ * Convierte una fila de la planilla en un objeto de movimiento, o null si la
+ * fila no es un movimiento (fila en blanco / separador).
+ */
+function filaAMovimiento_(f) {
+  var fecha = f[0];
+  if (!(fecha instanceof Date)) {
+    return null;
+  }
+  var ef = Number(f[3]) || 0, ta = Number(f[4]) || 0,
+      ot = Number(f[5]) || 0, eg = Number(f[6]) || 0, us = Number(f[7]) || 0;
+  var medioTxt = f[8] ? String(f[8]).trim() : '';
+
+  var esEgreso = (eg > 0 && ef === 0 && ta === 0 && ot === 0);
+  var medioIng = ta > 0 ? 'Tarjeta' : (ot > 0 ? 'Otros' : (ef > 0 ? 'Efectivo' : ''));
+
+  return {
+    orden: fecha.getTime(),
+    hora: Utilities.formatDate(fecha, TZ, 'dd/MM HH:mm'),
+    detalle: f[2],
+    tipo: esEgreso ? 'Egreso' : 'Ingreso',
+    medio: esEgreso ? medioTxt : (medioIng || medioTxt),
+    monto: esEgreso ? eg : (ef + ta + ot),
+    usd: us
+  };
+}
+
 function getDetalle() {
   var hoja = getHojaRegistro_();
   var ultima = hoja.getLastRow();
@@ -251,35 +278,44 @@ function getDetalle() {
   var mesStr = Utilities.formatDate(new Date(), TZ, 'yyyy-MM');
 
   valores.forEach(function (f) {
-    var fecha = f[0];
-    if (!(fecha instanceof Date)) {
-      return;
-    }
-    var fStr = Utilities.formatDate(fecha, TZ, 'yyyy-MM-dd');
-    var fMes = Utilities.formatDate(fecha, TZ, 'yyyy-MM');
-
-    var ef = Number(f[3]) || 0, ta = Number(f[4]) || 0,
-        ot = Number(f[5]) || 0, eg = Number(f[6]) || 0, us = Number(f[7]) || 0;
-    var medioTxt = f[8] ? String(f[8]).trim() : '';
-
-    var esEgreso = (eg > 0 && ef === 0 && ta === 0 && ot === 0);
-    var medioIng = ta > 0 ? 'Tarjeta' : (ot > 0 ? 'Otros' : (ef > 0 ? 'Efectivo' : ''));
-
-    var item = {
-      orden: fecha.getTime(),
-      hora: Utilities.formatDate(fecha, TZ, 'dd/MM HH:mm'),
-      detalle: f[2],
-      tipo: esEgreso ? 'Egreso' : 'Ingreso',
-      medio: esEgreso ? medioTxt : (medioIng || medioTxt),
-      monto: esEgreso ? eg : (ef + ta + ot),
-      usd: us
-    };
-
+    var item = filaAMovimiento_(f);
+    if (!item) { return; }
+    var fStr = Utilities.formatDate(f[0], TZ, 'yyyy-MM-dd');
+    var fMes = Utilities.formatDate(f[0], TZ, 'yyyy-MM');
     if (fMes === mesStr) { out.mes.push(item); }
     if (fStr === hoyStr) { out.hoy.push(item); }
   });
 
   out.hoy.sort(function (a, b) { return b.orden - a.orden; });
   out.mes.sort(function (a, b) { return b.orden - a.orden; });
+  return out;
+}
+
+/**
+ * Devuelve los movimientos entre dos fechas (inclusive), del más reciente al
+ * más antiguo. Las fechas llegan como texto 'yyyy-MM-dd'. Lo usa la solapa
+ * "Período" para calcular la Caja (u otros filtros) sobre un rango a elección.
+ */
+function getDetalleRango(desde, hasta) {
+  var hoja = getHojaRegistro_();
+  var ultima = hoja.getLastRow();
+  var out = [];
+  if (ultima < 2) {
+    return out;
+  }
+  desde = String(desde || '');
+  hasta = String(hasta || '');
+
+  var valores = hoja.getRange(2, 1, ultima - 1, ENCABEZADOS.length).getValues();
+  valores.forEach(function (f) {
+    if (!(f[0] instanceof Date)) { return; }
+    var fStr = Utilities.formatDate(f[0], TZ, 'yyyy-MM-dd');
+    if (desde && fStr < desde) { return; }
+    if (hasta && fStr > hasta) { return; }
+    var item = filaAMovimiento_(f);
+    if (item) { out.push(item); }
+  });
+
+  out.sort(function (a, b) { return b.orden - a.orden; });
   return out;
 }
