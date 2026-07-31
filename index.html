@@ -263,7 +263,7 @@
     </p>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu teléfono (salvo la foto que se manda al servicio de IA para leerla).</p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu teléfono (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v4</span></p>
 </div>
 
 <script>
@@ -363,8 +363,8 @@ async function llamarIA(prompt, imagenB64, mime){
   throw new Error("Proveedor desconocido");
 }
 let geminiModeloResuelto = "";  // se detecta automáticamente según la clave
-async function resolverModeloGemini(){
-  if(cfg.modelo) return cfg.modelo;                 // el usuario forzó un modelo
+async function resolverModeloGemini(ignorarManual){
+  if(cfg.modelo && !ignorarManual) return cfg.modelo;   // el usuario forzó un modelo
   if(geminiModeloResuelto) return geminiModeloResuelto;
   // Preguntarle a la API qué modelos tiene disponibles ESTA clave y elegir uno flash.
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cfg.apiKey)}`);
@@ -393,9 +393,9 @@ async function pedirGemini(modelo,prompt,b64,mime){
 async function llamarGemini(prompt,b64,mime){
   let modelo=await resolverModeloGemini();
   let r=await pedirGemini(modelo,prompt,b64,mime);
-  if(r.status===404 && !cfg.modelo){   // el modelo detectado dejó de estar: re-detectar una vez
+  if(r.status===404){   // el modelo (manual o detectado) no existe/no está disponible: autodetectar e ignorar el manual
     geminiModeloResuelto="";
-    modelo=await resolverModeloGemini();
+    modelo=await resolverModeloGemini(true);
     r=await pedirGemini(modelo,prompt,b64,mime);
   }
   if(!r.ok) throw new Error(await mensajeError(r));
