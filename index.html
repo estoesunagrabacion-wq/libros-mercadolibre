@@ -92,8 +92,8 @@
         <label>API key <span class="muted" id="keyHelp"></span></label>
         <input id="apiKey" type="password" placeholder="Pegá tu clave acá" autocomplete="off" />
 
-        <label>Modelo <span class="muted">(avanzado — dejalo vacío para el recomendado)</span></label>
-        <input id="modelo" type="text" placeholder="ej. gemini-2.5-flash / gemini-1.5-flash" autocomplete="off" />
+        <label>Modelo <span class="muted">(avanzado — vacío = se detecta solo)</span></label>
+        <input id="modelo" type="text" placeholder="dejar vacío (detecta automáticamente)" autocomplete="off" />
 
         <div class="row">
           <div>
@@ -362,12 +362,42 @@ async function llamarIA(prompt, imagenB64, mime){
   if(cfg.proveedor==="anthropic") return llamarAnthropic(prompt,imagenB64,mime);
   throw new Error("Proveedor desconocido");
 }
-async function llamarGemini(prompt,b64,mime){
-  const modelo=cfg.modelo||MODELOS.gemini;
+let geminiModeloResuelto = "";  // se detecta automáticamente según la clave
+async function resolverModeloGemini(){
+  if(cfg.modelo) return cfg.modelo;                 // el usuario forzó un modelo
+  if(geminiModeloResuelto) return geminiModeloResuelto;
+  // Preguntarle a la API qué modelos tiene disponibles ESTA clave y elegir uno flash.
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cfg.apiKey)}`);
+  if(!r.ok) throw new Error(await mensajeError(r));
+  const d=await r.json();
+  const nombres=(d.models||[])
+    .filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent"))
+    .map(m=>m.name.replace(/^models\//,""));
+  const excluir=/(lite|thinking|exp|preview|vision|1\.5|1\.0|8b|tts|image|embedding|aqa)/i;
+  const pref =
+      nombres.find(n=>/^gemini-.*flash/i.test(n) && !excluir.test(n)) ||  // flash estable moderno
+      nombres.find(n=>/flash/i.test(n) && !/(exp|preview)/i.test(n)) ||   // cualquier flash estable
+      nombres.find(n=>/flash/i.test(n)) ||                                // cualquier flash
+      nombres.find(n=>/^gemini/i.test(n) && !excluir.test(n)) ||          // cualquier gemini
+      nombres[0];
+  if(!pref) throw new Error("Tu clave de Gemini no tiene modelos disponibles. Probá con OpenAI o Claude.");
+  geminiModeloResuelto = pref;
+  return pref;
+}
+async function pedirGemini(modelo,prompt,b64,mime){
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
   const parts=[{text:prompt}]; if(b64) parts.push({inline_data:{mime_type:mime,data:b64}});
-  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({contents:[{parts}],generationConfig:{response_mime_type:"application/json",temperature:0.1}})});
+}
+async function llamarGemini(prompt,b64,mime){
+  let modelo=await resolverModeloGemini();
+  let r=await pedirGemini(modelo,prompt,b64,mime);
+  if(r.status===404 && !cfg.modelo){   // el modelo detectado dejó de estar: re-detectar una vez
+    geminiModeloResuelto="";
+    modelo=await resolverModeloGemini();
+    r=await pedirGemini(modelo,prompt,b64,mime);
+  }
   if(!r.ok) throw new Error(await mensajeError(r));
   const d=await r.json();
   return d.candidates[0].content.parts[0].text;
