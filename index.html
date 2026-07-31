@@ -92,6 +92,9 @@
         <label>API key <span class="muted" id="keyHelp"></span></label>
         <input id="apiKey" type="password" placeholder="Pegá tu clave acá" autocomplete="off" />
 
+        <label>Modelo <span class="muted">(avanzado — dejalo vacío para el recomendado)</span></label>
+        <input id="modelo" type="text" placeholder="ej. gemini-2.5-flash / gemini-1.5-flash" autocomplete="off" />
+
         <div class="row">
           <div>
             <label>Etiqueta del título</label>
@@ -269,7 +272,7 @@
 // ---------- Config / estado ----------
 const COLS_ML = ["FAMILY_ID","ITEM_ID","PRODUCT_NUMBER","VARIATION_ID","SKU","TITLE","VARIATIONS","STOCK_FLEX","PRICE","CURRENCY_ID"];
 const COLS_EXTRA = ["TITULO_LIBRO","AUTOR","EDITORIAL","IDIOMA","ANIO","ISBN","TEMA_GENERO","FORMATO","ESTADO","DESCRIPCION","PRECIO_SUGERIDO","ARCHIVO","CONFIANZA","OBSERVACIONES"];
-const MODELOS = { gemini:"gemini-2.0-flash", openai:"gpt-4o-mini", anthropic:"claude-3-5-sonnet-20241022" };
+const MODELOS = { gemini:"gemini-2.5-flash", openai:"gpt-4o-mini", anthropic:"claude-3-5-sonnet-20241022" };
 const KEY_HELP = {
   gemini:'(gratis en <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>)',
   openai:'(en platform.openai.com)',
@@ -282,9 +285,9 @@ let libros = cargarLibros();
 let actual = null;   // datos del libro en pantalla
 
 function cargarCfg(){
-  try{ return Object.assign({proveedor:"gemini",apiKey:"",etiqueta:"Microcentro",moneda:"ARS",
+  try{ return Object.assign({proveedor:"gemini",apiKey:"",modelo:"",etiqueta:"Microcentro",moneda:"ARS",
     precioModo:"manual",precioFijo:"",sku:""}, JSON.parse(localStorage.getItem("extractorCfg")||"{}")); }
-  catch(e){ return {proveedor:"gemini",apiKey:"",etiqueta:"Microcentro",moneda:"ARS",precioModo:"manual",precioFijo:"",sku:""}; }
+  catch(e){ return {proveedor:"gemini",apiKey:"",modelo:"",etiqueta:"Microcentro",moneda:"ARS",precioModo:"manual",precioFijo:"",sku:""}; }
 }
 function guardarCfgStorage(){ localStorage.setItem("extractorCfg", JSON.stringify(cfg)); }
 function cargarLibros(){ try{ return JSON.parse(localStorage.getItem("extractorLibros")||"[]"); }catch(e){ return []; } }
@@ -293,6 +296,7 @@ function guardarLibros(){ localStorage.setItem("extractorLibros", JSON.stringify
 function pintarCfg(){
   $("proveedor").value = cfg.proveedor;
   $("apiKey").value = cfg.apiKey;
+  $("modelo").value = cfg.modelo || "";
   $("etiqueta").value = cfg.etiqueta;
   $("moneda").value = cfg.moneda;
   $("precioModo").value = cfg.precioModo;
@@ -306,8 +310,9 @@ function pintarCfg(){
 $("proveedor").addEventListener("change", ()=>{ $("keyHelp").innerHTML = KEY_HELP[$("proveedor").value]||""; });
 $("precioModo").addEventListener("change", ()=>{ $("precioFijoWrap").classList.toggle("hidden", $("precioModo").value!=="fijo"); });
 $("guardarCfg").addEventListener("click", ()=>{
-  cfg = { proveedor:$("proveedor").value, apiKey:$("apiKey").value.trim(), etiqueta:$("etiqueta").value.trim(),
-    moneda:$("moneda").value.trim()||"ARS", precioModo:$("precioModo").value, precioFijo:$("precioFijo").value.trim(), sku:$("sku").value.trim() };
+  cfg = { proveedor:$("proveedor").value, apiKey:$("apiKey").value.trim(), modelo:$("modelo").value.trim(),
+    etiqueta:$("etiqueta").value.trim(), moneda:$("moneda").value.trim()||"ARS", precioModo:$("precioModo").value,
+    precioFijo:$("precioFijo").value.trim(), sku:$("sku").value.trim() };
   guardarCfgStorage(); pintarCfg();
   setStatus("ok","Configuración guardada.");
   $("configDetails").open = false;
@@ -358,7 +363,8 @@ async function llamarIA(prompt, imagenB64, mime){
   throw new Error("Proveedor desconocido");
 }
 async function llamarGemini(prompt,b64,mime){
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/${MODELOS.gemini}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
+  const modelo=cfg.modelo||MODELOS.gemini;
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
   const parts=[{text:prompt}]; if(b64) parts.push({inline_data:{mime_type:mime,data:b64}});
   const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({contents:[{parts}],generationConfig:{response_mime_type:"application/json",temperature:0.1}})});
@@ -371,7 +377,7 @@ async function llamarOpenAI(prompt,b64,mime){
   if(b64) content.push({type:"image_url",image_url:{url:`data:${mime};base64,${b64}`}});
   const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
     headers:{"Content-Type":"application/json","Authorization":"Bearer "+cfg.apiKey},
-    body:JSON.stringify({model:MODELOS.openai,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
+    body:JSON.stringify({model:cfg.modelo||MODELOS.openai,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
   if(!r.ok) throw new Error(await mensajeError(r));
   const d=await r.json();
   return d.choices[0].message.content;
@@ -382,15 +388,24 @@ async function llamarAnthropic(prompt,b64,mime){
   content.push({type:"text",text:prompt});
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
     headers:{"Content-Type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:MODELOS.anthropic,max_tokens:1024,temperature:0.1,messages:[{role:"user",content}]})});
+    body:JSON.stringify({model:cfg.modelo||MODELOS.anthropic,max_tokens:1024,temperature:0.1,messages:[{role:"user",content}]})});
   if(!r.ok) throw new Error(await mensajeError(r));
   const d=await r.json();
   return d.content[0].text;
 }
 async function mensajeError(r){
   let extra=""; try{ const j=await r.json(); extra=(j.error&&(j.error.message||j.error))||JSON.stringify(j); }catch(e){}
+  const txt=(extra||"").toString().toLowerCase();
   if(r.status===401||r.status===403) return "Clave inválida o sin permiso (HTTP "+r.status+"). "+extra;
-  if(r.status===429) return "Llegaste al límite de uso (HTTP 429). Esperá un rato. "+extra;
+  if(r.status===429){
+    // "limit: 0" o "free_tier" => la key NO tiene cuota gratis (no es esperar, hay que generar una key nueva).
+    if(txt.includes("limit: 0") || txt.includes("free_tier") || txt.includes("quota")){
+      return "Esta API key no tiene cuota gratuita habilitada (Gemini free tier = 0). NO se soluciona esperando: "
+        + "generá una clave NUEVA en https://aistudio.google.com/app/apikey con «Create API key in a new project» y pegala en ⚙️ Configuración. "
+        + "(Detalle: "+extra+")";
+    }
+    return "Límite temporal por minuto (HTTP 429). Esperá unos segundos y reintentá. "+extra;
+  }
   return "Error HTTP "+r.status+". "+extra;
 }
 function parsearJSON(t){
