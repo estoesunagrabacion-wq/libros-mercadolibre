@@ -212,7 +212,7 @@
       width: 34px; height: 34px; border-radius: 3px; font-size: 1rem; line-height: 1; }
     .cerrar:hover { color: var(--gold-bright); border-color: var(--gold); }
 
-    .tabs { display: flex; gap: 10px; padding: 0 20px 14px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 14px; }
     .tabs button {
       flex: 1; cursor: pointer; padding: 11px 0; border-radius: 3px;
       font-family: var(--serif-display); font-weight: 600; font-size: .82rem;
@@ -235,10 +235,11 @@
       font-family: var(--serif-text); font-size: .78rem; letter-spacing: .02em;
       text-transform: none; color: var(--gold-dim);
     }
-    .rango-box input[type="date"] {
+    .rango-box input[type="date"], .rango-box select {
       background: var(--parchment); color: var(--ink); border: 1px solid #cbbd9c;
       border-radius: 3px; padding: 8px 10px; font-family: var(--serif-text); font-size: .95rem;
     }
+    .rango-box select { min-width: 190px; }
     .rango-btn {
       cursor: pointer; font-family: var(--serif-display); font-size: .76rem;
       letter-spacing: .14em; text-transform: uppercase; color: var(--gold-bright);
@@ -361,7 +362,11 @@
       <div class="tabs">
         <button id="tabHoy" class="on" onclick="verTab('hoy')">Hoy</button>
         <button id="tabMes" onclick="verTab('mes')">Este mes</button>
+        <button id="tabMeses" onclick="verTab('meses')">Meses</button>
         <button id="tabRango" onclick="verTab('rango')">Período</button>
+      </div>
+      <div class="rango-box" id="mesesBox">
+        <label class="rango-lbl">Mes<select id="mesSel" onchange="verMes()"></select></label>
       </div>
       <div class="rango-box" id="rangoBox">
         <label class="rango-lbl">Desde<input type="date" id="desde"></label>
@@ -507,21 +512,40 @@
 
     /* ── Ventana de detalle ── */
     var detalleData = null;
-    var detalleRango = null;
+    var detalleExtra = null;   // datos de las solapas "Meses" y "Período"
     var tabActual = 'hoy';
     var filtroActual = 'todos';
+    var mesesCargados = false;
+
+    var MESES_NOMBRE = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    function etiquetaMes(ym) {
+      var p = String(ym).split('-');
+      var n = MESES_NOMBRE[(+p[1]) - 1] || '';
+      return (n.charAt(0).toUpperCase() + n.slice(1)) + ' ' + p[0];
+    }
 
     function periodoTexto() {
-      return tabActual === 'hoy' ? 'hoy' : (tabActual === 'mes' ? 'este mes' : 'el período');
+      if (tabActual === 'hoy') { return 'hoy'; }
+      if (tabActual === 'mes') { return 'este mes'; }
+      if (tabActual === 'meses') { return 'ese mes'; }
+      return 'el período';
+    }
+
+    function marcarTab() {
+      document.getElementById('tabHoy').className = (tabActual === 'hoy') ? 'on' : '';
+      document.getElementById('tabMes').className = (tabActual === 'mes') ? 'on' : '';
+      document.getElementById('tabMeses').className = (tabActual === 'meses') ? 'on' : '';
+      document.getElementById('tabRango').className = (tabActual === 'rango') ? 'on' : '';
     }
 
     function abrirDetalle() {
       document.getElementById('modal').classList.add('abierto');
       tabActual = 'hoy';
-      detalleRango = null;
-      document.getElementById('tabHoy').className = 'on';
-      document.getElementById('tabMes').className = '';
-      document.getElementById('tabRango').className = '';
+      detalleExtra = null;
+      mesesCargados = false;
+      marcarTab();
+      document.getElementById('mesesBox').style.display = 'none';
       document.getElementById('rangoBox').style.display = 'none';
       setFiltro('todos');
       document.getElementById('detalleResumen').textContent = '';
@@ -539,11 +563,12 @@
 
     function verTab(t) {
       tabActual = t;
-      document.getElementById('tabHoy').className = (t === 'hoy') ? 'on' : '';
-      document.getElementById('tabMes').className = (t === 'mes') ? 'on' : '';
-      document.getElementById('tabRango').className = (t === 'rango') ? 'on' : '';
+      marcarTab();
+      document.getElementById('mesesBox').style.display = (t === 'meses') ? 'flex' : 'none';
       document.getElementById('rangoBox').style.display = (t === 'rango') ? 'flex' : 'none';
-      if (t === 'rango') {
+      if (t === 'meses') {
+        abrirMeses();
+      } else if (t === 'rango') {
         var dd = document.getElementById('desde'), hh = document.getElementById('hasta');
         if (!dd.value || !hh.value) {
           var hoy = new Date();
@@ -557,6 +582,48 @@
       }
     }
 
+    function abrirMeses() {
+      if (mesesCargados) {
+        if (document.getElementById('mesSel').value) { verMes(); }
+        return;
+      }
+      document.getElementById('detalleResumen').textContent = '';
+      document.getElementById('detalleCont').innerHTML = '<div class="vacio">Cargando…</div>';
+      google.script.run
+        .withSuccessHandler(function (meses) {
+          mesesCargados = true;
+          var sel = document.getElementById('mesSel');
+          sel.innerHTML = '';
+          if (!meses || !meses.length) {
+            document.getElementById('detalleCont').innerHTML = '<div class="vacio">Todavía no hay meses guardados.</div>';
+            return;
+          }
+          meses.forEach(function (ym) {
+            var o = document.createElement('option');
+            o.value = ym; o.textContent = etiquetaMes(ym);
+            sel.appendChild(o);
+          });
+          verMes();
+        })
+        .withFailureHandler(function (e) {
+          document.getElementById('detalleCont').innerHTML = '<div class="vacio">No se pudo cargar: ' + e.message + '</div>';
+        })
+        .getMesesDisponibles();
+    }
+
+    function verMes() {
+      var mes = document.getElementById('mesSel').value;
+      if (!mes) { return; }
+      document.getElementById('detalleResumen').textContent = '';
+      document.getElementById('detalleCont').innerHTML = '<div class="vacio">Cargando…</div>';
+      google.script.run
+        .withSuccessHandler(function (lista) { detalleExtra = lista; pintar(); })
+        .withFailureHandler(function (e) {
+          document.getElementById('detalleCont').innerHTML = '<div class="vacio">No se pudo cargar: ' + e.message + '</div>';
+        })
+        .getDetalleMes(mes);
+    }
+
     function verRango() {
       var desde = document.getElementById('desde').value;
       var hasta = document.getElementById('hasta').value;
@@ -565,7 +632,7 @@
       document.getElementById('detalleResumen').textContent = '';
       document.getElementById('detalleCont').innerHTML = '<div class="vacio">Cargando…</div>';
       google.script.run
-        .withSuccessHandler(function (lista) { detalleRango = lista; pintar(); })
+        .withSuccessHandler(function (lista) { detalleExtra = lista; pintar(); })
         .withFailureHandler(function (e) {
           document.getElementById('detalleCont').innerHTML = '<div class="vacio">No se pudo cargar: ' + e.message + '</div>';
         })
@@ -598,12 +665,12 @@
 
     function pintar() {
       var lista;
-      if (tabActual === 'rango') {
-        if (!detalleRango) { return; }
-        lista = detalleRango;
-      } else {
+      if (tabActual === 'hoy' || tabActual === 'mes') {
         if (!detalleData) { return; }
         lista = detalleData[tabActual] || [];
+      } else {
+        if (!detalleExtra) { return; }
+        lista = detalleExtra;
       }
       renderDetalle(filtrar(lista));
     }

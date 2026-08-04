@@ -319,3 +319,47 @@ function getDetalleRango(desde, hasta) {
   out.sort(function (a, b) { return b.orden - a.orden; });
   return out;
 }
+
+/**
+ * Devuelve la lista de meses que tienen movimientos (texto 'yyyy-MM'),
+ * del más reciente al más antiguo. Alimenta el desplegable de "Meses".
+ */
+function getMesesDisponibles() {
+  var hoja = getHojaRegistro_();
+  var ultima = hoja.getLastRow();
+  if (ultima < 2) {
+    return [];
+  }
+  var col = hoja.getRange(2, 2, ultima - 1, 1).getValues(); // columna "Mes"
+  var vistos = {};
+  col.forEach(function (r) {
+    var v = r[0];
+    if (v) { vistos[String(v)] = true; }
+  });
+  var arr = Object.keys(vistos);
+  arr.sort();
+  arr.reverse();
+  return arr;
+}
+
+/**
+ * Devuelve los movimientos de un mes ('yyyy-MM'), del más reciente al más
+ * antiguo. Lo usa la solapa "Meses" para el archivo histórico.
+ */
+function getDetalleMes(mes) {
+  var hoja = getHojaRegistro_();
+  var ultima = hoja.getLastRow();
+  var out = [];
+  if (ultima < 2) {
+    return out;
+  }
+  mes = String(mes || '');
+  var valores = hoja.getRange(2, 1, ultima - 1, ENCABEZADOS.length).getValues();
+  valores.forEach(function (f) {
+    if (String(f[1]) !== mes) { return; }   // columna "Mes"
+    var item = filaAMovimiento_(f);
+    if (item) { out.push(item); }
+  });
+  out.sort(function (a, b) { return b.orden - a.orden; });
+  return out;
+}
