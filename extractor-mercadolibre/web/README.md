@@ -42,8 +42,24 @@ como app, usá el menú del navegador → **"Agregar a pantalla de inicio"**.
 4. Tocá **💾 Guardar configuración**. Listo (queda guardado en el teléfono).
 
 Después, por cada libro:
-- **📷 Sacar foto** → la IA lo lee → revisás/corregís los campos → **➕ Agregar a la lista**.
+- **📷 Cámara** o **🖼️ Galería** → agregás una o **varias fotos** → **🔎 Analizar** → revisás/corregís los campos → **➕ Agregar a la lista**.
 - Cuando terminás la tanda, **⬇️ Descargar planilla (CSV)**.
+
+### Varias fotos del mismo libro
+Sumá tapa + contratapa + la hoja con el **ISBN** antes de tocar **Analizar**: la app las combina
+en un solo libro y, con el ISBN, trae muchos más datos (editorial, año, páginas, etc.).
+
+### Una foto con varios libros
+Si sacás una foto de una **pila o estante**, marcá la casilla **"varios libros distintos"** antes
+de Analizar. La app detecta cada libro y te los muestra **uno por uno** (arriba dice "quedan N en
+cola"); revisás y agregás cada uno. Funciona mejor con libros relativamente nuevos y legibles.
+
+### ¿De dónde salen los datos?
+1. La **IA con visión** lee la tapa y deduce los datos.
+2. **Google Books** y **OpenLibrary** (gratis) completan por ISBN o título: editorial, año,
+   páginas, idioma, subtítulo, etc.
+Lo que no aparece en ninguna fuente queda **en blanco**. El **precio** no se busca solo: hay una
+estimación de la IA y botones a **Mercado Libre / Iberlibro / eBay**.
 
 ---
 

@@ -4,10 +4,19 @@
   "modelo": "",
   "carpeta_fotos": "fotos",
   "archivo_salida": "salida.xlsx",
-  "moneda": "ARS",
   "etiqueta_titulo": "Microcentro",
+  "condicion": "Usado",
   "sku_por_defecto": "",
-  "precio": "manual",
   "stock": 1,
-  "max_largo_titulo": 60
+  "precio": "manual",
+  "max_largo_titulo": 60,
+  "paq_ancho": "24",
+  "paq_alto": "17",
+  "paq_prof": "4",
+  "paq_peso": "0.5",
+  "forma_envio": "Mercado Envíos",
+  "costo_envio": "A cargo del comprador",
+  "retiro": "Acepto",
+  "cuotas": "No agregar cuotas",
+  "costo_cuotas": "Sin costo"
 }

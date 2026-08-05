@@ -66,6 +66,12 @@
   .small{font-size:12px}
   details summary{cursor:pointer;color:var(--muted);font-size:13px}
   .pill{font-size:11px;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;color:var(--muted)}
+  .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0}
+  .thumbs .th{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000}
+  .thumbs .th img{width:100%;height:100%;object-fit:cover}
+  .thumbs .th button{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:6px;font-size:12px;line-height:1;cursor:pointer;padding:2px 6px}
+  .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt);margin:6px 0}
+  .chk input{width:auto;flex:0 0 auto}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid #ffe0a3;border-top-color:transparent;
     border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes sp{to{transform:rotate(360deg)}}
@@ -164,15 +170,18 @@
 
   <!-- CAPTURA -->
   <div class="card">
-    <h2>1) Foto del libro</h2>
+    <h2>1) Foto(s) del libro</h2>
     <div class="capture">
       <input id="fileCam" class="hidden" type="file" accept="image/*" capture="environment" />
-      <input id="fileGal" class="hidden" type="file" accept="image/*" />
+      <input id="fileGal" class="hidden" type="file" accept="image/*" multiple />
       <div class="cap-btns">
-        <button class="btn" id="btnCam">📷 Sacar foto</button>
-        <button class="btn sec" id="btnGal">🖼️ Elegir de la galería</button>
+        <button class="btn" id="btnCam">📷 Cámara</button>
+        <button class="btn sec" id="btnGal">🖼️ Galería</button>
       </div>
-      <img id="preview" class="hidden" alt="vista previa" />
+      <div id="thumbs" class="thumbs"></div>
+      <label class="chk"><input type="checkbox" id="chkVarios" /> La(s) foto(s) tienen <b>varios libros distintos</b></label>
+      <button class="btn blue hidden" id="btnAnalizar">🔎 Analizar</button>
+      <p class="small muted" id="capHint">Sumá varias fotos del <b>mismo</b> libro (tapa, contratapa, hoja con el ISBN) para sacar más datos. O marcá la casilla si la foto tiene <b>varios libros</b> distintos.</p>
 
       <details>
         <summary>…o buscar sin foto (ISBN / título a mano)</summary>
@@ -190,7 +199,7 @@
 
   <!-- RESULTADO -->
   <div class="card hidden" id="cardResultado">
-    <h2>2) Datos de la publicación <span id="confBadge"></span></h2>
+    <h2>2) Datos de la publicación <span id="confBadge"></span> <span id="colaInfo" class="pill hidden"></span></h2>
 
     <div class="field">
       <label>TÍTULO de la publicación (máx 60)</label>
@@ -248,7 +257,7 @@
     </p>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v6</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v7</span></p>
 </div>
 
 <script>
@@ -433,20 +442,36 @@ function construirCampos(){
 
 /* ---------- Prompt ---------- */
 const CLAVES = "titulo_libro, subtitulo, autor, coautores, traductores, editorial, coleccion, serie, edicion, idioma, tapa, indice, anio, isbn, tipo_narracion, paginas, tema_genero, pais_origen, altura_cm, ancho_cm, peso_g, material_tapa, condicion, estado, descripcion, precio_sugerido_min, precio_sugerido_max, confianza, observaciones";
-const INSTRUCCIONES =
-`Sos un experto en catalogación de libros (usados, antiguos y raros) para vender en Mercado Libre Argentina. Recibís la foto de la tapa (o un dato textual) y tenés que identificar el libro y devolver sus datos para completar una publicación.
-Devolvé EXCLUSIVAMENTE un JSON válido con EXACTAMENTE estas claves (usá "" cuando no tengas el dato con razonable seguridad; NO inventes):
-{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"","editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"","indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","pais_origen":"","altura_cm":"","ancho_cm":"","peso_g":"","material_tapa":"","condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}
-Reglas de formato:
+const ESQUEMA =
+`{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"","editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"","indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","pais_origen":"","altura_cm":"","ancho_cm":"","peso_g":"","material_tapa":"","condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}`;
+const REGLAS =
+`Reglas de formato de cada libro:
 - "idioma": nombre en español (Español, Inglés, Italiano, Ruso, Francés, Alemán, Portugués, Latín, Griego, etc.). El idioma puede NO ser español: leé el alfabeto real.
 - "tapa": exactamente "Dura" o "Blanda" (o "" si no se sabe).
 - "indice": "Sí" o "No" (o "").
 - "tipo_narracion": p. ej. Novela, Cuento, Poesía, Ensayo, Teatro, Antología (o "").
 - "condicion": "Usado" salvo que claramente sea nuevo.
+- "isbn": si aparece en alguna foto (contratapa / hoja de créditos), transcribilo (solo números).
 - "paginas": solo número. "altura_cm"/"ancho_cm": tamaño del libro en cm (número). "peso_g": peso del libro en gramos (número). Estimá solo si es razonable; si no, "".
 - "descripcion": 2 a 4 oraciones en español neutro (de qué trata + datos del ejemplar), sin exagerar.
 - "precio_sugerido_min"/"precio_sugerido_max": rango orientativo en pesos argentinos para un usado en ML (enteros). Es SOLO referencia.
-- Si es borroso o no es un libro: confianza "baja" y explicá en "observaciones".
+- Si algo está borroso o no se ve: dejá "" y bajá la "confianza". NO inventes.`;
+
+const INSTRUCCIONES =
+`Sos un experto en catalogación de libros (usados, antiguos y raros) para vender en Mercado Libre Argentina. Puede que recibas VARIAS fotos del MISMO libro (tapa, contratapa, hoja de créditos con el ISBN): combiná toda la información en un solo objeto. También podés recibir un dato textual.
+Devolvé EXCLUSIVAMENTE un JSON válido con EXACTAMENTE estas claves (usá "" cuando no tengas el dato con razonable seguridad):
+${ESQUEMA}
+${REGLAS}
+No agregues nada fuera del JSON.`;
+
+const INSTRUCCIONES_VARIOS =
+`Sos un experto en catalogación de libros para vender en Mercado Libre Argentina. Recibís una o varias fotos que contienen VARIOS libros distintos (una pila, un estante, varias tapas juntas). Identificá CADA libro que se vea con claridad.
+Devolvé EXCLUSIVAMENTE un JSON válido con esta forma:
+{"libros":[ OBJ, OBJ, ... ]}
+donde cada OBJ tiene EXACTAMENTE estas claves (usá "" cuando no tengas el dato):
+${ESQUEMA}
+${REGLAS}
+- No inventes libros que no se ven. Si ves uno solo, devolvé un array de 1. Ignorá los que no puedas leer.
 No agregues nada fuera del JSON.`;
 
 function promptTexto(dato){
@@ -472,12 +497,14 @@ function achicar(dataURL, max=1600){
   });
 }
 
-/* ---------- IA ---------- */
-async function llamarIA(prompt, imagenB64, mime){
+/* ---------- IA ----------
+   imagenes = array de {b64, mime} (puede ser [] para solo texto) */
+async function llamarIA(prompt, imagenes){
+  imagenes = imagenes || [];
   if(!C.apiKey) throw new Error("Falta la API key. Abrí ⚙️ Configuración y pegá tu clave.");
-  if(C.proveedor==="gemini") return llamarGemini(prompt,imagenB64,mime);
-  if(C.proveedor==="openai") return llamarOpenAI(prompt,imagenB64,mime);
-  if(C.proveedor==="anthropic") return llamarAnthropic(prompt,imagenB64,mime);
+  if(C.proveedor==="gemini") return llamarGemini(prompt,imagenes);
+  if(C.proveedor==="openai") return llamarOpenAI(prompt,imagenes);
+  if(C.proveedor==="anthropic") return llamarAnthropic(prompt,imagenes);
   throw new Error("Proveedor desconocido");
 }
 let geminiCandidatos=null; const geminiMalos=new Set();
@@ -493,43 +520,45 @@ async function listarModelosGemini(){
   return (d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent"))
     .map(m=>m.name.replace(/^models\//,"")).sort((a,b)=>puntajeModelo(b)-puntajeModelo(a));
 }
-async function pedirGemini(modelo,prompt,b64,mime){
+async function pedirGemini(modelo,prompt,imagenes){
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(C.apiKey)}`;
-  const parts=[{text:prompt}]; if(b64) parts.push({inline_data:{mime_type:mime,data:b64}});
+  const parts=[{text:prompt}];
+  imagenes.forEach(im=>parts.push({inline_data:{mime_type:im.mime,data:im.b64}}));
   return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({contents:[{parts}],generationConfig:{response_mime_type:"application/json",temperature:0.1}})});
 }
 async function leerGemini(r){ const d=await r.json(); return d.candidates[0].content.parts[0].text; }
-async function llamarGemini(prompt,b64,mime){
-  if(C.modelo){ const r=await pedirGemini(C.modelo,prompt,b64,mime);
+async function llamarGemini(prompt,imagenes){
+  if(C.modelo){ const r=await pedirGemini(C.modelo,prompt,imagenes);
     if(r.ok) return leerGemini(r); if(r.status!==404) throw new Error(await mensajeError(r)); }
   if(!geminiCandidatos) geminiCandidatos=await listarModelosGemini();
   const cand=geminiCandidatos.filter(n=>!geminiMalos.has(n));
   if(!cand.length) throw new Error("Ningún modelo de Gemini de tu clave está disponible. Generá la clave en un proyecto nuevo, o usá OpenAI/Claude.");
   let ult=null;
   for(const modelo of cand){
-    const r=await pedirGemini(modelo,prompt,b64,mime);
+    const r=await pedirGemini(modelo,prompt,imagenes);
     if(r.ok) return leerGemini(r);
     if(r.status===404){ geminiMalos.add(modelo); ult=await mensajeError(r); continue; }
     throw new Error(await mensajeError(r));
   }
   throw new Error("Los modelos de Gemini de tu clave dan 404. Generá la clave en un proyecto nuevo, o usá OpenAI/Claude. "+(ult||""));
 }
-async function llamarOpenAI(prompt,b64,mime){
+async function llamarOpenAI(prompt,imagenes){
   const content=[{type:"text",text:prompt}];
-  if(b64) content.push({type:"image_url",image_url:{url:`data:${mime};base64,${b64}`}});
+  imagenes.forEach(im=>content.push({type:"image_url",image_url:{url:`data:${im.mime};base64,${im.b64}`}}));
   const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
     headers:{"Content-Type":"application/json","Authorization":"Bearer "+C.apiKey},
     body:JSON.stringify({model:C.modelo||MODELOS.openai,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
   if(!r.ok) throw new Error(await mensajeError(r));
   return (await r.json()).choices[0].message.content;
 }
-async function llamarAnthropic(prompt,b64,mime){
-  const content=[]; if(b64) content.push({type:"image",source:{type:"base64",media_type:mime,data:b64}});
+async function llamarAnthropic(prompt,imagenes){
+  const content=[];
+  imagenes.forEach(im=>content.push({type:"image",source:{type:"base64",media_type:im.mime,data:im.b64}}));
   content.push({type:"text",text:prompt});
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
     headers:{"Content-Type":"application/json","x-api-key":C.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:C.modelo||MODELOS.anthropic,max_tokens:1500,temperature:0.1,messages:[{role:"user",content}]})});
+    body:JSON.stringify({model:C.modelo||MODELOS.anthropic,max_tokens:2000,temperature:0.1,messages:[{role:"user",content}]})});
   if(!r.ok) throw new Error(await mensajeError(r));
   return (await r.json()).content[0].text;
 }
@@ -589,23 +618,64 @@ async function enriquecer(datos){
   return datos;
 }
 
-/* ---------- Procesar ---------- */
-async function procesarFoto(file){
-  clearStatus(); ocultarResultado();
+/* ---------- Fotos pendientes (varias del mismo libro o de varios) ---------- */
+let fotosPendientes = [];   // {dataURL, b64, mime}
+let colaLibros = [];        // libros detectados pendientes de revisar
+
+async function agregarFoto(file){
   const dataURL=await fileADataURL(file);
-  const preview=$("preview"); preview.src=dataURL; preview.classList.remove("hidden");
-  setStatus("load",'<span class="spin"></span> Leyendo el libro con IA…');
+  const chico=await achicar(dataURL);
+  fotosPendientes.push({ dataURL:chico, b64:chico.split(",")[1], mime:"image/jpeg" });
+  pintarThumbs();
+}
+function pintarThumbs(){
+  const cont=$("thumbs"); cont.innerHTML="";
+  fotosPendientes.forEach((f,i)=>{
+    const d=document.createElement("div"); d.className="th";
+    d.innerHTML=`<img src="${f.dataURL}" alt=""><button data-i="${i}" title="quitar">✕</button>`;
+    d.querySelector("button").addEventListener("click",()=>{ fotosPendientes.splice(i,1); pintarThumbs(); });
+    cont.appendChild(d);
+  });
+  $("btnAnalizar").classList.toggle("hidden", fotosPendientes.length===0);
+  $("btnAnalizar").textContent = fotosPendientes.length>1 ? `🔎 Analizar (${fotosPendientes.length} fotos)` : "🔎 Analizar";
+}
+
+/* ---------- Procesar ---------- */
+async function analizarFotos(){
+  if(!fotosPendientes.length){ setStatus("err","Agregá al menos una foto."); return; }
+  clearStatus(); ocultarResultado();
+  const imagenes=fotosPendientes.map(f=>({b64:f.b64,mime:f.mime}));
+  const varios=$("chkVarios").checked;
+  setStatus("load",'<span class="spin"></span> Leyendo con IA…');
   try{
-    const chico=await achicar(dataURL); const b64=chico.split(",")[1];
-    const txt=await llamarIA(promptTexto(""),b64,"image/jpeg");
-    let datos=parsearJSON(txt);
-    setStatus("load",'<span class="spin"></span> Buscando datos en internet…');
-    await enriquecer(datos);
-    mostrarResultado(datos); clearStatus();
+    if(varios){
+      const txt=await llamarIA(INSTRUCCIONES_VARIOS, imagenes);
+      const o=parsearJSON(txt);
+      let arr = Array.isArray(o) ? o : (o.libros||o.books||[]);
+      if(!Array.isArray(arr)||!arr.length) throw new Error("No pude identificar libros en la(s) foto(s).");
+      colaLibros = arr;
+    }else{
+      const txt=await llamarIA(promptTexto(""), imagenes);
+      colaLibros = [ parsearJSON(txt) ];
+    }
+    fotosPendientes=[]; pintarThumbs(); $("chkVarios").checked=false;
+    await mostrarSiguiente();
   }catch(e){ setStatus("err","❌ "+e.message); }
 }
+async function mostrarSiguiente(){
+  if(!colaLibros.length){ ocultarResultado(); return; }
+  const datos=colaLibros.shift();
+  setStatus("load",'<span class="spin"></span> Buscando datos en internet…');
+  try{ await enriquecer(datos); }catch(e){}
+  mostrarResultado(datos);
+  const quedan=colaLibros.length;
+  const info=$("colaInfo");
+  if(quedan>0){ info.textContent="quedan "+quedan+" en cola"; info.classList.remove("hidden"); }
+  else info.classList.add("hidden");
+  clearStatus();
+}
 async function procesarManual(dato){
-  clearStatus(); ocultarResultado(); $("preview").classList.add("hidden");
+  clearStatus(); ocultarResultado();
   setStatus("load",'<span class="spin"></span> Buscando…');
   try{
     const soloDig=dato.replace(/[^0-9Xx]/g,"");
@@ -613,11 +683,12 @@ async function procesarManual(dato){
     if(soloDig.length===10||soloDig.length===13){
       datos={isbn:soloDig, confianza:"alta"};
       await enriquecer(datos);
-      if(!(datos.titulo_libro||"").trim()){ datos=parsearJSON(await llamarIA(promptTexto("ISBN "+dato),null,null)); await enriquecer(datos); }
+      if(!(datos.titulo_libro||"").trim()){ datos=parsearJSON(await llamarIA(promptTexto("ISBN "+dato),[])); await enriquecer(datos); }
     }else{
-      datos=parsearJSON(await llamarIA(promptTexto(dato),null,null));
+      datos=parsearJSON(await llamarIA(promptTexto(dato),[]));
       await enriquecer(datos);
     }
+    colaLibros=[]; $("colaInfo").classList.add("hidden");
     mostrarResultado(datos); clearStatus();
   }catch(e){ setStatus("err","❌ "+e.message); }
 }
@@ -693,13 +764,17 @@ function filaActual(){
   fila.__meta = { confianza:(actual&&actual.confianza)||"", observaciones:(actual&&actual.observaciones)||"" };
   return fila;
 }
-$("btnAgregar").addEventListener("click",()=>{
+$("btnAgregar").addEventListener("click",async()=>{
   if(!$("f_title").value.trim()){ setStatus("err","El título está vacío."); return; }
   libros.push(filaActual()); guardarLibros(); pintarLista();
-  ocultarResultado(); $("preview").classList.add("hidden"); clearStatus();
+  clearStatus();
   setStatus("ok","✔ Libro agregado a la lista ("+libros.length+").");
+  if(colaLibros.length) await mostrarSiguiente(); else ocultarResultado();
 });
-$("btnDescartar").addEventListener("click",()=>{ ocultarResultado(); $("preview").classList.add("hidden"); clearStatus(); });
+$("btnDescartar").addEventListener("click",async()=>{
+  clearStatus();
+  if(colaLibros.length) await mostrarSiguiente(); else ocultarResultado();
+});
 
 function pintarLista(){
   $("conteo").textContent=libros.length;
@@ -739,8 +814,10 @@ $("btnCSV").addEventListener("click",()=>{
 /* ---------- Captura ---------- */
 $("btnCam").addEventListener("click",()=>$("fileCam").click());
 $("btnGal").addEventListener("click",()=>$("fileGal").click());
-$("fileCam").addEventListener("change",e=>{ if(e.target.files[0]) procesarFoto(e.target.files[0]); e.target.value=""; });
-$("fileGal").addEventListener("change",e=>{ if(e.target.files[0]) procesarFoto(e.target.files[0]); e.target.value=""; });
+async function sumarArchivos(files){ for(const f of files){ await agregarFoto(f); } }
+$("fileCam").addEventListener("change",async e=>{ await sumarArchivos([...e.target.files]); e.target.value=""; });
+$("fileGal").addEventListener("change",async e=>{ await sumarArchivos([...e.target.files]); e.target.value=""; });
+$("btnAnalizar").addEventListener("click",analizarFotos);
 $("btnManual").addEventListener("click",()=>{ const t=$("manualTexto").value.trim(); if(t) procesarManual(t); });
 $("manualTexto").addEventListener("keydown",e=>{ if(e.key==="Enter"){ const t=e.target.value.trim(); if(t) procesarManual(t); }});
 
