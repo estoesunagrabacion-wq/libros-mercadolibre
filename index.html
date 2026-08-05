@@ -14,7 +14,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--txt);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
-  .wrap{max-width:720px;margin:0 auto;padding:16px 14px 60px;}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 14px 60px;}
   header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
   .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#13233a,#0a1626);
     display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--line)}
@@ -22,29 +22,32 @@
   .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
   .card h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  h3.sec{font-size:12px;letter-spacing:.4px;text-transform:uppercase;color:var(--accent);margin:16px 0 6px}
   label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
   input,select,textarea{width:100%;background:var(--card2);color:var(--txt);border:1px solid var(--line);
     border-radius:10px;padding:11px;font-size:15px;font-family:inherit}
   textarea{min-height:74px;resize:vertical}
   .row{display:flex;gap:10px}
-  .row>*{flex:1}
+  .row>*{flex:1;min-width:0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:520px){.grid2{grid-template-columns:1fr}}
   .btn{appearance:none;border:none;border-radius:10px;padding:12px 14px;font-size:15px;font-weight:700;
-    cursor:pointer;background:var(--accent);color:#1b1b1b;width:100%;transition:transform .08s,filter .12s}
+    cursor:pointer;background:var(--accent);color:#1b1b1b;width:100%;transition:transform .08s,filter .12s;text-align:center;text-decoration:none;display:inline-block}
   .btn:active{transform:translateY(1px)}
   .btn:disabled{opacity:.55;cursor:default}
   .btn.sec{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
   .btn.blue{background:var(--accent2);color:#04121f}
   .btn.sm{width:auto;padding:8px 12px;font-size:13px}
   .capture{display:flex;flex-direction:column;gap:10px}
-  .cap-btns{display:flex;gap:10px}
-  .cap-btns .btn{width:auto;flex:1}
+  .cap-btns{display:flex;gap:10px;flex-wrap:wrap}
+  .cap-btns .btn{width:auto;flex:1;min-width:120px}
   .hidden{display:none!important}
   #preview{width:100%;max-height:280px;object-fit:contain;border-radius:10px;background:#000;border:1px solid var(--line)}
   .field{position:relative;margin-bottom:2px}
-  .field .copy{position:absolute;right:6px;top:26px;background:var(--card2);border:1px solid var(--line);
+  .field .copy{position:absolute;right:6px;top:25px;background:var(--card2);border:1px solid var(--line);
     color:var(--muted);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer}
   .field .copy:active{color:var(--accent)}
-  .field input.withcopy,.field textarea.withcopy{padding-right:62px}
+  .field input.withcopy,.field textarea.withcopy{padding-right:60px}
   .status{font-size:13px;padding:9px 11px;border-radius:10px;margin:6px 0}
   .status.info{background:#10233b;color:#bcd6ff;border:1px solid #1c3a5e}
   .status.ok{background:#0f2a1c;color:#9be9bd;border:1px solid #1e5738}
@@ -54,6 +57,8 @@
   .conf.alta{background:#0f2a1c;color:#9be9bd}
   .conf.media{background:#241f10;color:#ffe0a3}
   .conf.baja{background:#2c1414;color:#ffb3b3}
+  .precioBox{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px}
+  .precioBox .est{font-size:14px;margin-bottom:8px}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
   th{color:var(--muted);font-weight:600;font-size:12px}
@@ -73,7 +78,7 @@
     <div class="logo">📚</div>
     <div>
       <h1>Extractor de libros → Mercado Libre</h1>
-      <p class="sub">Sacá una foto de la tapa y armá los datos de la publicación.</p>
+      <p class="sub">Sacá una foto de la tapa y armá la publicación con todos los datos de ML.</p>
     </div>
   </header>
 
@@ -95,39 +100,63 @@
         <label>Modelo <span class="muted">(avanzado — vacío = se detecta solo)</span></label>
         <input id="modelo" type="text" placeholder="dejar vacío (detecta automáticamente)" autocomplete="off" />
 
-        <div class="row">
+        <div class="grid2">
           <div>
             <label>Etiqueta del título</label>
             <input id="etiqueta" type="text" placeholder="Microcentro" />
           </div>
           <div>
-            <label>Moneda (CURRENCY_ID)</label>
-            <input id="moneda" type="text" value="ARS" />
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Precio</label>
-            <select id="precioModo">
-              <option value="manual">Lo pongo yo (vacío)</option>
-              <option value="sugerir">Que la IA sugiera</option>
-              <option value="fijo">Valor fijo</option>
-            </select>
+            <label>Condición por defecto</label>
+            <select id="condicionDef"><option>Usado</option><option>Nuevo</option></select>
           </div>
           <div>
             <label>SKU / ubicación por defecto</label>
             <input id="sku" type="text" placeholder="(opcional)" />
           </div>
+          <div>
+            <label>Stock por defecto</label>
+            <input id="stock" type="number" value="1" />
+          </div>
         </div>
-        <div id="precioFijoWrap" class="hidden">
-          <label>Precio fijo (pesos)</label>
-          <input id="precioFijo" type="number" placeholder="20000" />
+
+        <div class="grid2">
+          <div>
+            <label>Precio</label>
+            <select id="precioModo">
+              <option value="manual">Lo pongo yo (vacío)</option>
+              <option value="sugerir">Que la IA sugiera (llena el campo)</option>
+              <option value="fijo">Valor fijo</option>
+            </select>
+          </div>
+          <div id="precioFijoWrap" class="hidden">
+            <label>Precio fijo (pesos)</label>
+            <input id="precioFijo" type="number" placeholder="20000" />
+          </div>
         </div>
+
+        <h3 class="sec">📦 Medidas y peso del paquete de envío (obligatorio en ML)</h3>
+        <p class="small muted" style="margin:0 0 6px">Valor típico de tus libros. Se completa solo en cada publicación y lo podés editar por libro.</p>
+        <div class="grid2">
+          <div><label>Ancho (cm)</label><input id="paqAncho" type="number" placeholder="24" /></div>
+          <div><label>Alto (cm)</label><input id="paqAlto" type="number" placeholder="17" /></div>
+          <div><label>Profundidad (cm)</label><input id="paqProf" type="number" placeholder="4" /></div>
+          <div><label>Peso (kg)</label><input id="paqPeso" type="number" step="0.001" placeholder="0.5" /></div>
+        </div>
+
+        <details style="margin-top:10px">
+          <summary>Condiciones de venta (envío, cuotas, retiro) — avanzado</summary>
+          <div class="grid2" style="margin-top:8px">
+            <div><label>Forma de envío</label><input id="formaEnvio" type="text" value="Mercado Envíos" /></div>
+            <div><label>Costo de envío</label><input id="costoEnvio" type="text" value="A cargo del comprador" /></div>
+            <div><label>Retiro en persona</label><input id="retiro" type="text" value="Acepto" /></div>
+            <div><label>Cuotas</label><input id="cuotas" type="text" value="No agregar cuotas" /></div>
+            <div><label>Costo por ofrecer cuotas</label><input id="costoCuotas" type="text" value="Sin costo" /></div>
+          </div>
+        </details>
 
         <button class="btn sec sm" id="guardarCfg" style="margin-top:12px">💾 Guardar configuración</button>
         <p class="small muted" style="margin-top:8px">
-          Tu clave se guarda solo en <b>este teléfono</b> (no se envía a ningún lado más que al servicio de IA que elegiste).
-          <span id="cfgLink"></span>
+          Tu clave y tus datos se guardan solo en <b>este dispositivo</b> (la foto solo se envía al servicio de IA para leerla).
         </p>
       </div>
     </details>
@@ -161,76 +190,32 @@
 
   <!-- RESULTADO -->
   <div class="card hidden" id="cardResultado">
-    <h2>2) Datos del libro <span id="confBadge"></span></h2>
+    <h2>2) Datos de la publicación <span id="confBadge"></span></h2>
 
     <div class="field">
-      <label>TÍTULO de la publicación (para pegar en ML)</label>
+      <label>TÍTULO de la publicación (máx 60)</label>
       <input id="f_title" class="withcopy" type="text" />
       <button class="copy" data-for="f_title">copiar</button>
     </div>
     <div class="small muted" style="margin:2px 0 10px">Largo: <span id="titleLen">0</span>/60</div>
 
-    <div class="row">
-      <div class="field">
-        <label>Título del libro</label>
-        <input id="f_titulo_libro" class="withcopy" type="text" />
-        <button class="copy" data-for="f_titulo_libro">copiar</button>
-      </div>
-      <div class="field">
-        <label>Autor</label>
-        <input id="f_autor" class="withcopy" type="text" />
-        <button class="copy" data-for="f_autor">copiar</button>
-      </div>
-    </div>
-    <div class="row">
-      <div class="field">
-        <label>Editorial</label>
-        <input id="f_editorial" class="withcopy" type="text" />
-        <button class="copy" data-for="f_editorial">copiar</button>
-      </div>
-      <div class="field">
-        <label>Idioma</label>
-        <input id="f_idioma" class="withcopy" type="text" />
-        <button class="copy" data-for="f_idioma">copiar</button>
-      </div>
-    </div>
-    <div class="row">
-      <div class="field">
-        <label>Año</label>
-        <input id="f_anio" class="withcopy" type="text" />
-        <button class="copy" data-for="f_anio">copiar</button>
-      </div>
-      <div class="field">
-        <label>ISBN</label>
-        <input id="f_isbn" class="withcopy" type="text" />
-        <button class="copy" data-for="f_isbn">copiar</button>
-      </div>
-    </div>
-    <div class="row">
-      <div class="field">
-        <label>Tema / género</label>
-        <input id="f_tema" class="withcopy" type="text" />
-        <button class="copy" data-for="f_tema">copiar</button>
-      </div>
-      <div class="field">
-        <label>Formato</label>
-        <input id="f_formato" class="withcopy" type="text" />
-        <button class="copy" data-for="f_formato">copiar</button>
-      </div>
-    </div>
-    <div class="row">
-      <div class="field">
-        <label>Estado</label>
-        <input id="f_estado" class="withcopy" type="text" />
-        <button class="copy" data-for="f_estado">copiar</button>
-      </div>
-      <div class="field">
-        <label>Precio (PRICE)</label>
-        <input id="f_precio" class="withcopy" type="number" />
-        <button class="copy" data-for="f_precio">copiar</button>
-      </div>
-    </div>
+    <!-- Precio + búsqueda -->
     <div class="field">
+      <label>Precio [$] (ML)</label>
+      <input id="f_precio" class="withcopy" type="number" />
+      <button class="copy" data-for="f_precio">copiar</button>
+    </div>
+    <div class="precioBox">
+      <div class="est" id="precioEst">💡 Sacá la foto para ver una estimación y buscar precios.</div>
+      <div class="cap-btns" id="precioLinks"></div>
+      <div class="small muted" style="margin-top:6px">La estimación es orientativa (de la IA, no en vivo). Los botones abren la búsqueda real de este libro.</div>
+    </div>
+
+    <!-- Campos del libro (se generan solos) -->
+    <h3 class="sec">📖 Características del libro</h3>
+    <div id="camposGrid" class="grid2"></div>
+
+    <div class="field" style="margin-top:10px">
       <label>Descripción</label>
       <textarea id="f_descripcion" class="withcopy"></textarea>
       <button class="copy" data-for="f_descripcion">copiar</button>
@@ -258,24 +243,112 @@
       <button class="btn sec" id="btnVaciar">🗑️ Vaciar lista</button>
     </div>
     <p class="small muted" style="margin-top:8px">
-      El CSV se abre con Excel/Google Sheets. Trae las columnas de Mercado Libre
-      (para carga masiva) y columnas extra con autor, idioma, descripción, etc.
+      El CSV trae las <b>61 columnas</b> de la planilla “Publicar varios productos” de ML (Libros Físicos), en orden.
+      Abrilo con Excel/Sheets, copiá las filas de datos y pegalas en la planilla que descargás de Mercado Libre.
     </p>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu teléfono (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v5</span></p>
-
-  <p class="small muted" style="text-align:center;margin-top:14px">
-    También acá: <a href="./juego/">🕵️ Detective Sintáctico</a> · <a href="./vida/">🧬 Juego de la Vida</a>
-  </p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v6</span></p>
 </div>
 
 <script>
 "use strict";
 
-// ---------- Config / estado ----------
-const COLS_ML = ["FAMILY_ID","ITEM_ID","PRODUCT_NUMBER","VARIATION_ID","SKU","TITLE","VARIATIONS","STOCK_FLEX","PRICE","CURRENCY_ID"];
-const COLS_EXTRA = ["TITULO_LIBRO","AUTOR","EDITORIAL","IDIOMA","ANIO","ISBN","TEMA_GENERO","FORMATO","ESTADO","DESCRIPCION","PRECIO_SUGERIDO","ARCHIVO","CONFIANZA","OBSERVACIONES"];
+/* ============================================================
+   Columnas EXACTAS de la planilla "Publicar varios productos"
+   (Libros Físicos), en orden A..BI. Cada una define cómo se llena.
+   g(id) = valor del campo en pantalla ; C = config.
+   ============================================================ */
+const COLUMNAS = [
+  ["Código de catálogo ML", ()=>""],
+  ["Título", g=>g("title")],
+  ["Cantidad de caracteres", ()=>""],
+  ["Condición", g=>g("condicion")||C.condicion||"Usado"],
+  ["ISBN", g=>g("isbn")],
+  ["Fotos", ()=>""],
+  ["SKU", ()=>C.sku||""],
+  ["Stock", ()=>C.stock||"1"],
+  ["Precio [$]", g=>g("precio")],
+  ["Descripción", g=>g("descripcion")],
+  ["Ancho (cm)", ()=>C.paqAncho||""],
+  ["Alto (cm)", ()=>C.paqAlto||""],
+  ["Profundidad (cm)", ()=>C.paqProf||""],
+  ["Peso físico (kg)", ()=>C.paqPeso||""],
+  ["Cargo por vender", ()=>""],
+  ["Cuotas", ()=>C.cuotas||""],
+  ["Costo por ofrecer cuotas", ()=>C.costoCuotas||""],
+  ["Forma de envío", ()=>C.formaEnvio||""],
+  ["Costo de envío", ()=>C.costoEnvio||""],
+  ["Retiro en persona", ()=>C.retiro||""],
+  ["Tipo de garantía", ()=>""],
+  ["Tiempo de garantía", ()=>""],
+  ["Unidad de Tiempo de garantía", ()=>""],
+  ["Factura A", ()=>""],
+  ["Título del libro", g=>g("titulo_libro")],
+  ["Autor", g=>g("autor")],
+  ["Editorial del libro", g=>g("editorial")],
+  ["Subtítulo del libro", g=>g("subtitulo")],
+  ["Serie", g=>g("serie")],
+  ["Idioma", g=>g("idioma")],
+  ["Edición del libro", g=>g("edicion")],
+  ["Tapa del libro", g=>g("tapa")],
+  ["Volumen del libro", ()=>""],
+  ["Índice", g=>g("indice")],
+  ["Año de publicación", g=>g("anio")],
+  ["Páginas para colorear", ()=>""],
+  ["Realidad aumentada", ()=>""],
+  ["Coautores", g=>g("coautores")],
+  ["Traductores", g=>g("traductores")],
+  ["Tipo de narración", g=>g("tipo_narracion")],
+  ["Versión del libro", ()=>""],
+  ["BISAC", ()=>""],
+  ["Tamaño del libro", ()=>""],
+  ["NCM", ()=>""],
+  ["País de origen", g=>g("pais_origen")],
+  ["Colección del libro", g=>g("coleccion")],
+  ["Edad mínima recomendada", ()=>""],
+  ["Unidad de Edad mínima recomendada", ()=>""],
+  ["En imprenta mayúscula", ()=>""],
+  ["Cantidad de libros por set", ()=>""],
+  ["Cantidad de páginas", g=>g("paginas")],
+  ["Altura", g=>g("altura_cm")],
+  ["Unidad de Altura", g=>g("altura_cm")?"cm":""],
+  ["Ancho", g=>g("ancho_cm")],
+  ["Unidad de Ancho", g=>g("ancho_cm")?"cm":""],
+  ["Peso", g=>g("peso_g")],
+  ["Unidad de Peso", g=>g("peso_g")?"g":""],
+  ["Material de la tapa del libro", g=>g("material_tapa")],
+  ["Resumen de errores", ()=>""],
+  ["BUYBOX_FORMULA", ()=>""],
+  ["HIDDEN_PICTURES", ()=>""],
+];
+
+/* Campos editables que se muestran en pantalla (además de título/precio/descripción). */
+const CAMPOS = [
+  {id:"condicion", label:"Condición", type:"select", opts:["Usado","Nuevo"]},
+  {id:"titulo_libro", label:"Título del libro"},
+  {id:"subtitulo", label:"Subtítulo"},
+  {id:"autor", label:"Autor"},
+  {id:"coautores", label:"Coautores"},
+  {id:"traductores", label:"Traductores"},
+  {id:"editorial", label:"Editorial"},
+  {id:"coleccion", label:"Colección"},
+  {id:"serie", label:"Serie"},
+  {id:"edicion", label:"Edición"},
+  {id:"idioma", label:"Idioma"},
+  {id:"tapa", label:"Tapa", type:"select", opts:["","Dura","Blanda"]},
+  {id:"indice", label:"Índice", type:"select", opts:["","Sí","No"]},
+  {id:"anio", label:"Año de publicación"},
+  {id:"isbn", label:"ISBN"},
+  {id:"tipo_narracion", label:"Tipo de narración"},
+  {id:"paginas", label:"Cantidad de páginas"},
+  {id:"pais_origen", label:"País de origen"},
+  {id:"altura_cm", label:"Alto del libro (cm)"},
+  {id:"ancho_cm", label:"Ancho del libro (cm)"},
+  {id:"peso_g", label:"Peso del libro (g)"},
+  {id:"material_tapa", label:"Material de la tapa"},
+];
+
 const MODELOS = { gemini:"gemini-2.5-flash", openai:"gpt-4o-mini", anthropic:"claude-3-5-sonnet-20241022" };
 const KEY_HELP = {
   gemini:'(gratis en <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>)',
@@ -284,64 +357,105 @@ const KEY_HELP = {
 };
 
 const $ = (id)=>document.getElementById(id);
-let cfg = cargarCfg();
+let C = cargarCfg();
 let libros = cargarLibros();
-let actual = null;   // datos del libro en pantalla
+let actual = null;   // datos crudos del libro en pantalla
 
-function cargarCfg(){
-  try{ return Object.assign({proveedor:"gemini",apiKey:"",modelo:"",etiqueta:"Microcentro",moneda:"ARS",
-    precioModo:"manual",precioFijo:"",sku:""}, JSON.parse(localStorage.getItem("extractorCfg")||"{}")); }
-  catch(e){ return {proveedor:"gemini",apiKey:"",modelo:"",etiqueta:"Microcentro",moneda:"ARS",precioModo:"manual",precioFijo:"",sku:""}; }
+/* ---------- Config ---------- */
+function cfgDefault(){
+  return {proveedor:"gemini",apiKey:"",modelo:"",etiqueta:"Microcentro",condicion:"Usado",
+    sku:"",stock:"1",precioModo:"manual",precioFijo:"",
+    paqAncho:"24",paqAlto:"17",paqProf:"4",paqPeso:"0.5",
+    formaEnvio:"Mercado Envíos",costoEnvio:"A cargo del comprador",retiro:"Acepto",
+    cuotas:"No agregar cuotas",costoCuotas:"Sin costo"};
 }
-function guardarCfgStorage(){ localStorage.setItem("extractorCfg", JSON.stringify(cfg)); }
-function cargarLibros(){ try{ return JSON.parse(localStorage.getItem("extractorLibros")||"[]"); }catch(e){ return []; } }
-function guardarLibros(){ localStorage.setItem("extractorLibros", JSON.stringify(libros)); }
+function cargarCfg(){
+  try{ return Object.assign(cfgDefault(), JSON.parse(localStorage.getItem("extractorCfg")||"{}")); }
+  catch(e){ return cfgDefault(); }
+}
+function guardarCfgStorage(){ localStorage.setItem("extractorCfg", JSON.stringify(C)); }
+function cargarLibros(){ try{ return JSON.parse(localStorage.getItem("extractorLibrosV2")||"[]"); }catch(e){ return []; } }
+function guardarLibros(){ localStorage.setItem("extractorLibrosV2", JSON.stringify(libros)); }
 
 function pintarCfg(){
-  $("proveedor").value = cfg.proveedor;
-  $("apiKey").value = cfg.apiKey;
-  $("modelo").value = cfg.modelo || "";
-  $("etiqueta").value = cfg.etiqueta;
-  $("moneda").value = cfg.moneda;
-  $("precioModo").value = cfg.precioModo;
-  $("precioFijo").value = cfg.precioFijo;
-  $("sku").value = cfg.sku;
-  $("keyHelp").innerHTML = KEY_HELP[cfg.proveedor]||"";
-  $("precioFijoWrap").classList.toggle("hidden", cfg.precioModo!=="fijo");
-  $("cfgResumen").textContent = cfg.apiKey ? (cfg.proveedor+" ✓") : "sin clave";
-  if(!cfg.apiKey) $("configDetails").open = true;
+  $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||"";
+  $("etiqueta").value=C.etiqueta; $("condicionDef").value=C.condicion; $("sku").value=C.sku; $("stock").value=C.stock;
+  $("precioModo").value=C.precioModo; $("precioFijo").value=C.precioFijo;
+  $("paqAncho").value=C.paqAncho; $("paqAlto").value=C.paqAlto; $("paqProf").value=C.paqProf; $("paqPeso").value=C.paqPeso;
+  $("formaEnvio").value=C.formaEnvio; $("costoEnvio").value=C.costoEnvio; $("retiro").value=C.retiro;
+  $("cuotas").value=C.cuotas; $("costoCuotas").value=C.costoCuotas;
+  $("keyHelp").innerHTML=KEY_HELP[C.proveedor]||"";
+  $("precioFijoWrap").classList.toggle("hidden", C.precioModo!=="fijo");
+  $("cfgResumen").textContent=C.apiKey ? (C.proveedor+" ✓") : "sin clave";
+  if(!C.apiKey) $("configDetails").open=true;
 }
-$("proveedor").addEventListener("change", ()=>{ $("keyHelp").innerHTML = KEY_HELP[$("proveedor").value]||""; });
+$("proveedor").addEventListener("change", ()=>{ $("keyHelp").innerHTML=KEY_HELP[$("proveedor").value]||""; });
 $("precioModo").addEventListener("change", ()=>{ $("precioFijoWrap").classList.toggle("hidden", $("precioModo").value!=="fijo"); });
 $("guardarCfg").addEventListener("click", ()=>{
-  cfg = { proveedor:$("proveedor").value, apiKey:$("apiKey").value.trim(), modelo:$("modelo").value.trim(),
-    etiqueta:$("etiqueta").value.trim(), moneda:$("moneda").value.trim()||"ARS", precioModo:$("precioModo").value,
-    precioFijo:$("precioFijo").value.trim(), sku:$("sku").value.trim() };
+  const t=id=>$(id).value.trim();
+  C={ proveedor:$("proveedor").value, apiKey:t("apiKey"), modelo:t("modelo"), etiqueta:t("etiqueta"),
+    condicion:$("condicionDef").value, sku:t("sku"), stock:t("stock")||"1",
+    precioModo:$("precioModo").value, precioFijo:t("precioFijo"),
+    paqAncho:t("paqAncho"), paqAlto:t("paqAlto"), paqProf:t("paqProf"), paqPeso:t("paqPeso"),
+    formaEnvio:t("formaEnvio"), costoEnvio:t("costoEnvio"), retiro:t("retiro"),
+    cuotas:t("cuotas"), costoCuotas:t("costoCuotas") };
   guardarCfgStorage(); pintarCfg();
   setStatus("ok","Configuración guardada.");
-  $("configDetails").open = false;
+  $("configDetails").open=false;
 });
 
-// ---------- Estado / UI helpers ----------
-function setStatus(tipo,html){
-  const s=$("status"); s.className="status "+tipo; s.innerHTML=html; s.classList.remove("hidden");
-}
+/* ---------- Estado / UI ---------- */
+function setStatus(tipo,html){ const s=$("status"); s.className="status "+tipo; s.innerHTML=html; s.classList.remove("hidden"); }
 function clearStatus(){ $("status").classList.add("hidden"); }
 
-// ---------- Prompt (igual que la versión de escritorio) ----------
-const INSTRUCCIONES = `Sos un asistente experto en catalogación de libros (usados, antiguos y raros) para vender en Mercado Libre Argentina. Vas a recibir la foto de la tapa/portada de un libro (o un dato textual) y tenés que identificarlo.
-Devolvé EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, con estas claves (usá "" cuando no puedas determinar el dato con razonable seguridad; NO inventes):
-{"titulo_libro":"","autor":"","editorial":"","idioma":"","anio":"","isbn":"","tema_genero":"","formato":"","estado":"","descripcion":"","precio_sugerido":null,"confianza":"alta|media|baja","observaciones":""}
-Reglas: el idioma del libro puede NO ser español (leé el alfabeto real de la tapa). La descripción: 2 a 4 oraciones en español neutro (de qué trata + datos del ejemplar). Si es borroso o no es un libro, confianza "baja" y explicá en observaciones. No agregues nada fuera del JSON.`;
+/* ---------- Generar campos del libro ---------- */
+function construirCampos(){
+  const cont=$("camposGrid");
+  cont.innerHTML="";
+  CAMPOS.forEach(c=>{
+    const wrap=document.createElement("div"); wrap.className="field";
+    const lab=document.createElement("label"); lab.textContent=c.label; wrap.appendChild(lab);
+    let el;
+    if(c.type==="select"){
+      el=document.createElement("select");
+      c.opts.forEach(o=>{ const op=document.createElement("option"); op.value=o; op.textContent=o||"(vacío)"; el.appendChild(op); });
+    }else{
+      el=document.createElement("input"); el.type="text"; el.className="withcopy";
+      const cp=document.createElement("button"); cp.className="copy"; cp.dataset.for="f_"+c.id; cp.textContent="copiar";
+      wrap.appendChild(el); wrap.appendChild(cp);
+      el.id="f_"+c.id; cont.appendChild(wrap);
+      if(c.id==="titulo_libro"||c.id==="autor") el.addEventListener("input",regenerarTitulo);
+      return;
+    }
+    el.id="f_"+c.id; wrap.appendChild(el); cont.appendChild(wrap);
+  });
+}
 
-function promptTexto(sugerir, dato){
-  let p = INSTRUCCIONES;
-  if(sugerir) p += "\nADEMÁS: proponé 'precio_sugerido' orientativo (entero, pesos argentinos) para un usado en ML Argentina.";
-  if(dato) p += `\nNo hay foto. Identificá el libro a partir de: "${dato}"`;
+/* ---------- Prompt ---------- */
+const CLAVES = "titulo_libro, subtitulo, autor, coautores, traductores, editorial, coleccion, serie, edicion, idioma, tapa, indice, anio, isbn, tipo_narracion, paginas, tema_genero, pais_origen, altura_cm, ancho_cm, peso_g, material_tapa, condicion, estado, descripcion, precio_sugerido_min, precio_sugerido_max, confianza, observaciones";
+const INSTRUCCIONES =
+`Sos un experto en catalogación de libros (usados, antiguos y raros) para vender en Mercado Libre Argentina. Recibís la foto de la tapa (o un dato textual) y tenés que identificar el libro y devolver sus datos para completar una publicación.
+Devolvé EXCLUSIVAMENTE un JSON válido con EXACTAMENTE estas claves (usá "" cuando no tengas el dato con razonable seguridad; NO inventes):
+{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"","editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"","indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","pais_origen":"","altura_cm":"","ancho_cm":"","peso_g":"","material_tapa":"","condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}
+Reglas de formato:
+- "idioma": nombre en español (Español, Inglés, Italiano, Ruso, Francés, Alemán, Portugués, Latín, Griego, etc.). El idioma puede NO ser español: leé el alfabeto real.
+- "tapa": exactamente "Dura" o "Blanda" (o "" si no se sabe).
+- "indice": "Sí" o "No" (o "").
+- "tipo_narracion": p. ej. Novela, Cuento, Poesía, Ensayo, Teatro, Antología (o "").
+- "condicion": "Usado" salvo que claramente sea nuevo.
+- "paginas": solo número. "altura_cm"/"ancho_cm": tamaño del libro en cm (número). "peso_g": peso del libro en gramos (número). Estimá solo si es razonable; si no, "".
+- "descripcion": 2 a 4 oraciones en español neutro (de qué trata + datos del ejemplar), sin exagerar.
+- "precio_sugerido_min"/"precio_sugerido_max": rango orientativo en pesos argentinos para un usado en ML (enteros). Es SOLO referencia.
+- Si es borroso o no es un libro: confianza "baja" y explicá en "observaciones".
+No agregues nada fuera del JSON.`;
+
+function promptTexto(dato){
+  let p=INSTRUCCIONES;
+  if(dato) p+=`\nNo hay foto. Identificá el libro a partir de: "${dato}"`;
   return p;
 }
 
-// ---------- Redimensionar imagen ----------
+/* ---------- Imagen ---------- */
 function fileADataURL(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
 function achicar(dataURL, max=1600){
   return new Promise((res)=>{
@@ -358,94 +472,74 @@ function achicar(dataURL, max=1600){
   });
 }
 
-// ---------- Llamadas a la IA ----------
+/* ---------- IA ---------- */
 async function llamarIA(prompt, imagenB64, mime){
-  if(!cfg.apiKey) throw new Error("Falta la API key. Abrí ⚙️ Configuración y pegá tu clave.");
-  if(cfg.proveedor==="gemini") return llamarGemini(prompt,imagenB64,mime);
-  if(cfg.proveedor==="openai") return llamarOpenAI(prompt,imagenB64,mime);
-  if(cfg.proveedor==="anthropic") return llamarAnthropic(prompt,imagenB64,mime);
+  if(!C.apiKey) throw new Error("Falta la API key. Abrí ⚙️ Configuración y pegá tu clave.");
+  if(C.proveedor==="gemini") return llamarGemini(prompt,imagenB64,mime);
+  if(C.proveedor==="openai") return llamarOpenAI(prompt,imagenB64,mime);
+  if(C.proveedor==="anthropic") return llamarAnthropic(prompt,imagenB64,mime);
   throw new Error("Proveedor desconocido");
 }
-let geminiCandidatos = null;                 // lista de modelos ordenada por preferencia
-const geminiMalos = new Set();               // modelos que dieron 404 (no disponibles)
-function puntajeModelo(n){
-  let s = 0;
-  if(/flash/i.test(n)) s += 100;             // flash: rápido y barato
-  if(/latest/i.test(n)) s += 60;             // alias estable "latest" = modelo vigente
-  if(/2\.0/.test(n)) s += 15;
-  if(/lite/i.test(n)) s -= 25;
-  if(/(exp|preview|thinking|tts|image|embedding|vision|aqa|learnlm|gemma)/i.test(n)) s -= 300;
-  if(/(1\.5|1\.0|8b)/.test(n)) s -= 120;     // generaciones viejas al final
-  return s;
-}
+let geminiCandidatos=null; const geminiMalos=new Set();
+function puntajeModelo(n){ let s=0;
+  if(/flash/i.test(n)) s+=100; if(/latest/i.test(n)) s+=60; if(/2\.0/.test(n)) s+=15;
+  if(/lite/i.test(n)) s-=25;
+  if(/(exp|preview|thinking|tts|image|embedding|vision|aqa|learnlm|gemma)/i.test(n)) s-=300;
+  if(/(1\.5|1\.0|8b)/.test(n)) s-=120; return s; }
 async function listarModelosGemini(){
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cfg.apiKey)}`);
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(C.apiKey)}`);
   if(!r.ok) throw new Error(await mensajeError(r));
-  const d = await r.json();
-  const nombres = (d.models||[])
-    .filter(m => (m.supportedGenerationMethods||[]).includes("generateContent"))
-    .map(m => m.name.replace(/^models\//,""));
-  return nombres.sort((a,b)=>puntajeModelo(b)-puntajeModelo(a));
+  const d=await r.json();
+  return (d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent"))
+    .map(m=>m.name.replace(/^models\//,"")).sort((a,b)=>puntajeModelo(b)-puntajeModelo(a));
 }
 async function pedirGemini(modelo,prompt,b64,mime){
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(C.apiKey)}`;
   const parts=[{text:prompt}]; if(b64) parts.push({inline_data:{mime_type:mime,data:b64}});
   return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({contents:[{parts}],generationConfig:{response_mime_type:"application/json",temperature:0.1}})});
 }
 async function leerGemini(r){ const d=await r.json(); return d.candidates[0].content.parts[0].text; }
 async function llamarGemini(prompt,b64,mime){
-  // 1) Si el usuario forzó un modelo, probarlo primero.
-  if(cfg.modelo){
-    const r=await pedirGemini(cfg.modelo,prompt,b64,mime);
+  if(C.modelo){ const r=await pedirGemini(C.modelo,prompt,b64,mime);
+    if(r.ok) return leerGemini(r); if(r.status!==404) throw new Error(await mensajeError(r)); }
+  if(!geminiCandidatos) geminiCandidatos=await listarModelosGemini();
+  const cand=geminiCandidatos.filter(n=>!geminiMalos.has(n));
+  if(!cand.length) throw new Error("Ningún modelo de Gemini de tu clave está disponible. Generá la clave en un proyecto nuevo, o usá OpenAI/Claude.");
+  let ult=null;
+  for(const modelo of cand){
+    const r=await pedirGemini(modelo,prompt,b64,mime);
     if(r.ok) return leerGemini(r);
-    if(r.status!==404) throw new Error(await mensajeError(r));  // 429/otros: es cuota, no el modelo
+    if(r.status===404){ geminiMalos.add(modelo); ult=await mensajeError(r); continue; }
+    throw new Error(await mensajeError(r));
   }
-  // 2) Autodetección: probar los modelos disponibles uno por uno, descartando los que no sirven (404).
-  if(!geminiCandidatos) geminiCandidatos = await listarModelosGemini();
-  const candidatos = geminiCandidatos.filter(n => !geminiMalos.has(n));
-  if(!candidatos.length) throw new Error("Ningún modelo de Gemini de tu clave está disponible para generar. Generá la clave en un proyecto nuevo, o cambiá el Servicio de IA a OpenAI o Claude.");
-  let ultimoError = null;
-  for(const modelo of candidatos){
-    const r = await pedirGemini(modelo,prompt,b64,mime);
-    if(r.ok) return leerGemini(r);
-    if(r.status===404){ geminiMalos.add(modelo); ultimoError = await mensajeError(r); continue; }
-    throw new Error(await mensajeError(r));   // 429 (cuota) u otro: no tiene sentido seguir probando modelos
-  }
-  throw new Error("Los modelos de Gemini de tu clave no están disponibles para usar (todos dan 404). Generá la clave en un proyecto nuevo, o cambiá el Servicio de IA a OpenAI o Claude. "+(ultimoError||""));
+  throw new Error("Los modelos de Gemini de tu clave dan 404. Generá la clave en un proyecto nuevo, o usá OpenAI/Claude. "+(ult||""));
 }
 async function llamarOpenAI(prompt,b64,mime){
   const content=[{type:"text",text:prompt}];
   if(b64) content.push({type:"image_url",image_url:{url:`data:${mime};base64,${b64}`}});
   const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
-    headers:{"Content-Type":"application/json","Authorization":"Bearer "+cfg.apiKey},
-    body:JSON.stringify({model:cfg.modelo||MODELOS.openai,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+C.apiKey},
+    body:JSON.stringify({model:C.modelo||MODELOS.openai,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
   if(!r.ok) throw new Error(await mensajeError(r));
-  const d=await r.json();
-  return d.choices[0].message.content;
+  return (await r.json()).choices[0].message.content;
 }
 async function llamarAnthropic(prompt,b64,mime){
-  const content=[];
-  if(b64) content.push({type:"image",source:{type:"base64",media_type:mime,data:b64}});
+  const content=[]; if(b64) content.push({type:"image",source:{type:"base64",media_type:mime,data:b64}});
   content.push({type:"text",text:prompt});
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
-    headers:{"Content-Type":"application/json","x-api-key":cfg.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:cfg.modelo||MODELOS.anthropic,max_tokens:1024,temperature:0.1,messages:[{role:"user",content}]})});
+    headers:{"Content-Type":"application/json","x-api-key":C.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:C.modelo||MODELOS.anthropic,max_tokens:1500,temperature:0.1,messages:[{role:"user",content}]})});
   if(!r.ok) throw new Error(await mensajeError(r));
-  const d=await r.json();
-  return d.content[0].text;
+  return (await r.json()).content[0].text;
 }
 async function mensajeError(r){
   let extra=""; try{ const j=await r.json(); extra=(j.error&&(j.error.message||j.error))||JSON.stringify(j); }catch(e){}
   const txt=(extra||"").toString().toLowerCase();
   if(r.status===401||r.status===403) return "Clave inválida o sin permiso (HTTP "+r.status+"). "+extra;
   if(r.status===429){
-    // "limit: 0" o "free_tier" => la key NO tiene cuota gratis (no es esperar, hay que generar una key nueva).
-    if(txt.includes("limit: 0") || txt.includes("free_tier") || txt.includes("quota")){
-      return "Esta API key no tiene cuota gratuita habilitada (Gemini free tier = 0). NO se soluciona esperando: "
-        + "generá una clave NUEVA en https://aistudio.google.com/app/apikey con «Create API key in a new project» y pegala en ⚙️ Configuración. "
-        + "(Detalle: "+extra+")";
-    }
+    if(txt.includes("limit: 0")||txt.includes("free_tier")||txt.includes("quota"))
+      return "Esta API key no tiene cuota gratuita (Gemini free tier = 0). NO se soluciona esperando: generá una clave NUEVA en https://aistudio.google.com/app/apikey con «Create API key in a new project». (Detalle: "+extra+")";
     return "Límite temporal por minuto (HTTP 429). Esperá unos segundos y reintentá. "+extra;
   }
   return "Error HTTP "+r.status+". "+extra;
@@ -455,122 +549,153 @@ function parsearJSON(t){
   try{ return JSON.parse(t); }catch(e){ const m=t.match(/\{[\s\S]*\}/); if(m) return JSON.parse(m[0]); throw new Error("La IA no devolvió datos legibles."); }
 }
 
-// ---------- Google Books (gratis) por ISBN ----------
-async function buscarISBN(isbn){
-  const limpio=(isbn||"").replace(/[^0-9Xx]/g,"");
-  if(limpio.length!==10 && limpio.length!==13) return {};
+/* ---------- Enriquecimiento gratis desde internet (Google Books / OpenLibrary) ---------- */
+const IDIOMAS={es:"Español",en:"Inglés",it:"Italiano",ru:"Ruso",fr:"Francés",de:"Alemán",pt:"Portugués",la:"Latín",el:"Griego",ca:"Catalán",eu:"Vasco",gl:"Gallego"};
+async function googleBooks(q){
   try{
-    const r=await fetch("https://www.googleapis.com/books/v1/volumes?q=isbn:"+limpio);
+    const r=await fetch("https://www.googleapis.com/books/v1/volumes?maxResults=1&q="+encodeURIComponent(q));
     const d=await r.json();
     if(!d.items||!d.items.length) return {};
-    const v=d.items[0].volumeInfo, idiomas={es:"Español",en:"Inglés",it:"Italiano",ru:"Ruso",fr:"Francés",de:"Alemán",pt:"Portugués"};
-    return {titulo_libro:v.title||"",autor:(v.authors||[]).join(", "),editorial:v.publisher||"",
-      anio:(v.publishedDate||"").slice(0,4),idioma:idiomas[v.language]||v.language||"",
-      tema_genero:(v.categories||[]).join(", "),descripcion:v.description||"",isbn:limpio};
+    const v=d.items[0].volumeInfo||{};
+    const isbnObj=(v.industryIdentifiers||[]).find(x=>/ISBN/.test(x.type));
+    return {titulo_libro:v.title||"", subtitulo:v.subtitle||"", autor:(v.authors||[]).join(", "),
+      editorial:v.publisher||"", anio:(v.publishedDate||"").slice(0,4), idioma:IDIOMAS[v.language]||v.language||"",
+      paginas:v.pageCount?String(v.pageCount):"", tema_genero:(v.categories||[]).join(", "),
+      descripcion:v.description||"", isbn:isbnObj?isbnObj.identifier:""};
   }catch(e){ return {}; }
 }
+async function openLibraryISBN(isbn){
+  try{
+    const r=await fetch("https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:"+encodeURIComponent(isbn));
+    const d=await r.json(); const k="ISBN:"+isbn; const v=d[k]; if(!v) return {};
+    return {titulo_libro:v.title||"", subtitulo:v.subtitle||"",
+      autor:(v.authors||[]).map(a=>a.name).join(", "),
+      editorial:(v.publishers||[]).map(p=>p.name).join(", "),
+      anio:(v.publish_date||"").match(/\d{4}/)? (v.publish_date.match(/\d{4}/)[0]):"",
+      paginas:v.number_of_pages?String(v.number_of_pages):"",
+      pais_origen:(v.publish_places||[]).map(p=>p.name).join(", ")};
+  }catch(e){ return {}; }
+}
+function rellenar(datos, extra){ for(const k in extra){ if(extra[k] && !(String(datos[k]||"").trim())) datos[k]=extra[k]; } }
+async function enriquecer(datos){
+  const isbn=(datos.isbn||"").replace(/[^0-9Xx]/g,"");
+  if(isbn.length===10||isbn.length===13){
+    rellenar(datos, await googleBooks("isbn:"+isbn));
+    rellenar(datos, await openLibraryISBN(isbn));
+  }else if((datos.titulo_libro||"").trim()){
+    const q="intitle:"+datos.titulo_libro+(datos.autor?(" inauthor:"+datos.autor):"");
+    rellenar(datos, await googleBooks(q));
+  }
+  return datos;
+}
 
-// ---------- Procesar ----------
+/* ---------- Procesar ---------- */
 async function procesarFoto(file){
   clearStatus(); ocultarResultado();
   const dataURL=await fileADataURL(file);
   const preview=$("preview"); preview.src=dataURL; preview.classList.remove("hidden");
   setStatus("load",'<span class="spin"></span> Leyendo el libro con IA…');
   try{
-    const chico=await achicar(dataURL);
-    const b64=chico.split(",")[1];
-    const prompt=promptTexto(cfg.precioModo==="sugerir","");
-    const txt=await llamarIA(prompt,b64,"image/jpeg");
+    const chico=await achicar(dataURL); const b64=chico.split(",")[1];
+    const txt=await llamarIA(promptTexto(""),b64,"image/jpeg");
     let datos=parsearJSON(txt);
-    if((datos.isbn||"").trim()){
-      const ext=await buscarISBN(datos.isbn);
-      for(const k in ext){ if(!(datos[k]||"").toString().trim() && ext[k]) datos[k]=ext[k]; }
-    }
-    mostrarResultado(datos);
-    clearStatus();
+    setStatus("load",'<span class="spin"></span> Buscando datos en internet…');
+    await enriquecer(datos);
+    mostrarResultado(datos); clearStatus();
   }catch(e){ setStatus("err","❌ "+e.message); }
 }
 async function procesarManual(dato){
   clearStatus(); ocultarResultado(); $("preview").classList.add("hidden");
   setStatus("load",'<span class="spin"></span> Buscando…');
   try{
+    const soloDig=dato.replace(/[^0-9Xx]/g,"");
     let datos;
-    const soloDigitos=dato.replace(/[^0-9Xx]/g,"");
-    if(soloDigitos.length===10||soloDigitos.length===13){
-      datos=await buscarISBN(dato);
-      if(!datos||!datos.titulo_libro){ const t=await llamarIA(promptTexto(cfg.precioModo==="sugerir","ISBN "+dato),null,null); datos=parsearJSON(t); }
-      else datos.confianza=datos.confianza||"alta";
+    if(soloDig.length===10||soloDig.length===13){
+      datos={isbn:soloDig, confianza:"alta"};
+      await enriquecer(datos);
+      if(!(datos.titulo_libro||"").trim()){ datos=parsearJSON(await llamarIA(promptTexto("ISBN "+dato),null,null)); await enriquecer(datos); }
     }else{
-      const t=await llamarIA(promptTexto(cfg.precioModo==="sugerir",dato),null,null); datos=parsearJSON(t);
+      datos=parsearJSON(await llamarIA(promptTexto(dato),null,null));
+      await enriquecer(datos);
     }
     mostrarResultado(datos); clearStatus();
   }catch(e){ setStatus("err","❌ "+e.message); }
 }
 
-// ---------- Resultado en pantalla ----------
-function precioResuelto(datos){
-  if(cfg.precioModo==="fijo") return cfg.precioFijo||"";
-  if(cfg.precioModo==="sugerir"){ const p=parseInt(datos.precio_sugerido); return isNaN(p)?"":p; }
+/* ---------- Mostrar resultado ---------- */
+function num(x){ const n=parseInt(x); return isNaN(n)?null:n; }
+function fmt(n){ return "$"+Number(n).toLocaleString("es-AR"); }
+function precioResuelto(d){
+  if(C.precioModo==="fijo") return C.precioFijo||"";
+  if(C.precioModo==="sugerir"){ const a=num(d.precio_sugerido_min), b=num(d.precio_sugerido_max);
+    if(a&&b) return Math.round((a+b)/2); return a||b||""; }
   return "";
 }
-function armarTitulo(titulo,autor){
-  let t=[titulo,autor,cfg.etiqueta].filter(x=>x&&x.trim()).join(" ").replace(/\s+/g," ").trim();
-  if(t.length>60) t=t.slice(0,60).trim();
-  return t;
-}
+function armarTitulo(t,a){ let x=[t,a,C.etiqueta].filter(v=>v&&v.trim()).join(" ").replace(/\s+/g," ").trim();
+  if(x.length>60) x=x.slice(0,60).trim(); return x; }
+function setCampo(id,v){ const el=$("f_"+id); if(el) el.value=(v==null?"":v); }
+function getCampo(id){ const el=$("f_"+id); return el?String(el.value).trim():""; }
+
 function mostrarResultado(d){
   actual=d;
-  $("f_titulo_libro").value=d.titulo_libro||"";
-  $("f_autor").value=d.autor||"";
-  $("f_editorial").value=d.editorial||"";
-  $("f_idioma").value=d.idioma||"";
-  $("f_anio").value=d.anio||"";
-  $("f_isbn").value=d.isbn||"";
-  $("f_tema").value=d.tema_genero||"";
-  $("f_formato").value=d.formato||"";
-  $("f_estado").value=d.estado||"";
+  CAMPOS.forEach(c=>{
+    let v=d[c.id]||"";
+    if(c.id==="condicion" && !v) v=C.condicion||"Usado";
+    setCampo(c.id,v);
+  });
   $("f_descripcion").value=d.descripcion||"";
   $("f_precio").value=precioResuelto(d);
   regenerarTitulo();
+  // estimación de precio + botones
+  const a=num(d.precio_sugerido_min), b=num(d.precio_sugerido_max);
+  $("precioEst").innerHTML = (a||b)
+    ? ("💡 Estimación IA: <b>"+(a&&b?(fmt(a)+" – "+fmt(b)):fmt(a||b))+"</b> <span class='muted'>(referencia, no llena el campo)</span>")
+    : "💡 Sin estimación. Buscá el precio real en:";
+  pintarLinksPrecio();
   const c=(d.confianza||"").toLowerCase();
   $("confBadge").innerHTML = c ? `<span class="conf ${c}">confianza ${c}</span>` : "";
   $("obs").textContent = d.observaciones ? ("⚠️ "+d.observaciones) : "";
   $("cardResultado").classList.remove("hidden");
   $("cardResultado").scrollIntoView({behavior:"smooth",block:"start"});
 }
-function regenerarTitulo(){
-  $("f_title").value=armarTitulo($("f_titulo_libro").value,$("f_autor").value);
-  $("titleLen").textContent=$("f_title").value.length;
+function pintarLinksPrecio(){
+  const q=[getCampo("titulo_libro"),getCampo("autor")].filter(Boolean).join(" ").trim();
+  const e=encodeURIComponent(q);
+  const sitios=[
+    ["🟡 Mercado Libre","https://listado.mercadolibre.com.ar/"+e],
+    ["📗 Iberlibro","https://www.iberlibro.com/servlet/SearchResults?kn="+e],
+    ["🔵 eBay","https://www.ebay.com/sch/i.html?_nkw="+e],
+  ];
+  $("precioLinks").innerHTML = q ? sitios.map(s=>`<a class="btn sec sm" href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a>`).join("") : "";
 }
-$("f_titulo_libro").addEventListener("input",regenerarTitulo);
-$("f_autor").addEventListener("input",regenerarTitulo);
+function regenerarTitulo(){
+  $("f_title").value=armarTitulo(getCampo("titulo_libro"),getCampo("autor"));
+  $("titleLen").textContent=$("f_title").value.length;
+  pintarLinksPrecio();
+}
 $("f_title").addEventListener("input",()=>{ $("titleLen").textContent=$("f_title").value.length; });
 function ocultarResultado(){ $("cardResultado").classList.add("hidden"); actual=null; }
 
-// ---------- Copiar ----------
-document.querySelectorAll(".copy").forEach(b=>{
-  b.addEventListener("click",async()=>{
-    const el=$(b.dataset.for); try{ await navigator.clipboard.writeText(el.value); }
-    catch(e){ el.select(); document.execCommand("copy"); }
-    const t=b.textContent; b.textContent="✓ copiado"; setTimeout(()=>b.textContent=t,900);
-  });
+/* ---------- Copiar (delegado) ---------- */
+document.addEventListener("click", async (ev)=>{
+  const b=ev.target.closest(".copy"); if(!b) return;
+  const el=$(b.dataset.for); if(!el) return;
+  try{ await navigator.clipboard.writeText(el.value); }catch(e){ el.select&&el.select(); document.execCommand&&document.execCommand("copy"); }
+  const t=b.textContent; b.textContent="✓"; setTimeout(()=>b.textContent=t,900);
 });
 
-// ---------- Agregar / lista ----------
-function filaDesdePantalla(){
-  const fila={}; COLS_ML.concat(COLS_EXTRA).forEach(c=>fila[c]="");
-  fila.SKU=cfg.sku||""; fila.TITLE=$("f_title").value; fila.VARIATIONS=$("f_title").value;
-  fila.STOCK_FLEX=1; fila.PRICE=$("f_precio").value; fila.CURRENCY_ID=cfg.moneda||"ARS";
-  fila.TITULO_LIBRO=$("f_titulo_libro").value; fila.AUTOR=$("f_autor").value; fila.EDITORIAL=$("f_editorial").value;
-  fila.IDIOMA=$("f_idioma").value; fila.ANIO=$("f_anio").value; fila.ISBN=$("f_isbn").value;
-  fila.TEMA_GENERO=$("f_tema").value; fila.FORMATO=$("f_formato").value; fila.ESTADO=$("f_estado").value;
-  fila.DESCRIPCION=$("f_descripcion").value; fila.PRECIO_SUGERIDO=(actual&&actual.precio_sugerido)||"";
-  fila.ARCHIVO=""; fila.CONFIANZA=(actual&&actual.confianza)||""; fila.OBSERVACIONES=(actual&&actual.observaciones)||"";
+/* ---------- Agregar / lista ---------- */
+function filaActual(){
+  const g=getCampo;
+  const fila={};
+  COLUMNAS.forEach(c=>{ fila[c[0]] = c[1](g)||""; });
+  fila["Título del libro"] = fila["Título del libro"]||getCampo("titulo_libro");
+  fila.__meta = { confianza:(actual&&actual.confianza)||"", observaciones:(actual&&actual.observaciones)||"" };
   return fila;
 }
 $("btnAgregar").addEventListener("click",()=>{
   if(!$("f_title").value.trim()){ setStatus("err","El título está vacío."); return; }
-  libros.push(filaDesdePantalla()); guardarLibros(); pintarLista();
+  libros.push(filaActual()); guardarLibros(); pintarLista();
   ocultarResultado(); $("preview").classList.add("hidden"); clearStatus();
   setStatus("ok","✔ Libro agregado a la lista ("+libros.length+").");
 });
@@ -584,14 +709,13 @@ function pintarLista(){
   const tb=$("tbody"); tb.innerHTML="";
   libros.forEach((f,i)=>{
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${i+1}</td><td>${escapeHTML(f.TITLE)}</td><td>${f.PRICE||"—"}</td>
+    tr.innerHTML=`<td>${i+1}</td><td>${escapeHTML(f["Título"]||"")}</td><td>${f["Precio [$]"]||"—"}</td>
       <td><button class="btn sec sm" data-i="${i}">✕</button></td>`;
     tr.querySelector("button").addEventListener("click",()=>{ libros.splice(i,1); guardarLibros(); pintarLista(); });
     tb.appendChild(tr);
   });
 }
 function escapeHTML(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-
 $("btnVaciar").addEventListener("click",()=>{
   if(!libros.length) return;
   if(confirm("¿Vaciar la lista de "+libros.length+" libro(s)? Descargá el CSV antes si no lo hiciste.")){
@@ -599,21 +723,20 @@ $("btnVaciar").addEventListener("click",()=>{
   }
 });
 
-// ---------- Descargar CSV ----------
+/* ---------- CSV (61 columnas) ---------- */
 function csvCampo(v){ v=(v==null?"":String(v)); return /[",\n;]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 $("btnCSV").addEventListener("click",()=>{
   if(!libros.length){ setStatus("err","No hay libros para descargar."); return; }
-  const cols=COLS_ML.concat(COLS_EXTRA);
-  const lineas=[cols.join(",")];
-  libros.forEach(f=>lineas.push(cols.map(c=>csvCampo(f[c])).join(",")));
+  const headers=COLUMNAS.map(c=>c[0]);
+  const lineas=[headers.map(csvCampo).join(",")];
+  libros.forEach(f=>lineas.push(headers.map(h=>csvCampo(f[h])).join(",")));
   const blob=new Blob(["﻿"+lineas.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
-  const fecha=new Date().toISOString().slice(0,10);
-  a.href=URL.createObjectURL(blob); a.download="libros_mercadolibre_"+fecha+".csv";
+  a.href=URL.createObjectURL(blob); a.download="publicar_libros_ML_"+new Date().toISOString().slice(0,10)+".csv";
   document.body.appendChild(a); a.click(); a.remove();
 });
 
-// ---------- Botones de captura ----------
+/* ---------- Captura ---------- */
 $("btnCam").addEventListener("click",()=>$("fileCam").click());
 $("btnGal").addEventListener("click",()=>$("fileGal").click());
 $("fileCam").addEventListener("change",e=>{ if(e.target.files[0]) procesarFoto(e.target.files[0]); e.target.value=""; });
@@ -621,8 +744,8 @@ $("fileGal").addEventListener("change",e=>{ if(e.target.files[0]) procesarFoto(e
 $("btnManual").addEventListener("click",()=>{ const t=$("manualTexto").value.trim(); if(t) procesarManual(t); });
 $("manualTexto").addEventListener("keydown",e=>{ if(e.key==="Enter"){ const t=e.target.value.trim(); if(t) procesarManual(t); }});
 
-// ---------- Init ----------
-pintarCfg(); pintarLista();
+/* ---------- Init ---------- */
+construirCampos(); pintarCfg(); pintarLista();
 </script>
 </body>
 </html>
