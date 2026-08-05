@@ -86,7 +86,7 @@ CONFIG_POR_DEFECTO = {
 }
 
 MODELOS_POR_DEFECTO = {
-    "gemini": "gemini-2.0-flash",
+    "gemini": "gemini-2.5-flash",
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-20241022",
 }
