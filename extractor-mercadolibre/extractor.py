@@ -1,34 +1,41 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Extractor de datos de libros para publicaciones de Mercado Libre.
+Extractor de datos de libros para publicaciones de Mercado Libre (versión escritorio).
 
-A partir de una FOTO de la tapa/portada de un libro (o de un ISBN, o de un
-texto escrito a mano), usa un modelo de IA con visión para leer el libro y
-arma una fila lista para pegar en la planilla de Mercado Libre.
+A partir de FOTOS de libros (tapa, y opcionalmente contratapa / hoja con el ISBN),
+usa un modelo de IA con visión + bases de datos gratuitas (Google Books / OpenLibrary)
+y genera un Excel con las 61 columnas de la planilla oficial
+"Publicar varios productos" de Mercado Libre (Libros Físicos).
 
 Uso rápido:
-    1) Copiá tus fotos dentro de la carpeta "fotos/"
-    2) Configurá tu API key en config.json (ver config.example.json)
+    1) Copiá las fotos dentro de la carpeta "fotos/"  (una foto por libro).
+    2) Configurá tu API key en config.json (ver config.example.json).
     3) Ejecutá:   python extractor.py
-    4) Abrí el archivo "salida.xlsx" que se genera.
+    4) Abrí "salida.xlsx" y pegá las filas en la planilla que bajás de Mercado Libre.
+
+Varias fotos del MISMO libro:
+    Nombrá los archivos con el mismo prefijo y doble guion bajo, p. ej.:
+        ishiguro__tapa.jpg   ishiguro__contra.jpg   ishiguro__isbn.jpg
+    Todas las fotos con el prefijo "ishiguro" se combinan en un solo libro.
 
 También:
     python extractor.py --texto "Restos del dia Kazuo Ishiguro"
     python extractor.py --isbn 9788483462287
-    python extractor.py --carpeta /ruta/a/mis/fotos --salida resultado.xlsx
 
 Ver README.md para la guía paso a paso.
 """
 
 import argparse
 import base64
+import io
 import json
 import mimetypes
 import os
 import re
 import sys
 import time
+from collections import OrderedDict, defaultdict
 from pathlib import Path
 
 try:
@@ -44,7 +51,6 @@ except ImportError:
     print("Falta la librería 'openpyxl'. Instalá con:  pip install -r requirements.txt")
     sys.exit(1)
 
-# Pillow es opcional: solo se usa para achicar fotos muy grandes (ahorra costo y tiempo).
 try:
     from PIL import Image
     HAY_PILLOW = True
@@ -52,225 +58,269 @@ except ImportError:
     HAY_PILLOW = False
 
 
-# ---------------------------------------------------------------------------
-# Configuración
-# ---------------------------------------------------------------------------
-
 RAIZ = Path(__file__).resolve().parent
 
 CONFIG_POR_DEFECTO = {
-    # "gemini", "openai" o "anthropic"
-    "proveedor": "gemini",
-    # Tu clave. También podés dejarla vacía acá y usar una variable de entorno
-    # (GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY).
+    "proveedor": "gemini",              # gemini | openai | anthropic
     "api_key": "",
-    # Modelo a usar (se puede dejar el sugerido por proveedor).
-    "modelo": "",
-    # Carpeta donde están las fotos a procesar.
+    "modelo": "",                       # vacío = autodetección (Gemini)
     "carpeta_fotos": "fotos",
-    # Archivo Excel de salida.
     "archivo_salida": "salida.xlsx",
-    # Moneda para la columna CURRENCY_ID (ML usa "ARS").
-    "moneda": "ARS",
-    # Etiqueta que se agrega al final del título (como "Microcentro" en tu planilla).
-    # Dejalo vacío ("") si no querés etiqueta.
     "etiqueta_titulo": "Microcentro",
-    # SKU / ubicación física por defecto (columna SKU).
+    "condicion": "Usado",
     "sku_por_defecto": "",
-    # Precio: "manual" (queda vacío), "sugerir" (la IA propone) o un número fijo (ej. 20000).
-    "precio": "manual",
-    # Stock por defecto (columna STOCK_FLEX).
     "stock": 1,
-    # Largo máximo del título de ML.
+    "precio": "manual",                 # manual | sugerir | <número>
     "max_largo_titulo": 60,
+    # Medidas y peso del PAQUETE de envío (obligatorio en ML).
+    "paq_ancho": "24", "paq_alto": "17", "paq_prof": "4", "paq_peso": "0.5",
+    # Condiciones de venta.
+    "forma_envio": "Mercado Envíos",
+    "costo_envio": "A cargo del comprador",
+    "retiro": "Acepto",
+    "cuotas": "No agregar cuotas",
+    "costo_cuotas": "Sin costo",
 }
 
 MODELOS_POR_DEFECTO = {
-    "gemini": "gemini-2.5-flash",
+    "gemini": "gemini-2.5-flash",  # si no existe, se autodetecta uno disponible
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-20241022",
 }
-
 VAR_ENTORNO_KEY = {
     "gemini": "GEMINI_API_KEY",
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
 }
-
-# Columnas de la planilla de Mercado Libre (respetá este orden).
-COLUMNAS_ML = [
-    "FAMILY_ID", "ITEM_ID", "PRODUCT_NUMBER", "VARIATION_ID", "SKU",
-    "TITLE", "VARIATIONS", "STOCK_FLEX", "PRICE", "CURRENCY_ID",
-]
-
-# Columnas extra con la información que extrae la IA (te sirven de referencia
-# y para completar los atributos en el formulario de ML).
-COLUMNAS_EXTRA = [
-    "TITULO_LIBRO", "AUTOR", "EDITORIAL", "IDIOMA", "ANIO", "ISBN",
-    "TEMA_GENERO", "FORMATO", "ESTADO", "DESCRIPCION",
-    "PRECIO_SUGERIDO", "ARCHIVO", "CONFIANZA", "OBSERVACIONES",
-]
-
 EXTENSIONES_IMAGEN = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".bmp", ".gif"}
 
+# Las 61 columnas de la planilla, en orden. Cada entrada: (encabezado, clave o None).
+# clave None = columna gris/automática (queda vacía).
+COLUMNAS = [
+    ("Código de catálogo ML", None),
+    ("Título", "__titulo"),
+    ("Cantidad de caracteres", None),
+    ("Condición", "__condicion"),
+    ("ISBN", "isbn"),
+    ("Fotos", None),
+    ("SKU", "__sku"),
+    ("Stock", "__stock"),
+    ("Precio [$]", "__precio"),
+    ("Descripción", "descripcion"),
+    ("Ancho (cm)", "__paq_ancho"),
+    ("Alto (cm)", "__paq_alto"),
+    ("Profundidad (cm)", "__paq_prof"),
+    ("Peso físico (kg)", "__paq_peso"),
+    ("Cargo por vender", None),
+    ("Cuotas", "__cuotas"),
+    ("Costo por ofrecer cuotas", "__costo_cuotas"),
+    ("Forma de envío", "__forma_envio"),
+    ("Costo de envío", "__costo_envio"),
+    ("Retiro en persona", "__retiro"),
+    ("Tipo de garantía", None),
+    ("Tiempo de garantía", None),
+    ("Unidad de Tiempo de garantía", None),
+    ("Factura A", None),
+    ("Título del libro", "titulo_libro"),
+    ("Autor", "autor"),
+    ("Editorial del libro", "editorial"),
+    ("Subtítulo del libro", "subtitulo"),
+    ("Serie", "serie"),
+    ("Idioma", "idioma"),
+    ("Edición del libro", "edicion"),
+    ("Tapa del libro", "tapa"),
+    ("Volumen del libro", None),
+    ("Índice", "indice"),
+    ("Año de publicación", "anio"),
+    ("Páginas para colorear", None),
+    ("Realidad aumentada", None),
+    ("Coautores", "coautores"),
+    ("Traductores", "traductores"),
+    ("Tipo de narración", "tipo_narracion"),
+    ("Versión del libro", None),
+    ("BISAC", None),
+    ("Tamaño del libro", None),
+    ("NCM", None),
+    ("País de origen", "pais_origen"),
+    ("Colección del libro", "coleccion"),
+    ("Edad mínima recomendada", None),
+    ("Unidad de Edad mínima recomendada", None),
+    ("En imprenta mayúscula", None),
+    ("Cantidad de libros por set", None),
+    ("Cantidad de páginas", "paginas"),
+    ("Altura", "altura_cm"),
+    ("Unidad de Altura", "__u_altura"),
+    ("Ancho", "ancho_cm"),
+    ("Unidad de Ancho", "__u_ancho"),
+    ("Peso", "peso_g"),
+    ("Unidad de Peso", "__u_peso"),
+    ("Material de la tapa del libro", "material_tapa"),
+    ("Resumen de errores", None),
+    ("BUYBOX_FORMULA", None),
+    ("HIDDEN_PICTURES", None),
+]
 
 # ---------------------------------------------------------------------------
-# Prompt de extracción
+# Prompt
 # ---------------------------------------------------------------------------
 
-INSTRUCCIONES = """Sos un asistente experto en catalogación de libros (usados, antiguos y raros)
-para vender en Mercado Libre Argentina. Vas a recibir la foto de la tapa/portada
-de un libro (o un dato textual del libro) y tenés que identificarlo.
+ESQUEMA = ('{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"",'
+           '"editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"",'
+           '"indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"",'
+           '"pais_origen":"","altura_cm":"","ancho_cm":"","peso_g":"","material_tapa":"",'
+           '"condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,'
+           '"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}')
 
-Devolvé EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional, con estas claves
-(usá "" o null cuando no puedas determinar el dato con razonable seguridad; NO inventes):
+REGLAS = """Reglas de formato:
+- "idioma": nombre en español (Español, Inglés, Italiano, Ruso, Francés, Alemán, Portugués, Latín, Griego, etc.). El idioma puede NO ser español: leé el alfabeto real.
+- "tapa": exactamente "Dura" o "Blanda" (o "" si no se sabe).
+- "indice": "Sí" o "No" (o "").
+- "tipo_narracion": p. ej. Novela, Cuento, Poesía, Ensayo, Teatro, Antología (o "").
+- "condicion": "Usado" salvo que claramente sea nuevo.
+- "isbn": si aparece en alguna foto (contratapa / hoja de créditos), transcribilo (solo números).
+- "paginas": solo número. "altura_cm"/"ancho_cm": tamaño del libro en cm. "peso_g": peso del libro en gramos. Estimá solo si es razonable; si no, "".
+- "descripcion": 2 a 4 oraciones en español neutro (de qué trata + datos del ejemplar), sin exagerar.
+- "precio_sugerido_min"/"precio_sugerido_max": rango orientativo en pesos argentinos para un usado en ML (enteros). SOLO referencia.
+- Si algo está borroso o no se ve: dejá "" y bajá la "confianza". NO inventes."""
 
-{
-  "titulo_libro": "título del libro tal como figura",
-  "autor": "autor/a principal (Nombre Apellido)",
-  "editorial": "editorial si es visible",
-  "idioma": "idioma del contenido (Español, Italiano, Ruso, Inglés, Francés, etc.)",
-  "anio": "año de edición si es visible",
-  "isbn": "ISBN si es visible (solo dígitos, sin guiones)",
-  "tema_genero": "tema o género (Filosofía, Novela, Poesía, Historia, etc.)",
-  "formato": "Tapa dura / Tapa blanda si se puede inferir",
-  "estado": "estado aparente del ejemplar (Usado / Muy bueno / Bueno / Con marcas), si la foto lo muestra",
-  "descripcion": "2 a 4 oraciones para la publicación: de qué trata + datos del ejemplar. Español neutro, sin exagerar.",
-  "precio_sugerido": "número entero en pesos argentinos SOLO si te lo piden; si no, null",
-  "confianza": "alta / media / baja según cuán seguro estás de la identificación",
-  "observaciones": "cualquier duda relevante (ej: 'título parcialmente tapado', 'autor no visible')"
-}
-
-Reglas:
-- El idioma del libro puede NO ser el español: leé el alfabeto/idioma real de la tapa.
-- Si es una foto borrosa o no es un libro, poné confianza "baja" y explicá en observaciones.
-- No agregues comentarios fuera del JSON."""
+INSTRUCCIONES = (
+    "Sos un experto en catalogación de libros (usados, antiguos y raros) para vender en "
+    "Mercado Libre Argentina. Puede que recibas VARIAS fotos del MISMO libro (tapa, contratapa, "
+    "hoja de créditos con el ISBN): combiná toda la información en un solo objeto.\n"
+    "Devolvé EXCLUSIVAMENTE un JSON válido con EXACTAMENTE estas claves (usá \"\" cuando no tengas el dato):\n"
+    + ESQUEMA + "\n" + REGLAS + "\nNo agregues nada fuera del JSON."
+)
 
 
-def prompt_para(sugerir_precio: bool, dato_texto: str = "") -> str:
-    partes = [INSTRUCCIONES]
-    if sugerir_precio:
-        partes.append(
-            "\nADEMÁS: proponé un 'precio_sugerido' orientativo (entero, en pesos argentinos) "
-            "para un usado en Mercado Libre Argentina. Es solo una referencia."
-        )
-    if dato_texto:
-        partes.append(
-            f"\nNo hay foto. Identificá el libro a partir de este dato textual: \"{dato_texto}\""
-        )
-    return "\n".join(partes)
+def prompt_texto(dato=""):
+    p = INSTRUCCIONES
+    if dato:
+        p += f"\nNo hay foto. Identificá el libro a partir de: \"{dato}\""
+    return p
 
 
 # ---------------------------------------------------------------------------
-# Llamadas a los proveedores de IA
+# Imágenes
 # ---------------------------------------------------------------------------
 
-def _imagen_a_base64(ruta: Path):
-    """Devuelve (base64, mime). Achica la imagen si Pillow está disponible."""
+def imagen_a_b64(ruta: Path):
     mime, _ = mimetypes.guess_type(str(ruta))
-    if mime is None:
-        mime = "image/jpeg"
-
+    mime = mime or "image/jpeg"
     if HAY_PILLOW:
         try:
-            img = Image.open(ruta)
-            img = img.convert("RGB")
-            # Achicar a máx 1600px de lado mayor para ahorrar costo/tiempo.
+            img = Image.open(ruta).convert("RGB")
             maximo = 1600
             if max(img.size) > maximo:
-                escala = maximo / max(img.size)
-                nuevo = (int(img.size[0] * escala), int(img.size[1] * escala))
-                img = img.resize(nuevo, Image.LANCZOS)
-            import io
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=85)
+                e = maximo / max(img.size)
+                img = img.resize((int(img.size[0] * e), int(img.size[1] * e)), Image.LANCZOS)
+            buf = io.BytesIO(); img.save(buf, format="JPEG", quality=85)
             return base64.b64encode(buf.getvalue()).decode("ascii"), "image/jpeg"
         except Exception:
-            pass  # Si falla el reescalado, usamos el archivo original.
-
+            pass
     with open(ruta, "rb") as f:
         return base64.b64encode(f.read()).decode("ascii"), mime
 
 
-def llamar_gemini(cfg, prompt, imagen_b64=None, mime=None):
-    modelo = cfg["modelo"] or MODELOS_POR_DEFECTO["gemini"]
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-    partes = [{"text": prompt}]
-    if imagen_b64:
-        partes.append({"inline_data": {"mime_type": mime, "data": imagen_b64}})
-    body = {
-        "contents": [{"parts": partes}],
-        "generationConfig": {"response_mime_type": "application/json", "temperature": 0.1},
-    }
-    r = requests.post(url, params={"key": cfg["api_key"]}, json=body, timeout=120)
+# ---------------------------------------------------------------------------
+# Proveedores de IA (aceptan una lista de imágenes)
+# ---------------------------------------------------------------------------
+
+_gemini_modelos = None
+_gemini_malos = set()
+
+
+def _puntaje_modelo(n):
+    s = 0
+    if re.search(r"flash", n, re.I): s += 100
+    if re.search(r"latest", n, re.I): s += 60
+    if re.search(r"2\.0", n): s += 15
+    if re.search(r"lite", n, re.I): s -= 25
+    if re.search(r"exp|preview|thinking|tts|image|embedding|vision|aqa|learnlm|gemma", n, re.I): s -= 300
+    if re.search(r"1\.5|1\.0|8b", n): s -= 120
+    return s
+
+
+def _listar_modelos_gemini(cfg):
+    r = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+                     params={"key": cfg["api_key"]}, timeout=60)
     r.raise_for_status()
-    data = r.json()
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+    nombres = [m["name"].replace("models/", "")
+               for m in r.json().get("models", [])
+               if "generateContent" in m.get("supportedGenerationMethods", [])]
+    return sorted(nombres, key=_puntaje_modelo, reverse=True)
 
 
-def llamar_openai(cfg, prompt, imagen_b64=None, mime=None):
+def _pedir_gemini(cfg, modelo, prompt, imagenes):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+    parts = [{"text": prompt}]
+    for b64, mime in imagenes:
+        parts.append({"inline_data": {"mime_type": mime, "data": b64}})
+    return requests.post(url, params={"key": cfg["api_key"]},
+                         json={"contents": [{"parts": parts}],
+                               "generationConfig": {"response_mime_type": "application/json", "temperature": 0.1}},
+                         timeout=180)
+
+
+def llamar_gemini(cfg, prompt, imagenes):
+    global _gemini_modelos
+    if cfg.get("modelo"):
+        r = _pedir_gemini(cfg, cfg["modelo"], prompt, imagenes)
+        if r.ok:
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        if r.status_code != 404:
+            r.raise_for_status()
+    if _gemini_modelos is None:
+        _gemini_modelos = _listar_modelos_gemini(cfg)
+    for modelo in [m for m in _gemini_modelos if m not in _gemini_malos]:
+        r = _pedir_gemini(cfg, modelo, prompt, imagenes)
+        if r.ok:
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        if r.status_code == 404:
+            _gemini_malos.add(modelo); continue
+        r.raise_for_status()
+    raise RuntimeError("Ningún modelo de Gemini de tu clave está disponible (404). "
+                       "Generá la clave en un proyecto nuevo, o usá OpenAI/Claude.")
+
+
+def llamar_openai(cfg, prompt, imagenes):
     modelo = cfg["modelo"] or MODELOS_POR_DEFECTO["openai"]
-    url = "https://api.openai.com/v1/chat/completions"
-    contenido = [{"type": "text", "text": prompt}]
-    if imagen_b64:
-        contenido.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:{mime};base64,{imagen_b64}"},
-        })
-    body = {
-        "model": modelo,
-        "messages": [{"role": "user", "content": contenido}],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.1,
-    }
-    headers = {"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"}
-    r = requests.post(url, headers=headers, json=body, timeout=120)
+    content = [{"type": "text", "text": prompt}]
+    for b64, mime in imagenes:
+        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
+    r = requests.post("https://api.openai.com/v1/chat/completions",
+                      headers={"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"},
+                      json={"model": modelo, "messages": [{"role": "user", "content": content}],
+                            "response_format": {"type": "json_object"}, "temperature": 0.1}, timeout=180)
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
 
 
-def llamar_anthropic(cfg, prompt, imagen_b64=None, mime=None):
+def llamar_anthropic(cfg, prompt, imagenes):
     modelo = cfg["modelo"] or MODELOS_POR_DEFECTO["anthropic"]
-    url = "https://api.anthropic.com/v1/messages"
-    contenido = []
-    if imagen_b64:
-        contenido.append({
-            "type": "image",
-            "source": {"type": "base64", "media_type": mime, "data": imagen_b64},
-        })
-    contenido.append({"type": "text", "text": prompt})
-    body = {
-        "model": modelo,
-        "max_tokens": 1024,
-        "temperature": 0.1,
-        "messages": [{"role": "user", "content": contenido}],
-    }
-    headers = {
-        "x-api-key": cfg["api_key"],
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-    r = requests.post(url, headers=headers, json=body, timeout=120)
+    content = []
+    for b64, mime in imagenes:
+        content.append({"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}})
+    content.append({"type": "text", "text": prompt})
+    r = requests.post("https://api.anthropic.com/v1/messages",
+                      headers={"x-api-key": cfg["api_key"], "anthropic-version": "2023-06-01",
+                               "content-type": "application/json"},
+                      json={"model": modelo, "max_tokens": 2000, "temperature": 0.1,
+                            "messages": [{"role": "user", "content": content}]}, timeout=180)
     r.raise_for_status()
     return r.json()["content"][0]["text"]
 
 
-def llamar_ia(cfg, prompt, imagen_b64=None, mime=None):
-    proveedor = cfg["proveedor"]
-    if proveedor == "gemini":
-        return llamar_gemini(cfg, prompt, imagen_b64, mime)
-    if proveedor == "openai":
-        return llamar_openai(cfg, prompt, imagen_b64, mime)
-    if proveedor == "anthropic":
-        return llamar_anthropic(cfg, prompt, imagen_b64, mime)
-    raise ValueError(f"Proveedor desconocido: {proveedor}. Usá gemini, openai o anthropic.")
+def llamar_ia(cfg, prompt, imagenes=None):
+    imagenes = imagenes or []
+    p = cfg["proveedor"]
+    if p == "gemini": return llamar_gemini(cfg, prompt, imagenes)
+    if p == "openai": return llamar_openai(cfg, prompt, imagenes)
+    if p == "anthropic": return llamar_anthropic(cfg, prompt, imagenes)
+    raise ValueError(f"Proveedor desconocido: {p}")
 
 
-def parsear_json(texto: str) -> dict:
-    """Extrae el primer objeto JSON del texto devuelto por la IA."""
-    texto = texto.strip()
-    # Sacar posibles ```json ... ```
-    texto = re.sub(r"^```(json)?", "", texto).strip()
+def parsear_json(texto):
+    texto = re.sub(r"^```(json)?", "", texto.strip()).strip()
     texto = re.sub(r"```$", "", texto).strip()
     try:
         return json.loads(texto)
@@ -282,194 +332,191 @@ def parsear_json(texto: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Enriquecimiento gratis por ISBN (Google Books, sin API key)
+# Enriquecimiento gratis (Google Books / OpenLibrary)
 # ---------------------------------------------------------------------------
 
-def buscar_por_isbn(isbn: str) -> dict:
-    isbn = re.sub(r"[^0-9Xx]", "", isbn or "")
-    if len(isbn) not in (10, 13):
-        return {}
+IDIOMAS = {"es": "Español", "en": "Inglés", "it": "Italiano", "ru": "Ruso", "fr": "Francés",
+           "de": "Alemán", "pt": "Portugués", "la": "Latín", "el": "Griego"}
+
+
+def google_books(q):
     try:
-        r = requests.get(
-            "https://www.googleapis.com/books/v1/volumes",
-            params={"q": f"isbn:{isbn}"}, timeout=30,
-        )
-        r.raise_for_status()
+        r = requests.get("https://www.googleapis.com/books/v1/volumes",
+                         params={"q": q, "maxResults": 1}, timeout=30)
         items = r.json().get("items")
         if not items:
             return {}
         v = items[0]["volumeInfo"]
-        return {
-            "titulo_libro": v.get("title", ""),
-            "autor": ", ".join(v.get("authors", [])),
-            "editorial": v.get("publisher", ""),
-            "anio": (v.get("publishedDate", "") or "")[:4],
-            "idioma": {"es": "Español", "en": "Inglés", "it": "Italiano",
-                       "ru": "Ruso", "fr": "Francés", "de": "Alemán",
-                       "pt": "Portugués"}.get(v.get("language", ""), v.get("language", "")),
-            "tema_genero": ", ".join(v.get("categories", [])),
-            "descripcion": v.get("description", ""),
-            "isbn": isbn,
-        }
+        isbn = ""
+        for x in v.get("industryIdentifiers", []):
+            if "ISBN" in x.get("type", ""):
+                isbn = x.get("identifier", ""); break
+        return {"titulo_libro": v.get("title", ""), "subtitulo": v.get("subtitle", ""),
+                "autor": ", ".join(v.get("authors", [])), "editorial": v.get("publisher", ""),
+                "anio": (v.get("publishedDate", "") or "")[:4],
+                "idioma": IDIOMAS.get(v.get("language", ""), v.get("language", "")),
+                "paginas": str(v.get("pageCount", "") or ""), "tema_genero": ", ".join(v.get("categories", [])),
+                "descripcion": v.get("description", ""), "isbn": isbn}
     except Exception:
         return {}
 
 
+def openlibrary_isbn(isbn):
+    try:
+        r = requests.get("https://openlibrary.org/api/books",
+                         params={"format": "json", "jscmd": "data", "bibkeys": f"ISBN:{isbn}"}, timeout=30)
+        v = r.json().get(f"ISBN:{isbn}")
+        if not v:
+            return {}
+        anio = ""
+        m = re.search(r"\d{4}", v.get("publish_date", "") or "")
+        if m: anio = m.group(0)
+        return {"titulo_libro": v.get("title", ""), "subtitulo": v.get("subtitle", ""),
+                "autor": ", ".join(a.get("name", "") for a in v.get("authors", [])),
+                "editorial": ", ".join(p.get("name", "") for p in v.get("publishers", [])),
+                "anio": anio, "paginas": str(v.get("number_of_pages", "") or ""),
+                "pais_origen": ", ".join(p.get("name", "") for p in v.get("publish_places", []))}
+    except Exception:
+        return {}
+
+
+def rellenar(datos, extra):
+    for k, v in extra.items():
+        if v and not limpiar(datos.get(k)):
+            datos[k] = v
+
+
+def enriquecer(datos):
+    isbn = re.sub(r"[^0-9Xx]", "", datos.get("isbn", "") or "")
+    if len(isbn) in (10, 13):
+        rellenar(datos, google_books(f"isbn:{isbn}"))
+        rellenar(datos, openlibrary_isbn(isbn))
+    elif limpiar(datos.get("titulo_libro")):
+        q = "intitle:" + datos["titulo_libro"]
+        if limpiar(datos.get("autor")):
+            q += " inauthor:" + datos["autor"]
+        rellenar(datos, google_books(q))
+    return datos
+
+
 # ---------------------------------------------------------------------------
-# Armado de la fila de Mercado Libre
+# Armado del registro (61 columnas)
 # ---------------------------------------------------------------------------
 
-def limpiar(txt) -> str:
-    if txt is None:
-        return ""
-    return str(txt).strip()
+def limpiar(x):
+    return "" if x is None else str(x).strip()
 
 
-def armar_titulo(datos: dict, cfg) -> str:
-    partes = [limpiar(datos.get("titulo_libro")), limpiar(datos.get("autor"))]
-    etiqueta = limpiar(cfg.get("etiqueta_titulo"))
-    if etiqueta:
-        partes.append(etiqueta)
-    titulo = " ".join(p for p in partes if p)
-    titulo = re.sub(r"\s+", " ", titulo).strip()
-    max_largo = int(cfg.get("max_largo_titulo", 60))
-    if len(titulo) > max_largo:
-        titulo = titulo[:max_largo].rstrip()
-    return titulo
+def armar_titulo(datos, cfg):
+    partes = [limpiar(datos.get("titulo_libro")), limpiar(datos.get("autor")), limpiar(cfg.get("etiqueta_titulo"))]
+    t = re.sub(r"\s+", " ", " ".join(p for p in partes if p)).strip()
+    maxl = int(cfg.get("max_largo_titulo", 60))
+    return t[:maxl].rstrip() if len(t) > maxl else t
 
 
-def resolver_precio(datos: dict, cfg):
+def resolver_precio(datos, cfg):
     modo = cfg.get("precio", "manual")
     if isinstance(modo, (int, float)):
         return int(modo)
     modo = str(modo).strip().lower()
     if modo == "sugerir":
-        p = datos.get("precio_sugerido")
+        a, b = datos.get("precio_sugerido_min"), datos.get("precio_sugerido_max")
         try:
-            return int(float(p))
+            a = int(a) if a else None
         except (TypeError, ValueError):
-            return ""
+            a = None
+        try:
+            b = int(b) if b else None
+        except (TypeError, ValueError):
+            b = None
+        if a and b: return round((a + b) / 2)
+        return a or b or ""
     if modo.isdigit():
         return int(modo)
-    return ""  # manual -> vacío
+    return ""
 
 
-def construir_fila(datos: dict, cfg, archivo: str) -> dict:
-    titulo = armar_titulo(datos, cfg)
-    fila = {c: "" for c in COLUMNAS_ML + COLUMNAS_EXTRA}
-    # Columnas de ML (los IDs quedan vacíos: son publicaciones nuevas).
-    fila["SKU"] = limpiar(cfg.get("sku_por_defecto"))
-    fila["TITLE"] = titulo
-    fila["VARIATIONS"] = titulo
-    fila["STOCK_FLEX"] = cfg.get("stock", 1)
-    fila["PRICE"] = resolver_precio(datos, cfg)
-    fila["CURRENCY_ID"] = cfg.get("moneda", "ARS")
-    # Columnas extra con lo extraído.
-    fila["TITULO_LIBRO"] = limpiar(datos.get("titulo_libro"))
-    fila["AUTOR"] = limpiar(datos.get("autor"))
-    fila["EDITORIAL"] = limpiar(datos.get("editorial"))
-    fila["IDIOMA"] = limpiar(datos.get("idioma"))
-    fila["ANIO"] = limpiar(datos.get("anio"))
-    fila["ISBN"] = limpiar(datos.get("isbn"))
-    fila["TEMA_GENERO"] = limpiar(datos.get("tema_genero"))
-    fila["FORMATO"] = limpiar(datos.get("formato"))
-    fila["ESTADO"] = limpiar(datos.get("estado"))
-    fila["DESCRIPCION"] = limpiar(datos.get("descripcion"))
-    fila["PRECIO_SUGERIDO"] = limpiar(datos.get("precio_sugerido"))
-    fila["ARCHIVO"] = archivo
-    fila["CONFIANZA"] = limpiar(datos.get("confianza"))
-    fila["OBSERVACIONES"] = limpiar(datos.get("observaciones"))
-    return fila
-
-
-# ---------------------------------------------------------------------------
-# Procesamiento de una entrada (foto / texto / isbn)
-# ---------------------------------------------------------------------------
-
-def procesar_foto(cfg, ruta: Path) -> dict:
-    b64, mime = _imagen_a_base64(ruta)
-    prompt = prompt_para(sugerir_precio=(str(cfg.get("precio")).lower() == "sugerir"))
-    texto = llamar_ia(cfg, prompt, b64, mime)
-    datos = parsear_json(texto)
-    # Enriquecer con Google Books si la IA leyó un ISBN.
-    if limpiar(datos.get("isbn")):
-        extra = buscar_por_isbn(datos["isbn"])
-        for k, v in extra.items():
-            if not limpiar(datos.get(k)) and v:
-                datos[k] = v
-    return datos
-
-
-def procesar_texto(cfg, dato: str) -> dict:
-    prompt = prompt_para(
-        sugerir_precio=(str(cfg.get("precio")).lower() == "sugerir"),
-        dato_texto=dato,
-    )
-    texto = llamar_ia(cfg, prompt, None, None)
-    return parsear_json(texto)
-
-
-def procesar_isbn(cfg, isbn: str) -> dict:
-    datos = buscar_por_isbn(isbn)
-    if not datos:
-        # Si Google Books no lo encuentra, probamos con la IA.
-        datos = procesar_texto(cfg, f"ISBN {isbn}")
-    else:
-        datos.setdefault("confianza", "alta")
-    return datos
+def construir_registro(datos, cfg):
+    derivados = {
+        "__titulo": armar_titulo(datos, cfg),
+        "__condicion": limpiar(datos.get("condicion")) or cfg.get("condicion", "Usado"),
+        "__sku": cfg.get("sku_por_defecto", ""),
+        "__stock": cfg.get("stock", 1),
+        "__precio": resolver_precio(datos, cfg),
+        "__paq_ancho": cfg.get("paq_ancho", ""), "__paq_alto": cfg.get("paq_alto", ""),
+        "__paq_prof": cfg.get("paq_prof", ""), "__paq_peso": cfg.get("paq_peso", ""),
+        "__cuotas": cfg.get("cuotas", ""), "__costo_cuotas": cfg.get("costo_cuotas", ""),
+        "__forma_envio": cfg.get("forma_envio", ""), "__costo_envio": cfg.get("costo_envio", ""),
+        "__retiro": cfg.get("retiro", ""),
+        "__u_altura": "cm" if limpiar(datos.get("altura_cm")) else "",
+        "__u_ancho": "cm" if limpiar(datos.get("ancho_cm")) else "",
+        "__u_peso": "g" if limpiar(datos.get("peso_g")) else "",
+    }
+    reg = OrderedDict()
+    for header, clave in COLUMNAS:
+        if clave is None:
+            reg[header] = ""
+        elif clave.startswith("__"):
+            reg[header] = derivados.get(clave, "")
+        else:
+            reg[header] = limpiar(datos.get(clave))
+    return reg
 
 
 # ---------------------------------------------------------------------------
-# Salida a Excel
+# Excel
 # ---------------------------------------------------------------------------
 
-def escribir_excel(filas, ruta_salida: Path):
+def escribir_excel(registros, ruta_salida):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Publicaciones"
-    columnas = COLUMNAS_ML + COLUMNAS_EXTRA
-
-    encabezado_fill = PatternFill("solid", fgColor="FFE699")
-    extra_fill = PatternFill("solid", fgColor="D9E1F2")
-    negrita = Font(bold=True)
-
-    for i, col in enumerate(columnas, start=1):
-        celda = ws.cell(row=1, column=i, value=col)
-        celda.font = negrita
-        celda.fill = encabezado_fill if col in COLUMNAS_ML else extra_fill
-        celda.alignment = Alignment(horizontal="center")
-
-    for fila in filas:
-        ws.append([fila.get(c, "") for c in columnas])
-
-    # Ancho de columnas aproximado.
-    anchos = {
-        "SKU": 14, "TITLE": 42, "VARIATIONS": 42, "TITULO_LIBRO": 34,
-        "AUTOR": 24, "EDITORIAL": 20, "IDIOMA": 12, "DESCRIPCION": 60,
-        "OBSERVACIONES": 34, "ARCHIVO": 24,
-    }
-    for i, col in enumerate(columnas, start=1):
-        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = anchos.get(col, 14)
+    headers = [h for h, _ in COLUMNAS]
+    fill = PatternFill("solid", fgColor="FFE699")
+    for i, h in enumerate(headers, start=1):
+        c = ws.cell(row=1, column=i, value=h)
+        c.font = Font(bold=True); c.fill = fill; c.alignment = Alignment(horizontal="center")
+    for reg in registros:
+        ws.append([reg.get(h, "") for h in headers])
+    for i, h in enumerate(headers, start=1):
+        ancho = 40 if h in ("Título", "Descripción", "Título del libro") else 16
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = ancho
     ws.freeze_panes = "A2"
     wb.save(ruta_salida)
 
 
 # ---------------------------------------------------------------------------
-# Carga de configuración
+# Config
 # ---------------------------------------------------------------------------
 
-def cargar_config(ruta_config: Path) -> dict:
+def cargar_config(ruta):
     cfg = dict(CONFIG_POR_DEFECTO)
-    if ruta_config.exists():
+    if ruta.exists():
         try:
-            with open(ruta_config, "r", encoding="utf-8") as f:
-                cfg.update({k: v for k, v in json.load(f).items() if v != "" or k == "etiqueta_titulo"})
+            with open(ruta, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for k, v in data.items():
+                if v != "" or k in ("etiqueta_titulo", "sku_por_defecto"):
+                    cfg[k] = v
         except json.JSONDecodeError as e:
             print(f"⚠️  config.json inválido ({e}). Uso valores por defecto.")
-    # La variable de entorno pisa la key vacía.
     if not cfg.get("api_key"):
         cfg["api_key"] = os.environ.get(VAR_ENTORNO_KEY.get(cfg["proveedor"], ""), "")
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# Agrupar fotos por libro (prefijo + doble guion bajo)
+# ---------------------------------------------------------------------------
+
+def agrupar_fotos(fotos):
+    """Devuelve lista de (nombre_grupo, [rutas]). 'libro__a.jpg' y 'libro__b.jpg' -> mismo grupo."""
+    grupos = OrderedDict()
+    for f in fotos:
+        stem = f.stem
+        clave = stem.split("__")[0] if "__" in stem else stem
+        grupos.setdefault(clave, []).append(f)
+    return list(grupos.items())
 
 
 # ---------------------------------------------------------------------------
@@ -477,116 +524,95 @@ def cargar_config(ruta_config: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Extrae datos de libros para publicaciones de Mercado Libre a partir de fotos, ISBN o texto.",
-    )
-    parser.add_argument("--config", default=str(RAIZ / "config.json"), help="Ruta al config.json")
-    parser.add_argument("--carpeta", help="Carpeta con fotos (pisa la del config)")
-    parser.add_argument("--salida", help="Archivo Excel de salida (pisa el del config)")
-    parser.add_argument("--texto", help="Identificar un libro a partir de un texto (título/autor)")
-    parser.add_argument("--isbn", help="Identificar un libro a partir de su ISBN")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser(description="Extrae datos de libros para la planilla 'Publicar' de Mercado Libre.")
+    ap.add_argument("--config", default=str(RAIZ / "config.json"))
+    ap.add_argument("--carpeta")
+    ap.add_argument("--salida")
+    ap.add_argument("--texto", help="Identificar un libro por texto (título/autor)")
+    ap.add_argument("--isbn", help="Identificar un libro por ISBN")
+    args = ap.parse_args()
 
     cfg = cargar_config(Path(args.config))
-    if args.carpeta:
-        cfg["carpeta_fotos"] = args.carpeta
-    if args.salida:
-        cfg["archivo_salida"] = args.salida
+    if args.carpeta: cfg["carpeta_fotos"] = args.carpeta
+    if args.salida: cfg["archivo_salida"] = args.salida
 
-    # Validaciones amables.
-    proveedor = cfg.get("proveedor")
-    if proveedor not in MODELOS_POR_DEFECTO:
-        print(f"❌ Proveedor inválido en config: '{proveedor}'. Usá gemini, openai o anthropic.")
-        sys.exit(1)
-    necesita_key = not (args.isbn and not args.texto)  # el ISBN puro puede resolverse gratis
+    if cfg["proveedor"] not in MODELOS_POR_DEFECTO:
+        print(f"❌ Proveedor inválido: '{cfg['proveedor']}'. Usá gemini, openai o anthropic."); sys.exit(1)
+
+    necesita_key = not (args.isbn and not args.texto)
     if not cfg.get("api_key") and necesita_key:
-        print("❌ Falta la API key.")
-        print(f"   Poné tu clave en config.json (campo 'api_key') o en la variable "
-              f"de entorno {VAR_ENTORNO_KEY[proveedor]}.")
-        print("   Ver README.md → 'Cómo conseguir la API key'.")
-        sys.exit(1)
+        print(f"❌ Falta la API key. Poné 'api_key' en config.json o la variable "
+              f"{VAR_ENTORNO_KEY[cfg['proveedor']]}. Ver README.md."); sys.exit(1)
 
-    filas = []
+    registros = []
 
-    # Modo texto / isbn puntual.
     if args.texto or args.isbn:
         try:
             if args.isbn:
-                print(f"🔎 Buscando ISBN {args.isbn} ...")
-                datos = procesar_isbn(cfg, args.isbn)
-                origen = f"ISBN:{args.isbn}"
+                print(f"🔎 ISBN {args.isbn} ...")
+                datos = {"isbn": re.sub(r'[^0-9Xx]', '', args.isbn), "confianza": "alta"}
+                enriquecer(datos)
+                if not limpiar(datos.get("titulo_libro")):
+                    datos = parsear_json(llamar_ia(cfg, prompt_texto("ISBN " + args.isbn))); enriquecer(datos)
             else:
-                print(f"🔎 Identificando: {args.texto} ...")
-                datos = procesar_texto(cfg, args.texto)
-                origen = f"TEXTO:{args.texto}"
-            fila = construir_fila(datos, cfg, origen)
-            filas.append(fila)
-            print(f"   ✔ {fila['TITLE']}  (confianza: {fila['CONFIANZA'] or 's/d'})")
+                print(f"🔎 {args.texto} ...")
+                datos = parsear_json(llamar_ia(cfg, prompt_texto(args.texto))); enriquecer(datos)
+            registros.append(construir_registro(datos, cfg))
+            print(f"   ✔ {registros[-1]['Título']}")
         except Exception as e:
             print(f"   ✖ Error: {e}")
     else:
-        # Modo lote: todas las fotos de la carpeta.
         carpeta = Path(cfg["carpeta_fotos"])
         if not carpeta.is_absolute():
             carpeta = RAIZ / carpeta
         if not carpeta.exists():
-            print(f"❌ No existe la carpeta de fotos: {carpeta}")
-            print("   Creá la carpeta y poné adentro las fotos de los libros.")
-            sys.exit(1)
-
-        fotos = sorted(
-            p for p in carpeta.iterdir()
-            if p.is_file() and p.suffix.lower() in EXTENSIONES_IMAGEN
-        )
+            print(f"❌ No existe la carpeta de fotos: {carpeta}"); sys.exit(1)
+        fotos = sorted(p for p in carpeta.iterdir()
+                       if p.is_file() and p.suffix.lower() in EXTENSIONES_IMAGEN)
         if not fotos:
-            print(f"❌ No encontré fotos en {carpeta}")
-            print(f"   Formatos aceptados: {', '.join(sorted(EXTENSIONES_IMAGEN))}")
-            sys.exit(1)
+            print(f"❌ No encontré fotos en {carpeta}"); sys.exit(1)
 
-        print(f"📚 {len(fotos)} foto(s) a procesar con {proveedor} "
-              f"({cfg['modelo'] or MODELOS_POR_DEFECTO[proveedor]})\n")
-
-        for i, foto in enumerate(fotos, start=1):
-            print(f"[{i}/{len(fotos)}] {foto.name} ...", end=" ", flush=True)
+        grupos = agrupar_fotos(fotos)
+        print(f"📚 {len(fotos)} foto(s) → {len(grupos)} libro(s) con "
+              f"{cfg['proveedor']}\n")
+        for i, (nombre, rutas) in enumerate(grupos, start=1):
+            etiqueta = nombre + (f" ({len(rutas)} fotos)" if len(rutas) > 1 else "")
+            print(f"[{i}/{len(grupos)}] {etiqueta} ...", end=" ", flush=True)
             intentos = 0
             while True:
                 try:
-                    datos = procesar_foto(cfg, foto)
-                    fila = construir_fila(datos, cfg, foto.name)
-                    filas.append(fila)
-                    print(f"✔ {fila['TITLE']}  (confianza: {fila['CONFIANZA'] or 's/d'})")
+                    imagenes = [imagen_a_b64(r) for r in rutas]
+                    datos = parsear_json(llamar_ia(cfg, prompt_texto(""), imagenes))
+                    enriquecer(datos)
+                    reg = construir_registro(datos, cfg)
+                    registros.append(reg)
+                    conf = limpiar(datos.get("confianza")) or "s/d"
+                    print(f"✔ {reg['Título']}  (confianza: {conf})")
                     break
                 except requests.HTTPError as e:
                     intentos += 1
-                    codigo = e.response.status_code if e.response is not None else "?"
-                    if codigo == 429 and intentos <= 4:
+                    code = e.response.status_code if e.response is not None else "?"
+                    if code == 429 and intentos <= 4:
                         espera = 2 ** intentos
-                        print(f"⏳ límite de uso, reintento en {espera}s ...", end=" ", flush=True)
-                        time.sleep(espera)
-                        continue
-                    print(f"✖ Error HTTP {codigo}")
-                    filas.append(construir_fila(
-                        {"observaciones": f"Error HTTP {codigo}", "confianza": "baja"},
-                        cfg, foto.name))
+                        print(f"⏳ 429, reintento en {espera}s ...", end=" ", flush=True)
+                        time.sleep(espera); continue
+                    print(f"✖ Error HTTP {code}")
+                    registros.append(construir_registro({"observaciones": f"Error HTTP {code}"}, cfg))
                     break
                 except Exception as e:
                     print(f"✖ Error: {e}")
-                    filas.append(construir_fila(
-                        {"observaciones": f"Error: {e}", "confianza": "baja"},
-                        cfg, foto.name))
+                    registros.append(construir_registro({"observaciones": f"Error: {e}"}, cfg))
                     break
 
-    if not filas:
-        print("\nNo se generó ninguna fila.")
-        sys.exit(1)
+    if not registros:
+        print("\nNo se generó ninguna fila."); sys.exit(1)
 
     salida = Path(cfg["archivo_salida"])
     if not salida.is_absolute():
         salida = RAIZ / salida
-    escribir_excel(filas, salida)
-    print(f"\n✅ Listo. {len(filas)} fila(s) escritas en:\n   {salida}")
-    print("   Revisá las columnas amarillas (para pegar en la planilla de ML) "
-          "y las celestes (datos extra / atributos).")
+    escribir_excel(registros, salida)
+    print(f"\n✅ Listo. {len(registros)} fila(s) con las 61 columnas de ML en:\n   {salida}")
+    print("   Abrí el archivo, copiá las filas y pegalas en la planilla que bajás de Mercado Libre.")
 
 
 if __name__ == "__main__":

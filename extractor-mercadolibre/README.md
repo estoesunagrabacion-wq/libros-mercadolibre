@@ -17,17 +17,30 @@ Viene en **dos versiones**:
 
 ## Qué hace
 
-1. Tomás fotos de las tapas y las ponés en la carpeta `fotos/`.
+1. Tomás fotos de las tapas y las ponés en la carpeta `fotos/` (una foto por libro).
 2. Corrés un comando.
-3. Se genera `salida.xlsx` con, por cada libro:
-   - **Columnas de Mercado Libre** (amarillas): `TITLE`, `VARIATIONS`, `STOCK_FLEX`,
-     `PRICE`, `CURRENCY_ID`, `SKU`, etc. — para pegar en tu planilla de carga.
-   - **Columnas extra** (celestes): `AUTOR`, `EDITORIAL`, `IDIOMA`, `ANIO`, `ISBN`,
-     `TEMA_GENERO`, `FORMATO`, `ESTADO`, `DESCRIPCION`, `CONFIANZA`, `OBSERVACIONES`
-     — para completar los atributos del formulario de ML.
+3. Se genera `salida.xlsx` con **las 61 columnas** de la planilla oficial
+   **"Publicar varios productos"** de Mercado Libre (Libros Físicos), en orden.
+   Abrís el archivo, **copiás las filas** y las pegás en la planilla que descargás de ML.
 
-El **título** se arma con el patrón que ya usás: `Título Autor Microcentro`
-(recortado a 60 caracteres). La etiqueta final ("Microcentro") se configura.
+Por cada libro completa lo que puede con la **IA** (lee la tapa) + **Google Books /
+OpenLibrary** (por ISBN o título); lo que no encuentra queda **en blanco**. Los campos
+de logística (condición, stock, medidas del paquete, envío) van con **valores por defecto
+configurables**.
+
+El **título** se arma con el patrón `Título Autor Microcentro` (recortado a 60 caracteres);
+la etiqueta final ("Microcentro") se configura.
+
+### Varias fotos del mismo libro
+Si tenés tapa + contratapa + hoja con el ISBN, nombrá los archivos con el mismo prefijo y
+**doble guion bajo** para que se combinen en un solo libro:
+
+```
+ishiguro__tapa.jpg   ishiguro__contra.jpg   ishiguro__isbn.jpg
+```
+
+Todas las `ishiguro__*.jpg` se procesan juntas → un solo libro con más datos (el ISBN de la
+contratapa mejora mucho el enriquecimiento). Los archivos sin `__` se toman como un libro cada uno.
 
 ---
 
@@ -114,14 +127,18 @@ python extractor.py --carpeta "C:\Users\vos\Desktop\libros" --salida "hoy.xlsx"
 |-------|----------|---------|
 | `proveedor` | Qué IA usar | `gemini`, `openai`, `anthropic` |
 | `api_key` | Tu clave | (texto) |
-| `modelo` | Modelo puntual (opcional) | vacío = usa el recomendado |
+| `modelo` | Modelo puntual (opcional) | vacío = **autodetección** (Gemini) |
 | `carpeta_fotos` | Dónde están las fotos | `fotos` |
 | `archivo_salida` | Excel de salida | `salida.xlsx` |
-| `moneda` | Columna `CURRENCY_ID` | `ARS` |
 | `etiqueta_titulo` | Se agrega al final del título | `Microcentro` (o `""` para ninguna) |
-| `sku_por_defecto` | Columna `SKU` / ubicación física | `""` |
-| `precio` | Cómo llenar `PRICE` | `manual` (vacío), `sugerir` (la IA propone), o un número fijo (ej. `20000`) |
-| `stock` | Columna `STOCK_FLEX` | `1` |
+| `condicion` | Columna Condición | `Usado` / `Nuevo` |
+| `sku_por_defecto` | Columna SKU / ubicación física | `""` |
+| `stock` | Columna Stock | `1` |
+| `precio` | Columna Precio | `manual` (vacío), `sugerir` (la IA propone), o un número fijo |
+| `paq_ancho` / `paq_alto` / `paq_prof` | Medidas del **paquete** de envío (cm) | `24` / `17` / `4` |
+| `paq_peso` | Peso del paquete (kg) | `0.5` |
+| `forma_envio` / `costo_envio` / `retiro` | Condiciones de envío | `Mercado Envíos` / `A cargo del comprador` / `Acepto` |
+| `cuotas` / `costo_cuotas` | Cuotas | `No agregar cuotas` / `Sin costo` |
 | `max_largo_titulo` | Largo máximo del título | `60` |
 
 **Cambiar de proveedor:** poné `"proveedor": "openai"` o `"anthropic"` y su clave
@@ -132,23 +149,18 @@ correspondiente. También podés dejar la clave en una variable de entorno
 
 ## Cómo pasar los datos a Mercado Libre
 
-Tené en cuenta una diferencia importante:
+La salida usa las **61 columnas** de la planilla oficial **"Publicar varios productos"**
+(Libros Físicos). Para publicar:
 
-- La planilla que compartiste es la de **"Modificá tus publicaciones"**: sirve para
-  **editar publicaciones que ya existen** (por eso tiene columnas de IDs como
-  `ITEM_ID`). Desde esa planilla **ML no deja agregar publicaciones nuevas**.
-- Esta herramienta está pensada para **libros nuevos a publicar**, así que deja los
-  IDs vacíos y completa lo que se puede (`TITLE`, `PRICE`, `CURRENCY_ID`, `STOCK_FLEX`,
-  `SKU`) más los atributos en las columnas extra.
+1. Descargá esa planilla desde Mercado Libre (Publicar → varios productos → Libros Físicos).
+2. Abrí `salida.xlsx`, **copiá las filas de datos** (sin el encabezado) y pegalas en la
+   planilla de ML, respetando el orden de columnas.
+3. Completá en ML lo que la herramienta deja en blanco a propósito: **Fotos** (van del Gestor
+   de fotos de ML) y el **Precio** si lo dejaste en manual.
 
-Entonces, para publicar tenés dos caminos:
-1. **Formulario de ML:** usá las columnas extra (celestes) para completar título,
-   precio, descripción y atributos (autor, idioma, editorial…) al publicar cada libro.
-2. **Carga masiva de nuevas publicaciones:** si usás el flujo de "publicar en lote"
-   de ML, copiá los datos a esa plantilla (avisame y la adapto a ese formato exacto).
-
-> Si tus libros **ya están publicados** y solo querés completar datos, decímelo y
-> ajusto la salida para que use el mismo formato de tu planilla (con los `ITEM_ID`).
+> ¿De dónde salen los datos? De la **IA** (lee la tapa) + **Google Books** y **OpenLibrary**
+> (bases de datos gratuitas, por ISBN o título). Para el **precio** no se scrapea ningún sitio:
+> conviene mirar Mercado Libre / Iberlibro / eBay a mano (la versión web trae botones para eso).
 
 ---
 
@@ -165,11 +177,11 @@ Para ahorrar, la herramienta **achica las fotos** automáticamente antes de envi
 ## Consejos para mejores resultados
 
 - Foto **de frente, con buena luz** y el título/autor legibles.
-- Si el título quedó tapado o la confianza es **baja**, revisá la columna
-  `OBSERVACIONES` y corregí a mano esa fila.
+- Sumá una foto de la **contratapa con el ISBN** (con el mismo prefijo y `__`): mejora
+  mucho los datos que se traen de Google Books / OpenLibrary.
 - Para libros modernos con **código de barras**, el `--isbn` es lo más exacto (y gratis).
-- La IA **no inventa**: si no está seguro de un dato, lo deja vacío. Siempre revisá
-  antes de publicar.
+- La IA **no inventa**: si no está segura de un dato, lo deja vacío. Siempre revisá
+  antes de publicar (sobre todo **precio** y **condición**).
 
 ---
 
