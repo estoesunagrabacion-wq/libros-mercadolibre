@@ -257,7 +257,21 @@
     </p>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v7</span></p>
+  <!-- COMPARTIR -->
+  <div class="card">
+    <h2>📲 Compartir la app</h2>
+    <p class="small muted" style="margin:0 0 10px">Mandá el link por WhatsApp: quien lo reciba abre la misma herramienta en su celular, sin instalar nada.</p>
+    <div class="cap-btns">
+      <button class="btn" id="btnWhats">📲 Compartir por WhatsApp</button>
+      <button class="btn sec" id="btnCopiarLink">🔗 Copiar link</button>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <img id="qr" alt="Código QR de la app" width="140" height="140" style="border-radius:10px;background:#fff;padding:6px" />
+      <div class="small muted" style="flex:1;min-width:160px">O que lo escaneen con la cámara desde este <b>QR</b>.<br><span id="appUrl" style="word-break:break-all"></span></div>
+    </div>
+  </div>
+
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v8</span></p>
 </div>
 
 <script>
@@ -820,6 +834,25 @@ $("fileGal").addEventListener("change",async e=>{ await sumarArchivos([...e.targ
 $("btnAnalizar").addEventListener("click",analizarFotos);
 $("btnManual").addEventListener("click",()=>{ const t=$("manualTexto").value.trim(); if(t) procesarManual(t); });
 $("manualTexto").addEventListener("keydown",e=>{ if(e.key==="Enter"){ const t=e.target.value.trim(); if(t) procesarManual(t); }});
+
+/* ---------- Compartir la app ---------- */
+const CANONICAL="https://estoesunagrabacion-wq.github.io/detective-sintactico/";
+const APP_URL = location.protocol.indexOf("http")===0 ? (location.origin+location.pathname) : CANONICAL;
+const MSG_APP = "📚 Cargá tus libros para Mercado Libre sacando una foto con esta app: "+APP_URL;
+$("appUrl").textContent = APP_URL;
+$("qr").src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data="+encodeURIComponent(APP_URL);
+$("qr").addEventListener("error",()=>$("qr").classList.add("hidden"));
+$("btnWhats").addEventListener("click",()=>{
+  if(navigator.share){
+    navigator.share({title:"Extractor de libros → Mercado Libre", text:"Cargá tus libros sacando una foto", url:APP_URL}).catch(()=>{});
+  }else{
+    window.open("https://wa.me/?text="+encodeURIComponent(MSG_APP),"_blank","noopener");
+  }
+});
+$("btnCopiarLink").addEventListener("click",async()=>{
+  try{ await navigator.clipboard.writeText(APP_URL); }catch(e){}
+  const b=$("btnCopiarLink"), t=b.textContent; b.textContent="✓ Copiado"; setTimeout(()=>b.textContent=t,1000);
+});
 
 /* ---------- Init ---------- */
 construirCampos(); pintarCfg(); pintarLista();
