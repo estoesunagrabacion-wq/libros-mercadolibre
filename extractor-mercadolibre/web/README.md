@@ -26,6 +26,11 @@ No necesita servidor: es un solo archivo. Tu clave y tus fotos quedan en tu tel�
 Simplemente abrí la dirección de arriba en el navegador del teléfono. Si querés tenerla
 como app, usá el menú del navegador → **"Agregar a pantalla de inicio"**.
 
+### Compartirla con otra persona
+Al final de la app hay una tarjeta **"📲 Compartir la app"**: botón para mandar el link por
+**WhatsApp**, **copiar link**, y un **QR** para que lo escaneen con la cámara. Quien lo recibe
+abre la misma herramienta en su celular, sin instalar nada (cada uno usa su propia API key).
+
 > La publicación es automática: cada cambio que se sube a la rama `main` republica la web
 > (workflow `.github/workflows/deploy-pages.yml`).
 
