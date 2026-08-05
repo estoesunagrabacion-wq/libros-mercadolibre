@@ -179,6 +179,10 @@ Para ahorrar, la herramienta **achica las fotos** automáticamente antes de envi
 - Foto **de frente, con buena luz** y el título/autor legibles.
 - Sumá una foto de la **contratapa con el ISBN** (con el mismo prefijo y `__`): mejora
   mucho los datos que se traen de Google Books / OpenLibrary.
+- **Medidas con regla:** si ponés una **regla** (o algo de tamaño conocido: tarjeta = 8,5 cm)
+  al lado del libro, la IA calcula alto/ancho/grosor. Esas medidas se usan (con un pequeño
+  margen) para las **medidas del paquete** de ese libro; si no hay regla, se usan los valores
+  por defecto del `config.json`. El **peso** no se puede medir por foto.
 - Para libros modernos con **código de barras**, el `--isbn` es lo más exacto (y gratis).
 - La IA **no inventa**: si no está segura de un dato, lo deja vacío. Siempre revisá
   antes de publicar (sobre todo **precio** y **condición**).

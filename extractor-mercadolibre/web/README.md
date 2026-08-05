@@ -54,6 +54,12 @@ Después, por cada libro:
 Sumá tapa + contratapa + la hoja con el **ISBN** antes de tocar **Analizar**: la app las combina
 en un solo libro y, con el ISBN, trae muchos más datos (editorial, año, páginas, etc.).
 
+### Medidas con una regla
+Si ponés una **regla** (o algo de tamaño conocido, como una tarjeta de 8,5 cm) al lado del
+libro en la foto, la IA calcula **alto, ancho y grosor**. Esas medidas se usan (con un pequeño
+margen) para las **medidas del paquete** de ese libro; si no hay regla, se usan los valores por
+defecto de Configuración. El **peso** no se puede medir por foto.
+
 ### Una foto con varios libros
 Si sacás una foto de una **pila o estante**, marcá la casilla **"varios libros distintos"** antes
 de Analizar. La app detecta cada libro y te los muestra **uno por uno** (arriba dice "quedan N en

@@ -167,7 +167,7 @@ COLUMNAS = [
 ESQUEMA = ('{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"",'
            '"editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"",'
            '"indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"",'
-           '"pais_origen":"","altura_cm":"","ancho_cm":"","peso_g":"","material_tapa":"",'
+           '"pais_origen":"","altura_cm":"","ancho_cm":"","grosor_cm":"","peso_g":"","material_tapa":"",'
            '"condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,'
            '"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}')
 
@@ -178,7 +178,8 @@ REGLAS = """Reglas de formato:
 - "tipo_narracion": p. ej. Novela, Cuento, Poesía, Ensayo, Teatro, Antología (o "").
 - "condicion": "Usado" salvo que claramente sea nuevo.
 - "isbn": si aparece en alguna foto (contratapa / hoja de créditos), transcribilo (solo números).
-- "paginas": solo número. "altura_cm"/"ancho_cm": tamaño del libro en cm. "peso_g": peso del libro en gramos. Estimá solo si es razonable; si no, "".
+- "paginas": solo número. "peso_g": peso del libro en gramos; NO se puede medir por foto (dejalo "" salvo estimación razonable).
+- MEDICIÓN CON REGLA: si en la foto hay una regla u objeto de tamaño conocido (tarjeta = 8.5 cm, moneda, etc.), usalo como escala para medir "altura_cm" (alto), "ancho_cm" (ancho) y "grosor_cm" (grosor del lomo) del libro, en cm. Si no hay referencia, estimá solo si es razonable; si no, "". Indicá en "observaciones" qué referencia usaste.
 - "descripcion": 2 a 4 oraciones en español neutro (de qué trata + datos del ejemplar), sin exagerar.
 - "precio_sugerido_min"/"precio_sugerido_max": rango orientativo en pesos argentinos para un usado en ML (enteros). SOLO referencia.
 - Si algo está borroso o no se ve: dejá "" y bajá la "confianza". NO inventes."""
@@ -436,15 +437,27 @@ def resolver_precio(datos, cfg):
     return ""
 
 
+def _num(x):
+    try:
+        return float(str(x).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+
 def construir_registro(datos, cfg):
+    import math
+    alt, anc, gro, pes = (_num(datos.get(k)) for k in ("altura_cm", "ancho_cm", "grosor_cm", "peso_g"))
     derivados = {
         "__titulo": armar_titulo(datos, cfg),
         "__condicion": limpiar(datos.get("condicion")) or cfg.get("condicion", "Usado"),
         "__sku": cfg.get("sku_por_defecto", ""),
         "__stock": cfg.get("stock", 1),
         "__precio": resolver_precio(datos, cfg),
-        "__paq_ancho": cfg.get("paq_ancho", ""), "__paq_alto": cfg.get("paq_alto", ""),
-        "__paq_prof": cfg.get("paq_prof", ""), "__paq_peso": cfg.get("paq_peso", ""),
+        # Medidas del paquete: medida del libro + margen si está; si no, el default de config.
+        "__paq_ancho": str(math.ceil(anc) + 2) if anc else cfg.get("paq_ancho", ""),
+        "__paq_alto": str(math.ceil(alt) + 2) if alt else cfg.get("paq_alto", ""),
+        "__paq_prof": str(math.ceil(gro) + 1) if gro else cfg.get("paq_prof", ""),
+        "__paq_peso": str(round(pes / 1000 + 0.1, 3)) if pes else cfg.get("paq_peso", ""),
         "__cuotas": cfg.get("cuotas", ""), "__costo_cuotas": cfg.get("costo_cuotas", ""),
         "__forma_envio": cfg.get("forma_envio", ""), "__costo_envio": cfg.get("costo_envio", ""),
         "__retiro": cfg.get("retiro", ""),
