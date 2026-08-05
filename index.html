@@ -181,7 +181,7 @@
       <div id="thumbs" class="thumbs"></div>
       <label class="chk"><input type="checkbox" id="chkVarios" /> La(s) foto(s) tienen <b>varios libros distintos</b></label>
       <button class="btn blue hidden" id="btnAnalizar">🔎 Analizar</button>
-      <p class="small muted" id="capHint">Sumá varias fotos del <b>mismo</b> libro (tapa, contratapa, hoja con el ISBN) para sacar más datos. O marcá la casilla si la foto tiene <b>varios libros</b> distintos.</p>
+      <p class="small muted" id="capHint">Sumá varias fotos del <b>mismo</b> libro (tapa, contratapa, hoja con el ISBN) para sacar más datos. O marcá la casilla si la foto tiene <b>varios libros</b> distintos. <b>Tip:</b> incluí una regla en la foto y calcula las medidas del libro.</p>
 
       <details>
         <summary>…o buscar sin foto (ISBN / título a mano)</summary>
@@ -271,7 +271,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v8</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v9</span></p>
 </div>
 
 <script>
@@ -293,10 +293,10 @@ const COLUMNAS = [
   ["Stock", ()=>C.stock||"1"],
   ["Precio [$]", g=>g("precio")],
   ["Descripción", g=>g("descripcion")],
-  ["Ancho (cm)", ()=>C.paqAncho||""],
-  ["Alto (cm)", ()=>C.paqAlto||""],
-  ["Profundidad (cm)", ()=>C.paqProf||""],
-  ["Peso físico (kg)", ()=>C.paqPeso||""],
+  ["Ancho (cm)", g=>paqDim(g("ancho_cm"),2,C.paqAncho)],
+  ["Alto (cm)", g=>paqDim(g("altura_cm"),2,C.paqAlto)],
+  ["Profundidad (cm)", g=>paqDim(g("grosor_cm"),1,C.paqProf)],
+  ["Peso físico (kg)", g=>paqPeso(g("peso_g"),C.paqPeso)],
   ["Cargo por vender", ()=>""],
   ["Cuotas", ()=>C.cuotas||""],
   ["Costo por ofrecer cuotas", ()=>C.costoCuotas||""],
@@ -368,6 +368,7 @@ const CAMPOS = [
   {id:"pais_origen", label:"País de origen"},
   {id:"altura_cm", label:"Alto del libro (cm)"},
   {id:"ancho_cm", label:"Ancho del libro (cm)"},
+  {id:"grosor_cm", label:"Grosor/lomo (cm)"},
   {id:"peso_g", label:"Peso del libro (g)"},
   {id:"material_tapa", label:"Material de la tapa"},
 ];
@@ -457,7 +458,7 @@ function construirCampos(){
 /* ---------- Prompt ---------- */
 const CLAVES = "titulo_libro, subtitulo, autor, coautores, traductores, editorial, coleccion, serie, edicion, idioma, tapa, indice, anio, isbn, tipo_narracion, paginas, tema_genero, pais_origen, altura_cm, ancho_cm, peso_g, material_tapa, condicion, estado, descripcion, precio_sugerido_min, precio_sugerido_max, confianza, observaciones";
 const ESQUEMA =
-`{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"","editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"","indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","pais_origen":"","altura_cm":"","ancho_cm":"","peso_g":"","material_tapa":"","condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}`;
+`{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"","editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"","indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","pais_origen":"","altura_cm":"","ancho_cm":"","grosor_cm":"","peso_g":"","material_tapa":"","condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}`;
 const REGLAS =
 `Reglas de formato de cada libro:
 - "idioma": nombre en español (Español, Inglés, Italiano, Ruso, Francés, Alemán, Portugués, Latín, Griego, etc.). El idioma puede NO ser español: leé el alfabeto real.
@@ -466,7 +467,8 @@ const REGLAS =
 - "tipo_narracion": p. ej. Novela, Cuento, Poesía, Ensayo, Teatro, Antología (o "").
 - "condicion": "Usado" salvo que claramente sea nuevo.
 - "isbn": si aparece en alguna foto (contratapa / hoja de créditos), transcribilo (solo números).
-- "paginas": solo número. "altura_cm"/"ancho_cm": tamaño del libro en cm (número). "peso_g": peso del libro en gramos (número). Estimá solo si es razonable; si no, "".
+- "paginas": solo número. "peso_g": peso del libro en gramos (número); NO se puede medir por foto, dejalo "" salvo estimación razonable.
+- MEDICIÓN CON REGLA: si en la foto hay una regla o un objeto de tamaño conocido (tarjeta = 8.5 cm, moneda de $1 argentina ≈ 2.3 cm, etc.), usalo como escala para medir "altura_cm" (alto), "ancho_cm" (ancho) y "grosor_cm" (grosor del lomo) del libro, en cm. Si no hay referencia, estimá solo si es razonable; si no, dejá "". Indicá en "observaciones" qué referencia usaste.
 - "descripcion": 2 a 4 oraciones en español neutro (de qué trata + datos del ejemplar), sin exagerar.
 - "precio_sugerido_min"/"precio_sugerido_max": rango orientativo en pesos argentinos para un usado en ML (enteros). Es SOLO referencia.
 - Si algo está borroso o no se ve: dejá "" y bajá la "confianza". NO inventes.`;
@@ -710,6 +712,15 @@ async function procesarManual(dato){
 /* ---------- Mostrar resultado ---------- */
 function num(x){ const n=parseInt(x); return isNaN(n)?null:n; }
 function fmt(n){ return "$"+Number(n).toLocaleString("es-AR"); }
+/* Medidas del paquete: si hay medida del libro, usa medida + margen (redondeada hacia arriba); si no, el default de config. */
+function paqDim(medida, margen, def){
+  const n=parseFloat(String(medida||"").replace(",","."));
+  return isNaN(n) ? (def||"") : String(Math.ceil(n)+margen);
+}
+function paqPeso(pesoG, def){
+  const g=parseFloat(String(pesoG||"").replace(",","."));
+  return isNaN(g) ? (def||"") : String(Math.round((g/1000+0.1)*1000)/1000);
+}
 function precioResuelto(d){
   if(C.precioModo==="fijo") return C.precioFijo||"";
   if(C.precioModo==="sugerir"){ const a=num(d.precio_sugerido_min), b=num(d.precio_sugerido_max);
