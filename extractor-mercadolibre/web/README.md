@@ -49,15 +49,28 @@ Después, por cada libro:
 
 ## Qué trae el CSV
 
-Las mismas columnas que la versión de escritorio:
-- **Columnas de Mercado Libre:** `FAMILY_ID, ITEM_ID, PRODUCT_NUMBER, VARIATION_ID, SKU,
-  TITLE, VARIATIONS, STOCK_FLEX, PRICE, CURRENCY_ID` (los IDs van vacíos porque son
-  publicaciones nuevas).
-- **Columnas extra:** `TITULO_LIBRO, AUTOR, EDITORIAL, IDIOMA, ANIO, ISBN, TEMA_GENERO,
-  FORMATO, ESTADO, DESCRIPCION, PRECIO_SUGERIDO, ARCHIVO, CONFIANZA, OBSERVACIONES`.
+Las **61 columnas** de la planilla oficial **"Publicar varios productos"** de Mercado Libre
+(categoría Libros Físicos), en el mismo orden (A → BI): Título, Condición, ISBN, SKU, Stock,
+Precio, Descripción, medidas y peso del paquete, forma de envío y condiciones de venta, y
+todas las características del libro (Autor, Editorial, Subtítulo, Serie, Idioma, Edición, Tapa,
+Índice, Año, Coautores, Traductores, Tipo de narración, Colección, Cantidad de páginas, etc.).
 
-El archivo se abre con Excel o Google Sheets (viene en UTF-8, así que los acentos y
-otros alfabetos se ven bien).
+Cómo usarlo: abrí el CSV con Excel/Google Sheets, **copiá las filas de datos** y pegalas en la
+planilla que descargás desde Mercado Libre. Viene en UTF-8, así que acentos y otros alfabetos
+se ven bien.
+
+### Qué completa y qué no
+- **Completa** lo que puede: con la IA (lee la tapa) + bases de datos gratis (Google Books /
+  OpenLibrary por ISBN o título). Lo que no puede determinar, lo deja **en blanco**.
+- **Valores por defecto** (configurables): Condición (Usado), Stock (1), medidas/peso del
+  paquete, forma de envío, cuotas y retiro.
+- **Queda en blanco para vos:** Fotos (van del Gestor de fotos de ML) y, si lo dejaste en
+  manual, el Precio.
+
+### Precio (sugerencia, no se completa solo)
+Por cada libro ves una **estimación orientativa** de la IA y **botones** que abren la búsqueda
+de ese libro en **Mercado Libre, Iberlibro y eBay** para que veas precios reales. El campo de
+precio no se llena automáticamente (salvo que elijas ese modo en Configuración).
 
 ---
 
