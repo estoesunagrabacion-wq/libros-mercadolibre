@@ -160,6 +160,13 @@
           </div>
         </details>
 
+        <h3 class="sec">🏬 Cierre de la descripción (tu librería)</h3>
+        <label>Nombre de la librería</label>
+        <input id="libreria" type="text" placeholder="Librería Los Siete Pilares" />
+        <label>Texto de retiro / ubicación</label>
+        <textarea id="retiroTexto" style="min-height:56px"></textarea>
+        <label class="chk"><input type="checkbox" id="tituloItalica" /> Título del libro en <b>itálicas</b> en la descripción (Unicode)</label>
+
         <button class="btn sec sm" id="guardarCfg" style="margin-top:12px">💾 Guardar configuración</button>
         <p class="small muted" style="margin-top:8px">
           Tu clave y tus datos se guardan solo en <b>este dispositivo</b> (la foto solo se envía al servicio de IA para leerla).
@@ -225,8 +232,8 @@
     <div id="camposGrid" class="grid2"></div>
 
     <div class="field" style="margin-top:10px">
-      <label>Descripción</label>
-      <textarea id="f_descripcion" class="withcopy"></textarea>
+      <label>Descripción <button class="btn sec sm" id="btnRearmar" style="padding:2px 8px;font-size:11px;margin-left:6px">🔄 Rearmar</button></label>
+      <textarea id="f_descripcion" class="withcopy" style="min-height:150px"></textarea>
       <button class="copy" data-for="f_descripcion">copiar</button>
     </div>
     <div id="obs" class="small muted" style="margin:6px 0 12px"></div>
@@ -271,7 +278,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v9</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v10</span></p>
 </div>
 
 <script>
@@ -349,9 +356,11 @@ const COLUMNAS = [
 /* Campos editables que se muestran en pantalla (además de título/precio/descripción). */
 const CAMPOS = [
   {id:"condicion", label:"Condición", type:"select", opts:["Usado","Nuevo"]},
+  {id:"estado", label:"Estado del ejemplar"},
   {id:"titulo_libro", label:"Título del libro"},
   {id:"subtitulo", label:"Subtítulo"},
   {id:"autor", label:"Autor"},
+  {id:"ciudad", label:"Ciudad de edición"},
   {id:"coautores", label:"Coautores"},
   {id:"traductores", label:"Traductores"},
   {id:"editorial", label:"Editorial"},
@@ -391,7 +400,10 @@ function cfgDefault(){
     sku:"",stock:"1",precioModo:"manual",precioFijo:"",
     paqAncho:"24",paqAlto:"17",paqProf:"4",paqPeso:"0.5",
     formaEnvio:"Mercado Envíos",costoEnvio:"A cargo del comprador",retiro:"Acepto",
-    cuotas:"No agregar cuotas",costoCuotas:"Sin costo"};
+    cuotas:"No agregar cuotas",costoCuotas:"Sin costo",
+    libreria:"Librería Los Siete Pilares",
+    retiroTexto:"Retiro en persona en una librería a la calle en la zona de Paraguay y Reconquista.",
+    tituloItalica:false};
 }
 function cargarCfg(){
   try{ return Object.assign(cfgDefault(), JSON.parse(localStorage.getItem("extractorCfg")||"{}")); }
@@ -408,6 +420,7 @@ function pintarCfg(){
   $("paqAncho").value=C.paqAncho; $("paqAlto").value=C.paqAlto; $("paqProf").value=C.paqProf; $("paqPeso").value=C.paqPeso;
   $("formaEnvio").value=C.formaEnvio; $("costoEnvio").value=C.costoEnvio; $("retiro").value=C.retiro;
   $("cuotas").value=C.cuotas; $("costoCuotas").value=C.costoCuotas;
+  $("libreria").value=C.libreria||""; $("retiroTexto").value=C.retiroTexto||""; $("tituloItalica").checked=!!C.tituloItalica;
   $("keyHelp").innerHTML=KEY_HELP[C.proveedor]||"";
   $("precioFijoWrap").classList.toggle("hidden", C.precioModo!=="fijo");
   $("cfgResumen").textContent=C.apiKey ? (C.proveedor+" ✓") : "sin clave";
@@ -422,7 +435,8 @@ $("guardarCfg").addEventListener("click", ()=>{
     precioModo:$("precioModo").value, precioFijo:t("precioFijo"),
     paqAncho:t("paqAncho"), paqAlto:t("paqAlto"), paqProf:t("paqProf"), paqPeso:t("paqPeso"),
     formaEnvio:t("formaEnvio"), costoEnvio:t("costoEnvio"), retiro:t("retiro"),
-    cuotas:t("cuotas"), costoCuotas:t("costoCuotas") };
+    cuotas:t("cuotas"), costoCuotas:t("costoCuotas"),
+    libreria:t("libreria"), retiroTexto:$("retiroTexto").value.trim(), tituloItalica:$("tituloItalica").checked };
   guardarCfgStorage(); pintarCfg();
   setStatus("ok","Configuración guardada.");
   $("configDetails").open=false;
@@ -458,7 +472,7 @@ function construirCampos(){
 /* ---------- Prompt ---------- */
 const CLAVES = "titulo_libro, subtitulo, autor, coautores, traductores, editorial, coleccion, serie, edicion, idioma, tapa, indice, anio, isbn, tipo_narracion, paginas, tema_genero, pais_origen, altura_cm, ancho_cm, peso_g, material_tapa, condicion, estado, descripcion, precio_sugerido_min, precio_sugerido_max, confianza, observaciones";
 const ESQUEMA =
-`{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"","editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"","indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","pais_origen":"","altura_cm":"","ancho_cm":"","grosor_cm":"","peso_g":"","material_tapa":"","condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}`;
+`{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"","editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"","indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","ciudad":"","pais_origen":"","altura_cm":"","ancho_cm":"","grosor_cm":"","peso_g":"","material_tapa":"","condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}`;
 const REGLAS =
 `Reglas de formato de cada libro:
 - "idioma": nombre en español (Español, Inglés, Italiano, Ruso, Francés, Alemán, Portugués, Latín, Griego, etc.). El idioma puede NO ser español: leé el alfabeto real.
@@ -466,6 +480,8 @@ const REGLAS =
 - "indice": "Sí" o "No" (o "").
 - "tipo_narracion": p. ej. Novela, Cuento, Poesía, Ensayo, Teatro, Antología (o "").
 - "condicion": "Usado" salvo que claramente sea nuevo.
+- "estado": frase corta del estado del ejemplar: "Buen estado", "Muy buen estado", "Excelente estado", "Usado con marcas de uso", etc.
+- "ciudad": ciudad de edición (donde se editó/publicó), si aparece o la conocés (ej. Barcelona, Buenos Aires).
 - "isbn": si aparece en alguna foto (contratapa / hoja de créditos), transcribilo (solo números).
 - "paginas": solo número. "peso_g": peso del libro en gramos (número); NO se puede medir por foto, dejalo "" salvo estimación razonable.
 - MEDICIÓN CON REGLA: si en la foto hay una regla o un objeto de tamaño conocido (tarjeta = 8.5 cm, moneda de $1 argentina ≈ 2.3 cm, etc.), usalo como escala para medir "altura_cm" (alto), "ancho_cm" (ancho) y "grosor_cm" (grosor del lomo) del libro, en cm. Si no hay referencia, estimá solo si es razonable; si no, dejá "". Indicá en "observaciones" qué referencia usaste.
@@ -732,6 +748,35 @@ function armarTitulo(t,a){ let x=[t,a,C.etiqueta].filter(v=>v&&v.trim()).join(" 
 function setCampo(id,v){ const el=$("f_"+id); if(el) el.value=(v==null?"":v); }
 function getCampo(id){ const el=$("f_"+id); return el?String(el.value).trim():""; }
 
+/* Título en itálicas Unicode (solo letras/dígitos ASCII; los acentos quedan normales). */
+function aItalica(s){
+  return String(s).replace(/[A-Za-z0-9]/g, ch=>{
+    const c=ch.codePointAt(0);
+    if(ch==="h") return "ℎ";
+    if(c>=65&&c<=90) return String.fromCodePoint(0x1D434+(c-65));   // A-Z
+    if(c>=97&&c<=122) return String.fromCodePoint(0x1D44E+(c-97));  // a-z
+    if(c>=48&&c<=57) return String.fromCodePoint(0x1D7F6+(c-48));   // 0-9
+    return ch;
+  });
+}
+/* Descripción: 1) ficha bibliográfica, 2) texto de la IA, 3) datos de la librería. */
+function componerDescripcion(){
+  const g=getCampo;
+  const titulo=g("titulo_libro");
+  const tituloFmt = titulo ? (C.tituloItalica ? aItalica(titulo) : titulo) : "";
+  const biblio1=[g("autor"), tituloFmt].filter(Boolean).join(", ");
+  const biblio2=[g("ciudad"), g("editorial"), g("anio")].filter(Boolean).join(", ");
+  let biblio=[biblio1, biblio2].filter(Boolean).join(", ");
+  if(biblio) biblio+=".";
+  const extras=[];
+  if(g("paginas")) extras.push(g("paginas")+" páginas.");
+  if(g("estado")) extras.push(/[.!?]$/.test(g("estado")) ? g("estado") : g("estado")+".");
+  const bloque1=[biblio, extras.join(" ")].filter(Boolean).join(" ").trim();
+  const prosa=(actual && actual._prosa || "").trim();
+  const cierre=[ (C.retiroTexto||"").trim(), (C.libreria||"").trim() ].filter(Boolean).join("\n\n");
+  return [bloque1, prosa, cierre].filter(Boolean).join("\n\n");
+}
+
 function mostrarResultado(d){
   actual=d;
   CAMPOS.forEach(c=>{
@@ -739,7 +784,8 @@ function mostrarResultado(d){
     if(c.id==="condicion" && !v) v=C.condicion||"Usado";
     setCampo(c.id,v);
   });
-  $("f_descripcion").value=d.descripcion||"";
+  actual._prosa = d.descripcion || "";        // texto crudo de la IA
+  $("f_descripcion").value = componerDescripcion();
   $("f_precio").value=precioResuelto(d);
   regenerarTitulo();
   // estimación de precio + botones
@@ -770,6 +816,7 @@ function regenerarTitulo(){
   pintarLinksPrecio();
 }
 $("f_title").addEventListener("input",()=>{ $("titleLen").textContent=$("f_title").value.length; });
+$("btnRearmar").addEventListener("click",()=>{ $("f_descripcion").value=componerDescripcion(); });
 function ocultarResultado(){ $("cardResultado").classList.add("hidden"); actual=null; }
 
 /* ---------- Copiar (delegado) ---------- */
