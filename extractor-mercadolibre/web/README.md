@@ -99,8 +99,9 @@ Debajo de la lista, la app te avisa **qué libros tienen campos obligatorios de 
 (Título, Condición, ISBN, Precio, Autor, Editorial, medidas, etc.) con un link para **editar**
 cada uno. Así evitás que Mercado Libre te rechace la planilla.
 
-> Las **Fotos** son obligatorias en ML pero **se cargan allá** (Gestor de fotos), no desde la app;
-> por eso no se marcan como error, solo se recuerdan.
+> Las **Fotos** son obligatorias en ML. Subí las imágenes en el **Gestor de fotos** de ML, copiá
+> las URLs y pegalas en el campo **Fotos (URLs de ML)** de cada libro en la app (separadas por coma):
+> así el Excel ya baja con la columna Fotos completa y no hay que tocarla después.
 > El **ISBN** también es obligatorio: si el libro no tiene, poné uno de relleno válido (como hacés a mano).
 
 ### Qué trae la planilla
