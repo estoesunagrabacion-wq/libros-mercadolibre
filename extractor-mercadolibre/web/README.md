@@ -65,6 +65,13 @@ Si sacás una foto de una **pila o estante**, marcá la casilla **"varios libros
 de Analizar. La app detecta cada libro y te los muestra **uno por uno** (arriba dice "quedan N en
 cola"); revisás y agregás cada uno. Funciona mejor con libros relativamente nuevos y legibles.
 
+### Cómo se arma la descripción
+La descripción se compone en 3 bloques: **ficha bibliográfica** (Autor, Título, Ciudad,
+Editorial, año. Páginas. Estado.), luego el **texto de la IA**, y al final los **datos de tu
+librería** (retiro + nombre). El nombre de la librería, el texto de retiro y si el título va en
+**itálicas** se configuran en ⚙️ Configuración. Podés editar el texto o tocar **🔄 Rearmar** para
+regenerarlo tras cambiar algún campo.
+
 ### ¿De dónde salen los datos?
 1. La **IA con visión** lee la tapa y deduce los datos.
 2. **Google Books** y **OpenLibrary** (gratis) completan por ISBN o título: editorial, año,

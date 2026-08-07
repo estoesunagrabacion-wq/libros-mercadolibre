@@ -80,6 +80,12 @@ CONFIG_POR_DEFECTO = {
     "retiro": "Acepto",
     "cuotas": "No agregar cuotas",
     "costo_cuotas": "Sin costo",
+    # Cierre de la descripción (tu librería).
+    "libreria": "Librería Los Siete Pilares",
+    "retiro_texto": "Retiro en persona en una librería a la calle en la zona de Paraguay y Reconquista.",
+    "titulo_italica": False,
+    # Si apuntás a la planilla oficial de ML, se rellena esa (en vez de crear salida.xlsx).
+    "plantilla": "",
 }
 
 MODELOS_POR_DEFECTO = {
@@ -106,7 +112,7 @@ COLUMNAS = [
     ("SKU", "__sku"),
     ("Stock", "__stock"),
     ("Precio [$]", "__precio"),
-    ("Descripción", "descripcion"),
+    ("Descripción", "__descripcion"),
     ("Ancho (cm)", "__paq_ancho"),
     ("Alto (cm)", "__paq_alto"),
     ("Profundidad (cm)", "__paq_prof"),
@@ -166,7 +172,7 @@ COLUMNAS = [
 
 ESQUEMA = ('{"titulo_libro":"","subtitulo":"","autor":"","coautores":"","traductores":"",'
            '"editorial":"","coleccion":"","serie":"","edicion":"","idioma":"","tapa":"",'
-           '"indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"",'
+           '"indice":"","anio":"","isbn":"","tipo_narracion":"","paginas":"","tema_genero":"","ciudad":"",'
            '"pais_origen":"","altura_cm":"","ancho_cm":"","grosor_cm":"","peso_g":"","material_tapa":"",'
            '"condicion":"","estado":"","descripcion":"","precio_sugerido_min":null,'
            '"precio_sugerido_max":null,"confianza":"alta|media|baja","observaciones":""}')
@@ -177,6 +183,8 @@ REGLAS = """Reglas de formato:
 - "indice": "Sí" o "No" (o "").
 - "tipo_narracion": p. ej. Novela, Cuento, Poesía, Ensayo, Teatro, Antología (o "").
 - "condicion": "Usado" salvo que claramente sea nuevo.
+- "estado": frase corta del estado del ejemplar: "Buen estado", "Muy buen estado", "Excelente estado", "Usado con marcas de uso", etc.
+- "ciudad": ciudad de edición (donde se editó/publicó), si aparece o la conocés (ej. Barcelona, Buenos Aires).
 - "isbn": si aparece en alguna foto (contratapa / hoja de créditos), transcribilo (solo números).
 - "paginas": solo número. "peso_g": peso del libro en gramos; NO se puede medir por foto (dejalo "" salvo estimación razonable).
 - MEDICIÓN CON REGLA: si en la foto hay una regla u objeto de tamaño conocido (tarjeta = 8.5 cm, moneda, etc.), usalo como escala para medir "altura_cm" (alto), "ancho_cm" (ancho) y "grosor_cm" (grosor del lomo) del libro, en cm. Si no hay referencia, estimá solo si es razonable; si no, "". Indicá en "observaciones" qué referencia usaste.
@@ -444,6 +452,40 @@ def _num(x):
         return None
 
 
+def _italica(s):
+    out = []
+    for ch in str(s):
+        o = ord(ch)
+        if ch == "h": out.append("ℎ")
+        elif 65 <= o <= 90: out.append(chr(0x1D434 + (o - 65)))
+        elif 97 <= o <= 122: out.append(chr(0x1D44E + (o - 97)))
+        elif 48 <= o <= 57: out.append(chr(0x1D7F6 + (o - 48)))
+        else: out.append(ch)
+    return "".join(out)
+
+
+def componer_descripcion(datos, cfg):
+    """1) ficha bibliográfica, 2) texto de la IA, 3) datos de la librería."""
+    titulo = limpiar(datos.get("titulo_libro"))
+    titulo_fmt = _italica(titulo) if cfg.get("titulo_italica") and titulo else titulo
+    b1 = ", ".join(x for x in [limpiar(datos.get("autor")), titulo_fmt] if x)
+    b2 = ", ".join(x for x in [limpiar(datos.get("ciudad")), limpiar(datos.get("editorial")),
+                               limpiar(datos.get("anio"))] if x)
+    biblio = ", ".join(x for x in [b1, b2] if x)
+    if biblio:
+        biblio += "."
+    extras = []
+    if limpiar(datos.get("paginas")):
+        extras.append(limpiar(datos.get("paginas")) + " páginas.")
+    est = limpiar(datos.get("estado"))
+    if est:
+        extras.append(est if est[-1] in ".!?" else est + ".")
+    bloque1 = " ".join(x for x in [biblio, " ".join(extras)] if x).strip()
+    prosa = limpiar(datos.get("descripcion"))
+    cierre = "\n\n".join(x for x in [limpiar(cfg.get("retiro_texto")), limpiar(cfg.get("libreria"))] if x)
+    return "\n\n".join(x for x in [bloque1, prosa, cierre] if x)
+
+
 def construir_registro(datos, cfg):
     import math
     alt, anc, gro, pes = (_num(datos.get(k)) for k in ("altura_cm", "ancho_cm", "grosor_cm", "peso_g"))
@@ -453,6 +495,7 @@ def construir_registro(datos, cfg):
         "__sku": cfg.get("sku_por_defecto", ""),
         "__stock": cfg.get("stock", 1),
         "__precio": resolver_precio(datos, cfg),
+        "__descripcion": componer_descripcion(datos, cfg),
         # Medidas del paquete: medida del libro + margen si está; si no, el default de config.
         "__paq_ancho": str(math.ceil(anc) + 2) if anc else cfg.get("paq_ancho", ""),
         "__paq_alto": str(math.ceil(alt) + 2) if alt else cfg.get("paq_alto", ""),
@@ -496,6 +539,35 @@ def escribir_excel(registros, ruta_salida):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = ancho
     ws.freeze_panes = "A2"
     wb.save(ruta_salida)
+
+
+def escribir_en_plantilla(registros, plantilla, salida):
+    """Rellena la planilla oficial de ML ('Publicar varios productos') conservando su estructura."""
+    wb = openpyxl.load_workbook(plantilla)
+    if "Libros Físicos" not in wb.sheetnames:
+        raise RuntimeError("La plantilla no tiene la hoja 'Libros Físicos'. "
+                           "¿Es la planilla de 'Publicar varios productos' > Libros Físicos?")
+    ws = wb["Libros Físicos"]
+    PRIMERA = 9  # primera fila de datos
+    # Última fila de ejemplo (col D = Condición con valor).
+    ultima = PRIMERA - 1
+    r = PRIMERA
+    while ws.cell(r, 4).value not in (None, ""):
+        ultima = r
+        r += 1
+    headers = [h for h, _ in COLUMNAS]
+    # Escribir cada libro (solo valores no vacíos: así se respetan los defaults grises de la planilla).
+    for i, reg in enumerate(registros):
+        fila = PRIMERA + i
+        for col, h in enumerate(headers, start=1):
+            val = reg.get(h, "")
+            if val not in ("", None):
+                ws.cell(fila, col).value = val
+    # Limpiar filas de ejemplo sobrantes para que ML no intente publicarlas.
+    for fila in range(PRIMERA + len(registros), ultima + 1):
+        for col in range(1, len(headers) + 1):
+            ws.cell(fila, col).value = None
+    wb.save(salida)
 
 
 # ---------------------------------------------------------------------------
@@ -543,11 +615,13 @@ def main():
     ap.add_argument("--salida")
     ap.add_argument("--texto", help="Identificar un libro por texto (título/autor)")
     ap.add_argument("--isbn", help="Identificar un libro por ISBN")
+    ap.add_argument("--plantilla", help="Ruta a la planilla oficial de ML para rellenarla (en vez de crear una nueva)")
     args = ap.parse_args()
 
     cfg = cargar_config(Path(args.config))
     if args.carpeta: cfg["carpeta_fotos"] = args.carpeta
     if args.salida: cfg["archivo_salida"] = args.salida
+    if args.plantilla: cfg["plantilla"] = args.plantilla
 
     if cfg["proveedor"] not in MODELOS_POR_DEFECTO:
         print(f"❌ Proveedor inválido: '{cfg['proveedor']}'. Usá gemini, openai o anthropic."); sys.exit(1)
@@ -623,9 +697,25 @@ def main():
     salida = Path(cfg["archivo_salida"])
     if not salida.is_absolute():
         salida = RAIZ / salida
-    escribir_excel(registros, salida)
-    print(f"\n✅ Listo. {len(registros)} fila(s) con las 61 columnas de ML en:\n   {salida}")
-    print("   Abrí el archivo, copiá las filas y pegalas en la planilla que bajás de Mercado Libre.")
+
+    plantilla = limpiar(cfg.get("plantilla"))
+    if plantilla:
+        pl = Path(plantilla)
+        if not pl.is_absolute():
+            pl = RAIZ / pl
+        if not pl.exists():
+            print(f"❌ No encuentro la plantilla: {pl}"); sys.exit(1)
+        try:
+            escribir_en_plantilla(registros, pl, salida)
+            print(f"\n✅ Listo. Planilla de ML rellenada con {len(registros)} libro(s):\n   {salida}")
+            print("   Es la misma planilla, lista para subir a Mercado Libre. Completá Fotos y, si falta, el Precio.")
+        except Exception as e:
+            print(f"❌ No pude rellenar la plantilla ({e}). Genero la salida normal.")
+            escribir_excel(registros, salida)
+    else:
+        escribir_excel(registros, salida)
+        print(f"\n✅ Listo. {len(registros)} fila(s) con las 61 columnas de ML en:\n   {salida}")
+        print("   Abrí el archivo, copiá las filas y pegalas en la planilla que bajás de Mercado Libre.")
 
 
 if __name__ == "__main__":

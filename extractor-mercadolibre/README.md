@@ -139,7 +139,38 @@ python extractor.py --carpeta "C:\Users\vos\Desktop\libros" --salida "hoy.xlsx"
 | `paq_peso` | Peso del paquete (kg) | `0.5` |
 | `forma_envio` / `costo_envio` / `retiro` | Condiciones de envío | `Mercado Envíos` / `A cargo del comprador` / `Acepto` |
 | `cuotas` / `costo_cuotas` | Cuotas | `No agregar cuotas` / `Sin costo` |
+| `libreria` | Nombre de tu librería (cierre de la descripción) | `Librería Los Siete Pilares` |
+| `retiro_texto` | Texto de retiro/ubicación (cierre de la descripción) | (frase de retiro) |
+| `titulo_italica` | Título del libro en itálicas (Unicode) en la descripción | `false` |
+| `plantilla` | Ruta a la planilla oficial de ML para **rellenarla** | `""` (vacío = crea `salida.xlsx`) |
 | `max_largo_titulo` | Largo máximo del título | `60` |
+
+### Cómo se arma la Descripción
+Cada descripción sale con esta estructura:
+
+```
+Autor, Título del libro, Ciudad, Editorial, año. N páginas. Estado.
+
+(texto descriptivo escrito por la IA)
+
+Retiro en persona en una librería a la calle en la zona de Paraguay y Reconquista.
+
+Librería Los Siete Pilares
+```
+
+El nombre de la librería y el texto de retiro se configuran (`libreria` / `retiro_texto`).
+
+### Rellenar la planilla oficial (mismo archivo, lleno)
+En vez de generar un archivo nuevo, podés hacer que **complete tu planilla de ML**:
+
+```
+python extractor.py --plantilla "Publicar.xlsx"
+```
+
+Toma la planilla oficial ("Publicar varios productos" → Libros Físicos), escribe los libros en
+las filas de datos **conservando las hojas, los desplegables y los valores por defecto**, y
+guarda el resultado en `salida.xlsx` (no pisa tu plantilla original). Ese archivo ya se puede
+subir a Mercado Libre; solo faltan las **Fotos** (del Gestor de fotos) y el **Precio** si lo dejaste manual.
 
 **Cambiar de proveedor:** poné `"proveedor": "openai"` o `"anthropic"` y su clave
 correspondiente. También podés dejar la clave en una variable de entorno
