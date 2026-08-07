@@ -384,7 +384,7 @@ def openlibrary_isbn(isbn):
                 "autor": ", ".join(a.get("name", "") for a in v.get("authors", [])),
                 "editorial": ", ".join(p.get("name", "") for p in v.get("publishers", [])),
                 "anio": anio, "paginas": str(v.get("number_of_pages", "") or ""),
-                "pais_origen": ", ".join(p.get("name", "") for p in v.get("publish_places", []))}
+                "ciudad": ", ".join(p.get("name", "") for p in v.get("publish_places", []))}
     except Exception:
         return {}
 

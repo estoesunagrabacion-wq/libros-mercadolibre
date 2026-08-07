@@ -283,7 +283,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v12</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v13</span></p>
 </div>
 
 <script>
@@ -670,7 +670,7 @@ async function openLibraryISBN(isbn){
       editorial:(v.publishers||[]).map(p=>p.name).join(", "),
       anio:(v.publish_date||"").match(/\d{4}/)? (v.publish_date.match(/\d{4}/)[0]):"",
       paginas:v.number_of_pages?String(v.number_of_pages):"",
-      pais_origen:(v.publish_places||[]).map(p=>p.name).join(", ")};
+      ciudad:(v.publish_places||[]).map(p=>p.name).join(", ")};
   }catch(e){ return {}; }
 }
 async function openLibraryBuscar(titulo, autor){
