@@ -85,7 +85,16 @@ estimación de la IA y botones a **Mercado Libre / Iberlibro / eBay**.
 
 ---
 
-## Qué trae el CSV
+## Descargar y pegar en la planilla de ML
+
+Usá el botón **⬇️ Descargar Excel (.xlsx)**: genera un Excel con las **columnas ya separadas**
+(mismo orden que la planilla de ML). Abrilo, **copiá las filas de datos** (sin el encabezado) y
+**pegalas** en tu planilla de Mercado Libre, en la primera fila vacía debajo de los títulos.
+
+> Hay también un botón **CSV** alternativo, pero en Excel en español a veces no separa las columnas
+> (usa `;` en vez de `,`) y se desalinea; por eso conviene el **Excel (.xlsx)**.
+
+### Qué trae la planilla
 
 Las **61 columnas** de la planilla oficial **"Publicar varios productos"** de Mercado Libre
 (categoría Libros Físicos), en el mismo orden (A → BI): Título, Condición, ISBN, SKU, Stock,

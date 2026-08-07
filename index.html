@@ -260,12 +260,14 @@
       </table>
     </div>
     <div class="cap-btns" style="margin-top:12px">
-      <button class="btn blue" id="btnCSV">⬇️ Descargar planilla (CSV)</button>
-      <button class="btn sec" id="btnVaciar">🗑️ Vaciar lista</button>
+      <button class="btn blue" id="btnXLSX">⬇️ Descargar Excel (.xlsx)</button>
+      <button class="btn sec" id="btnCSV">CSV</button>
+      <button class="btn sec" id="btnVaciar">🗑️ Vaciar</button>
     </div>
     <p class="small muted" style="margin-top:8px">
-      El CSV trae las <b>61 columnas</b> de la planilla “Publicar varios productos” de ML (Libros Físicos), en orden.
-      Abrilo con Excel/Sheets, copiá las filas de datos y pegalas en la planilla que descargás de Mercado Libre.
+      Descargá el <b>Excel</b>: abre con las columnas ya separadas (mismo orden que la planilla de ML).
+      Abrilo, <b>copiá las filas de datos</b> (sin el encabezado) y <b>pegalas</b> en tu planilla de Mercado Libre,
+      en la primera fila vacía debajo de los títulos. (El CSV es alternativo; en Excel en español a veces no separa las columnas.)
     </p>
   </div>
 
@@ -283,7 +285,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v13</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v14</span></p>
 </div>
 
 <script>
@@ -983,7 +985,64 @@ $("btnVaciar").addEventListener("click",()=>{
   }
 });
 
-/* ---------- CSV (61 columnas) ---------- */
+/* ---------- Excel .xlsx (columnas separadas; evita el lío de CSV en Excel en español) ---------- */
+const _enc=new TextEncoder();
+function _crc32(bytes){
+  if(!_crc32.t){ _crc32.t=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?(0xEDB88320^(c>>>1)):(c>>>1); _crc32.t[n]=c>>>0; } }
+  const t=_crc32.t; let crc=0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++) crc=(crc>>>8)^t[(crc^bytes[i])&0xFF];
+  return (crc^0xFFFFFFFF)>>>0;
+}
+function _u32(n){ return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255]; }
+function _u16(n){ return [n&255,(n>>>8)&255]; }
+function _zip(files){
+  const chunks=[], central=[]; let offset=0;
+  files.forEach(f=>{
+    const nameB=_enc.encode(f.name), crc=_crc32(f.bytes), len=f.bytes.length;
+    const lh=new Uint8Array([].concat(_u32(0x04034b50),_u16(20),_u16(0),_u16(0),_u16(0),_u16(0),_u32(crc),_u32(len),_u32(len),_u16(nameB.length),_u16(0)));
+    chunks.push(lh,nameB,f.bytes);
+    central.push(new Uint8Array([].concat(_u32(0x02014b50),_u16(20),_u16(20),_u16(0),_u16(0),_u16(0),_u16(0),_u32(crc),_u32(len),_u32(len),_u16(nameB.length),_u16(0),_u16(0),_u16(0),_u16(0),_u32(0),_u32(offset))), nameB);
+    offset += lh.length+nameB.length+len;
+  });
+  let cdSize=0; central.forEach(c=>cdSize+=c.length);
+  const eocd=new Uint8Array([].concat(_u32(0x06054b50),_u16(0),_u16(0),_u16(files.length),_u16(files.length),_u32(cdSize),_u32(offset),_u16(0)));
+  const all=chunks.concat(central,[eocd]); let total=0; all.forEach(a=>total+=a.length);
+  const out=new Uint8Array(total); let p=0; all.forEach(a=>{ out.set(a,p); p+=a.length; }); return out;
+}
+function _xmlEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function _colLetra(n){ let s=""; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; }
+function construirXLSX(headers, filas){
+  const todas=[headers].concat(filas);
+  const filasXml=todas.map((fila,ri)=>{
+    const celdas=fila.map((val,ci)=>`<c r="${_colLetra(ci)}${ri+1}" t="inlineStr"><is><t xml:space="preserve">${_xmlEsc(val)}</t></is></c>`).join("");
+    return `<row r="${ri+1}">${celdas}</row>`;
+  }).join("");
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${filasXml}</sheetData></worksheet>`;
+  const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
+  const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const wb=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Publicaciones" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const wbRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
+  return _zip([
+    {name:"[Content_Types].xml", bytes:_enc.encode(ct)},
+    {name:"_rels/.rels", bytes:_enc.encode(rels)},
+    {name:"xl/workbook.xml", bytes:_enc.encode(wb)},
+    {name:"xl/_rels/workbook.xml.rels", bytes:_enc.encode(wbRels)},
+    {name:"xl/worksheets/sheet1.xml", bytes:_enc.encode(sheet)},
+  ]);
+}
+$("btnXLSX").addEventListener("click",()=>{
+  if(!libros.length){ setStatus("err","No hay libros para descargar."); return; }
+  const headers=COLUMNAS.map(c=>c[0]);
+  const filas=libros.map(item=>{ const f=filaFromItem(item); return headers.map(h=>f[h]==null?"":String(f[h])); });
+  const bytes=construirXLSX(headers, filas);
+  const blob=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="publicar_libros_ML_"+new Date().toISOString().slice(0,10)+".xlsx";
+  document.body.appendChild(a); a.click(); a.remove();
+  setStatus("ok","✅ Excel descargado. Abrilo, copiá las filas de datos y pegalas en tu planilla de ML (fila vacía bajo los títulos).");
+});
+
+/* ---------- CSV (alternativo) ---------- */
 function csvCampo(v){ v=(v==null?"":String(v)); return /[",\n;]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 $("btnCSV").addEventListener("click",()=>{
   if(!libros.length){ setStatus("err","No hay libros para descargar."); return; }
