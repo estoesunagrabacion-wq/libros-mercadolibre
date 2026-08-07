@@ -389,6 +389,23 @@ def openlibrary_isbn(isbn):
         return {}
 
 
+def openlibrary_buscar(titulo, autor):
+    try:
+        params = {"limit": 1, "title": titulo,
+                  "fields": "title,author_name,first_publish_year,publisher,number_of_pages_median"}
+        if autor:
+            params["author"] = autor
+        r = requests.get("https://openlibrary.org/search.json", params=params, timeout=30)
+        doc = (r.json().get("docs") or [None])[0]
+        if not doc:
+            return {}
+        return {"paginas": str(doc.get("number_of_pages_median", "") or ""),
+                "editorial": (doc.get("publisher") or [""])[0],
+                "anio": str(doc.get("first_publish_year", "") or "")}
+    except Exception:
+        return {}
+
+
 def rellenar(datos, extra):
     for k, v in extra.items():
         if v and not limpiar(datos.get(k)):
@@ -400,11 +417,15 @@ def enriquecer(datos):
     if len(isbn) in (10, 13):
         rellenar(datos, google_books(f"isbn:{isbn}"))
         rellenar(datos, openlibrary_isbn(isbn))
-    elif limpiar(datos.get("titulo_libro")):
-        q = "intitle:" + datos["titulo_libro"]
-        if limpiar(datos.get("autor")):
-            q += " inauthor:" + datos["autor"]
-        rellenar(datos, google_books(q))
+    # Búsqueda por título (completa páginas/editorial/año en libros sin ISBN).
+    if limpiar(datos.get("titulo_libro")):
+        if not all(limpiar(datos.get(k)) for k in ("paginas", "editorial", "anio")):
+            q = "intitle:" + datos["titulo_libro"]
+            if limpiar(datos.get("autor")):
+                q += " inauthor:" + datos["autor"]
+            rellenar(datos, google_books(q))
+        if not limpiar(datos.get("paginas")):
+            rellenar(datos, openlibrary_buscar(datos["titulo_libro"], datos.get("autor", "")))
     return datos
 
 
