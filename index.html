@@ -286,7 +286,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v15</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v16</span></p>
 </div>
 
 <script>
@@ -303,7 +303,7 @@ const COLUMNAS = [
   ["Cantidad de caracteres", ()=>""],
   ["Condición", (g,cfg)=>g("condicion")||cfg.condicion||"Usado"],
   ["ISBN", g=>g("isbn")],
-  ["Fotos", ()=>""],
+  ["Fotos", g=>g("fotos")],
   ["SKU", (g,cfg)=>g("sku")||cfg.sku||""],
   ["Stock", (g,cfg)=>cfg.stock||"1"],
   ["Precio [$]", g=>g("precio")],
@@ -364,6 +364,7 @@ const COLUMNAS = [
 /* Campos editables que se muestran en pantalla (además de título/precio/descripción). */
 const CAMPOS = [
   {id:"sku", label:"SKU / ubicación"},
+  {id:"fotos", label:"Fotos (URLs de ML, separadas por coma) — opcional"},
   {id:"condicion", label:"Condición", type:"select", opts:["Usado","Nuevo"]},
   {id:"estado", label:"Estado del ejemplar"},
   {id:"titulo_libro", label:"Título del libro"},
@@ -996,7 +997,10 @@ function validarLibros(){
 function pintarValidacion(){
   const box=$("validacion"); if(!box) return;
   if(!libros.length){ box.innerHTML=""; return; }
-  let html='<div class="small muted" style="margin-top:8px">📷 Recordá que las <b>Fotos</b> se cargan en Mercado Libre (Gestor de fotos): no salen desde acá, pero son obligatorias.</div>';
+  const sinFotos=libros.filter(it=>!String((it.vals&&it.vals.fotos)||"").trim()).length;
+  let html='<div class="small muted" style="margin-top:8px">📷 <b>Fotos:</b> pegá las URLs del Gestor de fotos de ML en el campo <b>Fotos</b> de cada libro y el Excel baja completo. '
+    + (sinFotos? ('<b>'+sinFotos+'</b> libro(s) todavía sin URLs de fotos.') : 'Todos tienen URLs de fotos. ✅')
+    + '</div>';
   const probl=validarLibros();
   if(probl.length){
     html+='<div class="status err" style="margin-top:8px"><b>⚠️ '+probl.length+' libro(s) con datos obligatorios vacíos:</b><ul style="margin:6px 0 0;padding-left:18px">';
