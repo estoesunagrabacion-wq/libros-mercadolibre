@@ -94,6 +94,15 @@ Usá el botón **⬇️ Descargar Excel (.xlsx)**: genera un Excel con las **col
 > Hay también un botón **CSV** alternativo, pero en Excel en español a veces no separa las columnas
 > (usa `;` en vez de `,`) y se desalinea; por eso conviene el **Excel (.xlsx)**.
 
+### Aviso de datos obligatorios
+Debajo de la lista, la app te avisa **qué libros tienen campos obligatorios de ML vacíos**
+(Título, Condición, ISBN, Precio, Autor, Editorial, medidas, etc.) con un link para **editar**
+cada uno. Así evitás que Mercado Libre te rechace la planilla.
+
+> Las **Fotos** son obligatorias en ML pero **se cargan allá** (Gestor de fotos), no desde la app;
+> por eso no se marcan como error, solo se recuerdan.
+> El **ISBN** también es obligatorio: si el libro no tiene, poné uno de relleno válido (como hacés a mano).
+
 ### Qué trae la planilla
 
 Las **61 columnas** de la planilla oficial **"Publicar varios productos"** de Mercado Libre

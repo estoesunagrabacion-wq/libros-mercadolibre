@@ -269,6 +269,7 @@
       Abrilo, <b>copiá las filas de datos</b> (sin el encabezado) y <b>pegalas</b> en tu planilla de Mercado Libre,
       en la primera fila vacía debajo de los títulos. (El CSV es alternativo; en Excel en español a veces no separa las columnas.)
     </p>
+    <div id="validacion"></div>
   </div>
 
   <!-- COMPARTIR -->
@@ -285,7 +286,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v14</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v15</span></p>
 </div>
 
 <script>
@@ -976,8 +977,37 @@ function pintarLista(){
     });
     tb.appendChild(tr);
   });
+  pintarValidacion();
 }
 function escapeHTML(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---------- Validación de campos obligatorios de ML ----------
+   (Fotos es obligatorio pero se carga en ML, así que no lo marcamos como error). */
+const OBLIGATORIOS=["Título","Condición","ISBN","Stock","Precio [$]","Ancho (cm)","Alto (cm)",
+  "Profundidad (cm)","Peso físico (kg)","Cuotas","Forma de envío","Costo de envío","Retiro en persona",
+  "Título del libro","Autor","Editorial del libro"];
+function validarLibros(){
+  return libros.map((item,i)=>{
+    const f=filaFromItem(item);
+    const faltan=OBLIGATORIOS.filter(h=>!String(f[h]==null?"":f[h]).trim());
+    return {i, title:(item.vals&&item.vals.title)||"(sin título)", faltan};
+  }).filter(x=>x.faltan.length);
+}
+function pintarValidacion(){
+  const box=$("validacion"); if(!box) return;
+  if(!libros.length){ box.innerHTML=""; return; }
+  let html='<div class="small muted" style="margin-top:8px">📷 Recordá que las <b>Fotos</b> se cargan en Mercado Libre (Gestor de fotos): no salen desde acá, pero son obligatorias.</div>';
+  const probl=validarLibros();
+  if(probl.length){
+    html+='<div class="status err" style="margin-top:8px"><b>⚠️ '+probl.length+' libro(s) con datos obligatorios vacíos:</b><ul style="margin:6px 0 0;padding-left:18px">';
+    probl.forEach(p=>{ html+=`<li>#${p.i+1} ${escapeHTML(p.title.slice(0,40))} — falta: <b>${escapeHTML(p.faltan.join(", "))}</b> · <a href="#" data-edit="${p.i}">editar</a></li>`; });
+    html+='</ul></div>';
+  }else{
+    html+='<div class="status ok" style="margin-top:8px">✅ Todos los libros tienen los datos obligatorios (salvo las Fotos, que van en ML).</div>';
+  }
+  box.innerHTML=html;
+  box.querySelectorAll('[data-edit]').forEach(a=>a.addEventListener('click',ev=>{ ev.preventDefault(); editarItem(parseInt(a.dataset.edit,10)); }));
+}
 $("btnVaciar").addEventListener("click",()=>{
   if(!libros.length) return;
   if(confirm("¿Vaciar la lista de "+libros.length+" libro(s)? Descargá el CSV antes si no lo hiciste.")){
@@ -1039,7 +1069,12 @@ $("btnXLSX").addEventListener("click",()=>{
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download="publicar_libros_ML_"+new Date().toISOString().slice(0,10)+".xlsx";
   document.body.appendChild(a); a.click(); a.remove();
-  setStatus("ok","✅ Excel descargado. Abrilo, copiá las filas de datos y pegalas en tu planilla de ML (fila vacía bajo los títulos).");
+  const probl=validarLibros();
+  if(probl.length){
+    setStatus("err","✅ Excel descargado, pero ⚠️ "+probl.length+" libro(s) tienen obligatorios vacíos (ver lista abajo). Completalos antes de subir a ML.");
+  }else{
+    setStatus("ok","✅ Excel descargado. Copiá las filas de datos y pegalas en tu planilla de ML (fila vacía bajo los títulos). Acordate de cargar las Fotos en ML.");
+  }
 });
 
 /* ---------- CSV (alternativo) ---------- */
