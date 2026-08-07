@@ -232,7 +232,12 @@
     <div id="camposGrid" class="grid2"></div>
 
     <div class="field" style="margin-top:10px">
-      <label>Descripción <button class="btn sec sm" id="btnRearmar" style="padding:2px 8px;font-size:11px;margin-left:6px">🔄 Rearmar</button></label>
+      <label>Reseña del libro (texto de la IA) <span class="muted">— editable; es el bloque del medio de la descripción</span></label>
+      <textarea id="f_resena" class="withcopy" style="min-height:90px"></textarea>
+      <button class="copy" data-for="f_resena">copiar</button>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Descripción (final) <button class="btn sec sm" id="btnRearmar" style="padding:2px 8px;font-size:11px;margin-left:6px">🔄 Rearmar</button></label>
       <textarea id="f_descripcion" class="withcopy" style="min-height:150px"></textarea>
       <button class="copy" data-for="f_descripcion">copiar</button>
     </div>
@@ -278,7 +283,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v11</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v12</span></p>
 </div>
 
 <script>
@@ -668,15 +673,33 @@ async function openLibraryISBN(isbn){
       pais_origen:(v.publish_places||[]).map(p=>p.name).join(", ")};
   }catch(e){ return {}; }
 }
+async function openLibraryBuscar(titulo, autor){
+  try{
+    const u="https://openlibrary.org/search.json?limit=1&fields=title,author_name,first_publish_year,publisher,number_of_pages_median&title="
+      + encodeURIComponent(titulo) + (autor?("&author="+encodeURIComponent(autor)):"");
+    const r=await fetch(u); const d=await r.json();
+    const doc=(d.docs||[])[0]; if(!doc) return {};
+    return { paginas: doc.number_of_pages_median?String(doc.number_of_pages_median):"",
+             editorial:(doc.publisher||[])[0]||"",
+             anio: doc.first_publish_year?String(doc.first_publish_year):"" };
+  }catch(e){ return {}; }
+}
 function rellenar(datos, extra){ for(const k in extra){ if(extra[k] && !(String(datos[k]||"").trim())) datos[k]=extra[k]; } }
 async function enriquecer(datos){
   const isbn=(datos.isbn||"").replace(/[^0-9Xx]/g,"");
   if(isbn.length===10||isbn.length===13){
     rellenar(datos, await googleBooks("isbn:"+isbn));
     rellenar(datos, await openLibraryISBN(isbn));
-  }else if((datos.titulo_libro||"").trim()){
-    const q="intitle:"+datos.titulo_libro+(datos.autor?(" inauthor:"+datos.autor):"");
-    rellenar(datos, await googleBooks(q));
+  }
+  // Búsqueda por título (siempre que falten datos): completa páginas/editorial/año en libros sin ISBN.
+  if((datos.titulo_libro||"").trim()){
+    if(!String(datos.paginas||"").trim() || !String(datos.editorial||"").trim() || !String(datos.anio||"").trim()){
+      const q="intitle:"+datos.titulo_libro+(datos.autor?(" inauthor:"+datos.autor):"");
+      rellenar(datos, await googleBooks(q));
+    }
+    if(!String(datos.paginas||"").trim()){
+      rellenar(datos, await openLibraryBuscar(datos.titulo_libro, datos.autor));
+    }
   }
   return datos;
 }
@@ -803,9 +826,18 @@ function componerDescripcion(){
   if(g("paginas")) extras.push(g("paginas")+" páginas.");
   if(g("estado")) extras.push(/[.!?]$/.test(g("estado")) ? g("estado") : g("estado")+".");
   const bloque1=[biblio, extras.join(" ")].filter(Boolean).join(" ").trim();
-  const prosa=(actual && actual._prosa || "").trim();
+  const prosa=getCampo("resena");
   const cierre=[ (C.retiroTexto||"").trim(), (C.libreria||"").trim() ].filter(Boolean).join("\n\n");
   return [bloque1, prosa, cierre].filter(Boolean).join("\n\n");
+}
+/* Recupera la reseña (bloque del medio) de una descripción ya compuesta (para ítems viejos). */
+function extraerResena(desc){
+  if(!desc) return "";
+  let t=String(desc);
+  const cierre=[ (C.retiroTexto||"").trim(), (C.libreria||"").trim() ].filter(Boolean).join("\n\n");
+  if(cierre && t.indexOf(cierre)>=0) t=t.slice(0, t.indexOf(cierre));
+  const partes=t.split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
+  return partes.length>=2 ? partes.slice(1).join("\n\n") : "";
 }
 
 function mostrarResultado(d){
@@ -817,7 +849,7 @@ function mostrarResultado(d){
     if(c.id==="sku" && !v) v=C.sku||"";
     setCampo(c.id,v);
   });
-  actual._prosa = d.descripcion || "";        // texto crudo de la IA
+  $("f_resena").value = d.descripcion || "";   // reseña cruda de la IA (editable)
   $("f_descripcion").value = componerDescripcion();
   $("f_precio").value=precioResuelto(d);
   regenerarTitulo();
@@ -867,8 +899,9 @@ function snapshotItem(){
   CAMPOS.forEach(c=>vals[c.id]=getCampo(c.id));
   vals.title=$("f_title").value.trim();
   vals.precio=$("f_precio").value.trim();
+  vals.resena=$("f_resena").value;
   vals.descripcion=$("f_descripcion").value;
-  return { vals, cfg:cfgSnapshot(), prosa:(actual&&actual._prosa)||"",
+  return { vals, cfg:cfgSnapshot(),
            confianza:(actual&&actual.confianza)||"", observaciones:(actual&&actual.observaciones)||"" };
 }
 // Construye la fila de 61 columnas a partir de un libro guardado.
@@ -887,7 +920,10 @@ function editarItem(i){
   $("f_title").value=v.title||"";
   $("f_precio").value=v.precio||"";
   $("f_descripcion").value=v.descripcion||"";
-  actual={ _prosa:item.prosa||"", confianza:item.confianza||"", observaciones:item.observaciones||"" };
+  // reseña: si el ítem la tiene guardada, usarla; si es un ítem viejo, recuperarla de la descripción.
+  $("f_resena").value = (v.resena!=null && v.resena!=="") ? v.resena
+                        : (item.prosa || extraerResena(v.descripcion||""));
+  actual={ confianza:item.confianza||"", observaciones:item.observaciones||"" };
   editIdx=i;
   colaLibros=[]; $("colaInfo").classList.add("hidden");
   $("btnAgregar").textContent="💾 Guardar cambios";
