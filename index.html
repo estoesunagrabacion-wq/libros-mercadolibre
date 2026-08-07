@@ -247,7 +247,7 @@
   <!-- LISTA -->
   <div class="card">
     <h2>3) Libros cargados (<span id="conteo">0</span>)</h2>
-    <div id="listaVacia" class="muted small">Todavía no agregaste libros. Cada libro que agregues queda acá para descargar todo junto.</div>
+    <div id="listaVacia" class="muted small">Todavía no agregaste libros. Cada libro que agregues queda acá. Podés editarlo con ✏️ o quitarlo con ✕.</div>
     <div id="tablaWrap" class="hidden" style="overflow-x:auto">
       <table>
         <thead><tr><th>#</th><th>Título</th><th>Precio</th><th></th></tr></thead>
@@ -278,7 +278,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v10</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v11</span></p>
 </div>
 
 <script>
@@ -293,23 +293,23 @@ const COLUMNAS = [
   ["Código de catálogo ML", ()=>""],
   ["Título", g=>g("title")],
   ["Cantidad de caracteres", ()=>""],
-  ["Condición", g=>g("condicion")||C.condicion||"Usado"],
+  ["Condición", (g,cfg)=>g("condicion")||cfg.condicion||"Usado"],
   ["ISBN", g=>g("isbn")],
   ["Fotos", ()=>""],
-  ["SKU", ()=>C.sku||""],
-  ["Stock", ()=>C.stock||"1"],
+  ["SKU", (g,cfg)=>g("sku")||cfg.sku||""],
+  ["Stock", (g,cfg)=>cfg.stock||"1"],
   ["Precio [$]", g=>g("precio")],
   ["Descripción", g=>g("descripcion")],
-  ["Ancho (cm)", g=>paqDim(g("ancho_cm"),2,C.paqAncho)],
-  ["Alto (cm)", g=>paqDim(g("altura_cm"),2,C.paqAlto)],
-  ["Profundidad (cm)", g=>paqDim(g("grosor_cm"),1,C.paqProf)],
-  ["Peso físico (kg)", g=>paqPeso(g("peso_g"),C.paqPeso)],
+  ["Ancho (cm)", (g,cfg)=>paqDim(g("ancho_cm"),2,cfg.paqAncho)],
+  ["Alto (cm)", (g,cfg)=>paqDim(g("altura_cm"),2,cfg.paqAlto)],
+  ["Profundidad (cm)", (g,cfg)=>paqDim(g("grosor_cm"),1,cfg.paqProf)],
+  ["Peso físico (kg)", (g,cfg)=>paqPeso(g("peso_g"),cfg.paqPeso)],
   ["Cargo por vender", ()=>""],
-  ["Cuotas", ()=>C.cuotas||""],
-  ["Costo por ofrecer cuotas", ()=>C.costoCuotas||""],
-  ["Forma de envío", ()=>C.formaEnvio||""],
-  ["Costo de envío", ()=>C.costoEnvio||""],
-  ["Retiro en persona", ()=>C.retiro||""],
+  ["Cuotas", (g,cfg)=>cfg.cuotas||""],
+  ["Costo por ofrecer cuotas", (g,cfg)=>cfg.costoCuotas||""],
+  ["Forma de envío", (g,cfg)=>cfg.formaEnvio||""],
+  ["Costo de envío", (g,cfg)=>cfg.costoEnvio||""],
+  ["Retiro en persona", (g,cfg)=>cfg.retiro||""],
   ["Tipo de garantía", ()=>""],
   ["Tiempo de garantía", ()=>""],
   ["Unidad de Tiempo de garantía", ()=>""],
@@ -355,6 +355,7 @@ const COLUMNAS = [
 
 /* Campos editables que se muestran en pantalla (además de título/precio/descripción). */
 const CAMPOS = [
+  {id:"sku", label:"SKU / ubicación"},
   {id:"condicion", label:"Condición", type:"select", opts:["Usado","Nuevo"]},
   {id:"estado", label:"Estado del ejemplar"},
   {id:"titulo_libro", label:"Título del libro"},
@@ -392,7 +393,8 @@ const KEY_HELP = {
 const $ = (id)=>document.getElementById(id);
 let C = cargarCfg();
 let libros = cargarLibros();
-let actual = null;   // datos crudos del libro en pantalla
+let actual = null;    // datos crudos del libro en pantalla (respuesta IA)
+let editIdx = null;   // índice del libro que se está editando (null = alta nueva)
 
 /* ---------- Config ---------- */
 function cfgDefault(){
@@ -410,8 +412,37 @@ function cargarCfg(){
   catch(e){ return cfgDefault(); }
 }
 function guardarCfgStorage(){ localStorage.setItem("extractorCfg", JSON.stringify(C)); }
-function cargarLibros(){ try{ return JSON.parse(localStorage.getItem("extractorLibrosV2")||"[]"); }catch(e){ return []; } }
-function guardarLibros(){ localStorage.setItem("extractorLibrosV2", JSON.stringify(libros)); }
+/* Cada libro se guarda como { vals:{campo:valor}, cfg:snapshot, prosa, confianza, observaciones }
+   para poder re-editarlo sin perder datos. */
+function cfgSnapshot(){
+  const k=["condicion","sku","stock","paqAncho","paqAlto","paqProf","paqPeso","cuotas","costoCuotas",
+           "formaEnvio","costoEnvio","retiro","etiqueta","libreria","retiroTexto","tituloItalica"];
+  const o={}; k.forEach(x=>o[x]=C[x]); return o;
+}
+function migrarViejo(fila){
+  // Migra un libro guardado con el formato anterior (columnas) al nuevo (vals), sin perder lo que se pueda.
+  const REV={ title:"Título", precio:"Precio [$]", descripcion:"Descripción", sku:"SKU", condicion:"Condición",
+    isbn:"ISBN", titulo_libro:"Título del libro", autor:"Autor", editorial:"Editorial del libro",
+    subtitulo:"Subtítulo del libro", serie:"Serie", idioma:"Idioma", edicion:"Edición del libro",
+    tapa:"Tapa del libro", indice:"Índice", anio:"Año de publicación", coautores:"Coautores",
+    traductores:"Traductores", tipo_narracion:"Tipo de narración", pais_origen:"País de origen",
+    coleccion:"Colección del libro", paginas:"Cantidad de páginas", altura_cm:"Altura", ancho_cm:"Ancho",
+    peso_g:"Peso", material_tapa:"Material de la tapa del libro" };
+  const vals={}; for(const id in REV){ vals[id]=fila[REV[id]]||""; }
+  ["estado","ciudad","grosor_cm"].forEach(k=>{ if(vals[k]==null) vals[k]=""; });
+  const m=fila.__meta||{};
+  return { vals, cfg:cfgSnapshot(), prosa:"", confianza:m.confianza||"", observaciones:m.observaciones||"" };
+}
+function cargarLibros(){
+  try{
+    const v3=localStorage.getItem("extractorLibrosV3");
+    if(v3!=null) return JSON.parse(v3);
+    const v2=localStorage.getItem("extractorLibrosV2");
+    if(v2) return JSON.parse(v2).map(migrarViejo);
+    return [];
+  }catch(e){ return []; }
+}
+function guardarLibros(){ localStorage.setItem("extractorLibrosV3", JSON.stringify(libros)); }
 
 function pintarCfg(){
   $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||"";
@@ -779,9 +810,11 @@ function componerDescripcion(){
 
 function mostrarResultado(d){
   actual=d;
+  editIdx=null; $("btnAgregar").textContent="➕ Agregar a la lista";
   CAMPOS.forEach(c=>{
     let v=d[c.id]||"";
     if(c.id==="condicion" && !v) v=C.condicion||"Usado";
+    if(c.id==="sku" && !v) v=C.sku||"";
     setCampo(c.id,v);
   });
   actual._prosa = d.descripcion || "";        // texto crudo de la IA
@@ -817,7 +850,7 @@ function regenerarTitulo(){
 }
 $("f_title").addEventListener("input",()=>{ $("titleLen").textContent=$("f_title").value.length; });
 $("btnRearmar").addEventListener("click",()=>{ $("f_descripcion").value=componerDescripcion(); });
-function ocultarResultado(){ $("cardResultado").classList.add("hidden"); actual=null; }
+function ocultarResultado(){ $("cardResultado").classList.add("hidden"); actual=null; editIdx=null; $("btnAgregar").textContent="➕ Agregar a la lista"; }
 
 /* ---------- Copiar (delegado) ---------- */
 document.addEventListener("click", async (ev)=>{
@@ -827,24 +860,63 @@ document.addEventListener("click", async (ev)=>{
   const t=b.textContent; b.textContent="✓"; setTimeout(()=>b.textContent=t,900);
 });
 
-/* ---------- Agregar / lista ---------- */
-function filaActual(){
-  const g=getCampo;
+/* ---------- Agregar / editar / lista ---------- */
+// Toma una "foto" de todos los campos del editor (para guardar sin perder nada).
+function snapshotItem(){
+  const vals={};
+  CAMPOS.forEach(c=>vals[c.id]=getCampo(c.id));
+  vals.title=$("f_title").value.trim();
+  vals.precio=$("f_precio").value.trim();
+  vals.descripcion=$("f_descripcion").value;
+  return { vals, cfg:cfgSnapshot(), prosa:(actual&&actual._prosa)||"",
+           confianza:(actual&&actual.confianza)||"", observaciones:(actual&&actual.observaciones)||"" };
+}
+// Construye la fila de 61 columnas a partir de un libro guardado.
+function filaFromItem(item){
+  const v=item.vals||{}; const cfg=item.cfg||{};
+  const g=id=>String(v[id]!=null?v[id]:"").trim();
   const fila={};
-  COLUMNAS.forEach(c=>{ fila[c[0]] = c[1](g)||""; });
-  fila["Título del libro"] = fila["Título del libro"]||getCampo("titulo_libro");
-  fila.__meta = { confianza:(actual&&actual.confianza)||"", observaciones:(actual&&actual.observaciones)||"" };
+  COLUMNAS.forEach(c=>{ fila[c[0]] = c[1](g,cfg)||""; });
   return fila;
+}
+// Carga un libro guardado en el editor para modificarlo.
+function editarItem(i){
+  const item=libros[i]; if(!item) return;
+  const v=item.vals||{};
+  CAMPOS.forEach(c=>setCampo(c.id, v[c.id]||""));
+  $("f_title").value=v.title||"";
+  $("f_precio").value=v.precio||"";
+  $("f_descripcion").value=v.descripcion||"";
+  actual={ _prosa:item.prosa||"", confianza:item.confianza||"", observaciones:item.observaciones||"" };
+  editIdx=i;
+  colaLibros=[]; $("colaInfo").classList.add("hidden");
+  $("btnAgregar").textContent="💾 Guardar cambios";
+  $("titleLen").textContent=($("f_title").value||"").length;
+  const cf=(item.confianza||"").toLowerCase();
+  $("confBadge").innerHTML= cf?`<span class="conf ${cf}">confianza ${cf}</span>`:"";
+  $("obs").textContent=item.observaciones?("⚠️ "+item.observaciones):"";
+  $("precioEst").innerHTML="✏️ Editando el libro #"+(i+1)+". Buscá el precio real en:";
+  pintarLinksPrecio();
+  clearStatus();
+  $("cardResultado").classList.remove("hidden");
+  $("cardResultado").scrollIntoView({behavior:"smooth",block:"start"});
 }
 $("btnAgregar").addEventListener("click",async()=>{
   if(!$("f_title").value.trim()){ setStatus("err","El título está vacío."); return; }
-  libros.push(filaActual()); guardarLibros(); pintarLista();
-  clearStatus();
-  setStatus("ok","✔ Libro agregado a la lista ("+libros.length+").");
+  if(editIdx!=null){
+    const idx=editIdx;
+    libros[idx]=snapshotItem(); guardarLibros(); pintarLista();
+    editIdx=null; $("btnAgregar").textContent="➕ Agregar a la lista";
+    ocultarResultado(); clearStatus(); setStatus("ok","✔ Libro #"+(idx+1)+" actualizado.");
+    return;
+  }
+  libros.push(snapshotItem()); guardarLibros(); pintarLista();
+  clearStatus(); setStatus("ok","✔ Libro agregado a la lista ("+libros.length+").");
   if(colaLibros.length) await mostrarSiguiente(); else ocultarResultado();
 });
 $("btnDescartar").addEventListener("click",async()=>{
   clearStatus();
+  if(editIdx!=null){ ocultarResultado(); return; }   // cancela la edición
   if(colaLibros.length) await mostrarSiguiente(); else ocultarResultado();
 });
 
@@ -854,11 +926,16 @@ function pintarLista(){
   $("listaVacia").classList.toggle("hidden",!vacia);
   $("tablaWrap").classList.toggle("hidden",vacia);
   const tb=$("tbody"); tb.innerHTML="";
-  libros.forEach((f,i)=>{
+  libros.forEach((item,i)=>{
+    const v=item.vals||{};
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${i+1}</td><td>${escapeHTML(f["Título"]||"")}</td><td>${f["Precio [$]"]||"—"}</td>
-      <td><button class="btn sec sm" data-i="${i}">✕</button></td>`;
-    tr.querySelector("button").addEventListener("click",()=>{ libros.splice(i,1); guardarLibros(); pintarLista(); });
+    tr.innerHTML=`<td>${i+1}</td><td>${escapeHTML(v.title||"")}</td><td>${v.precio||"—"}</td>
+      <td style="white-space:nowrap"><button class="btn sec sm" data-a="edit" title="Editar">✏️</button> <button class="btn sec sm" data-a="del" title="Quitar">✕</button></td>`;
+    tr.querySelector('[data-a="edit"]').addEventListener("click",()=>editarItem(i));
+    tr.querySelector('[data-a="del"]').addEventListener("click",()=>{
+      if(editIdx===i) ocultarResultado();
+      libros.splice(i,1); guardarLibros(); pintarLista();
+    });
     tb.appendChild(tr);
   });
 }
@@ -876,7 +953,7 @@ $("btnCSV").addEventListener("click",()=>{
   if(!libros.length){ setStatus("err","No hay libros para descargar."); return; }
   const headers=COLUMNAS.map(c=>c[0]);
   const lineas=[headers.map(csvCampo).join(",")];
-  libros.forEach(f=>lineas.push(headers.map(h=>csvCampo(f[h])).join(",")));
+  libros.forEach(item=>{ const f=filaFromItem(item); lineas.push(headers.map(h=>csvCampo(f[h])).join(",")); });
   const blob=new Blob(["﻿"+lineas.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="publicar_libros_ML_"+new Date().toISOString().slice(0,10)+".csv";

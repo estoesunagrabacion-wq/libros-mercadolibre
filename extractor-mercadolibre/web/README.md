@@ -50,6 +50,10 @@ Después, por cada libro:
 - **📷 Cámara** o **🖼️ Galería** → agregás una o **varias fotos** → **🔎 Analizar** → revisás/corregís los campos → **➕ Agregar a la lista**.
 - Cuando terminás la tanda, **⬇️ Descargar planilla (CSV)**.
 
+El campo **SKU / ubicación** viene con tu valor por defecto (Configuración) y lo podés cambiar por
+libro. En la lista, cada libro tiene **✏️ Editar** (lo vuelve a abrir con todos sus datos para
+modificarlo sin perder nada) y **✕ Quitar**.
+
 ### Varias fotos del mismo libro
 Sumá tapa + contratapa + la hoja con el **ISBN** antes de tocar **Analizar**: la app las combina
 en un solo libro y, con el ISBN, trae muchos más datos (editorial, año, páginas, etc.).
