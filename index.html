@@ -130,7 +130,7 @@
             <label>Precio</label>
             <select id="precioModo">
               <option value="manual">Lo pongo yo (vacío)</option>
-              <option value="sugerir">Que la IA sugiera (llena el campo)</option>
+              <option value="sugerir">Que la IA sugiera (invento de la IA, poco confiable)</option>
               <option value="fijo">Valor fijo</option>
             </select>
           </div>
@@ -222,9 +222,9 @@
       <button class="copy" data-for="f_precio">copiar</button>
     </div>
     <div class="precioBox">
-      <div class="est" id="precioEst">💡 Sacá la foto para ver una estimación y buscar precios.</div>
+      <div class="est" id="precioEst">💰 El precio lo definís vos. Buscá precios reales de este libro en:</div>
       <div class="cap-btns" id="precioLinks"></div>
-      <div class="small muted" style="margin-top:6px">La estimación es orientativa (de la IA, no en vivo). Los botones abren la búsqueda real de este libro.</div>
+      <div class="small muted" style="margin-top:6px">Los botones abren la búsqueda real de este libro en cada sitio.</div>
     </div>
 
     <!-- Campos del libro (se generan solos) -->
@@ -286,7 +286,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v16</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v17</span></p>
 </div>
 
 <script>
@@ -857,11 +857,8 @@ function mostrarResultado(d){
   $("f_descripcion").value = componerDescripcion();
   $("f_precio").value=precioResuelto(d);
   regenerarTitulo();
-  // estimación de precio + botones
-  const a=num(d.precio_sugerido_min), b=num(d.precio_sugerido_max);
-  $("precioEst").innerHTML = (a||b)
-    ? ("💡 Estimación IA: <b>"+(a&&b?(fmt(a)+" – "+fmt(b)):fmt(a||b))+"</b> <span class='muted'>(referencia, no llena el campo)</span>")
-    : "💡 Sin estimación. Buscá el precio real en:";
+  // El precio lo define el usuario; los botones dan precios reales.
+  $("precioEst").innerHTML = "💰 El precio lo definís vos. Buscá precios reales de este libro en:";
   pintarLinksPrecio();
   const c=(d.confianza||"").toLowerCase();
   $("confBadge").innerHTML = c ? `<span class="conf ${c}">confianza ${c}</span>` : "";
