@@ -106,6 +106,9 @@
         <label>Modelo <span class="muted">(avanzado — vacío = se detecta solo)</span></label>
         <input id="modelo" type="text" placeholder="dejar vacío (detecta automáticamente)" autocomplete="off" />
 
+        <label>Proxy de precios (URL) <span class="muted">— opcional, para el precio real de ML</span></label>
+        <input id="proxyPrecios" type="text" placeholder="https://tu-worker.workers.dev" autocomplete="off" />
+
         <div class="grid2">
           <div>
             <label>Etiqueta del título</label>
@@ -224,6 +227,8 @@
     <div class="precioBox">
       <div class="est" id="precioEst">💰 El precio lo definís vos. Buscá precios reales de este libro en:</div>
       <div class="cap-btns" id="precioLinks"></div>
+      <button class="btn sec sm" id="btnPrecioReal" style="margin-top:8px">💲 Precio real en ML (mediana)</button>
+      <div id="precioRealBox" class="small" style="margin-top:6px"></div>
       <div class="small muted" style="margin-top:6px">Los botones abren la búsqueda real de este libro en cada sitio.</div>
     </div>
 
@@ -286,7 +291,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v17</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v18</span></p>
 </div>
 
 <script>
@@ -414,7 +419,7 @@ function cfgDefault(){
     cuotas:"No agregar cuotas",costoCuotas:"Sin costo",
     libreria:"Librería Los Siete Pilares",
     retiroTexto:"Retiro en persona en una librería a la calle en la zona de Paraguay y Reconquista.",
-    tituloItalica:false};
+    tituloItalica:false, proxyPrecios:""};
 }
 function cargarCfg(){
   try{ return Object.assign(cfgDefault(), JSON.parse(localStorage.getItem("extractorCfg")||"{}")); }
@@ -454,7 +459,7 @@ function cargarLibros(){
 function guardarLibros(){ localStorage.setItem("extractorLibrosV3", JSON.stringify(libros)); }
 
 function pintarCfg(){
-  $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||"";
+  $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||""; $("proxyPrecios").value=C.proxyPrecios||"";
   $("etiqueta").value=C.etiqueta; $("condicionDef").value=C.condicion; $("sku").value=C.sku; $("stock").value=C.stock;
   $("precioModo").value=C.precioModo; $("precioFijo").value=C.precioFijo;
   $("paqAncho").value=C.paqAncho; $("paqAlto").value=C.paqAlto; $("paqProf").value=C.paqProf; $("paqPeso").value=C.paqPeso;
@@ -470,7 +475,7 @@ $("proveedor").addEventListener("change", ()=>{ $("keyHelp").innerHTML=KEY_HELP[
 $("precioModo").addEventListener("change", ()=>{ $("precioFijoWrap").classList.toggle("hidden", $("precioModo").value!=="fijo"); });
 $("guardarCfg").addEventListener("click", ()=>{
   const t=id=>$(id).value.trim();
-  C={ proveedor:$("proveedor").value, apiKey:t("apiKey"), modelo:t("modelo"), etiqueta:t("etiqueta"),
+  C={ proveedor:$("proveedor").value, apiKey:t("apiKey"), modelo:t("modelo"), proxyPrecios:t("proxyPrecios"), etiqueta:t("etiqueta"),
     condicion:$("condicionDef").value, sku:t("sku"), stock:t("stock")||"1",
     precioModo:$("precioModo").value, precioFijo:t("precioFijo"),
     paqAncho:t("paqAncho"), paqAlto:t("paqAlto"), paqProf:t("paqProf"), paqPeso:t("paqPeso"),
@@ -876,6 +881,24 @@ function pintarLinksPrecio(){
   ];
   $("precioLinks").innerHTML = q ? sitios.map(s=>`<a class="btn sec sm" href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a>`).join("") : "";
 }
+async function consultarPrecioReal(){
+  const box=$("precioRealBox");
+  const q=[getCampo("titulo_libro"),getCampo("autor")].filter(Boolean).join(" ").trim();
+  if(!q){ box.textContent="Cargá título/autor primero."; return; }
+  if(!C.proxyPrecios){ box.innerHTML='⚙️ Configurá el <b>Proxy de precios</b> en Configuración para ver el precio real de ML (ver instrucciones en el repo).'; return; }
+  box.innerHTML='<span class="spin"></span> Consultando Mercado Libre…';
+  try{
+    const sep=C.proxyPrecios.indexOf("?")>=0?"&":"?";
+    const r=await fetch(C.proxyPrecios+sep+"q="+encodeURIComponent(q));
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
+    if(!d || !d.count){ box.textContent="No encontré publicaciones de ese libro en ML."; return; }
+    const f=n=>"$"+Number(n).toLocaleString("es-AR");
+    box.innerHTML=`💲 <b>ML:</b> mediana <b>${f(d.median)}</b> · típico ${f(d.p25)}–${f(d.p75)} <span class="muted">(${d.count} publicaciones)</span> · <a href="#" id="usarPrecio">usar mediana</a>`;
+    $("usarPrecio").addEventListener("click",ev=>{ ev.preventDefault(); $("f_precio").value=d.median; setStatus("ok","Precio puesto: "+f(d.median)); });
+  }catch(e){ box.innerHTML="No pude consultar ("+escapeHTML(String(e.message||e))+"). Revisá la URL del proxy en Configuración."; }
+}
+$("btnPrecioReal").addEventListener("click",consultarPrecioReal);
 function regenerarTitulo(){
   $("f_title").value=armarTitulo(getCampo("titulo_libro"),getCampo("autor"));
   $("titleLen").textContent=$("f_title").value.length;

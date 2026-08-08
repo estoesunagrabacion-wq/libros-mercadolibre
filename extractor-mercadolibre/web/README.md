@@ -80,8 +80,14 @@ regenerarlo tras cambiar algún campo.
 1. La **IA con visión** lee la tapa y deduce los datos.
 2. **Google Books** y **OpenLibrary** (gratis) completan por ISBN o título: editorial, año,
    páginas, idioma, subtítulo, etc.
-Lo que no aparece en ninguna fuente queda **en blanco**. El **precio** no se busca solo: hay una
-estimación de la IA y botones a **Mercado Libre / Iberlibro / eBay**.
+Lo que no aparece en ninguna fuente queda **en blanco**. El **precio lo definís vos**: hay botones
+a **Mercado Libre / Iberlibro / eBay** para ver precios reales.
+
+### Precio real de ML (opcional)
+Si desplegás el **proxy de precios** (carpeta `../proxy-precios/`, un Cloudflare Worker gratis) y
+pegás su URL en **⚙️ Configuración → Proxy de precios**, cada libro muestra un botón
+**"💲 Precio real en ML"** con la **mediana** y el **rango típico** de publicaciones parecidas,
+y un link para usar ese valor como precio. Ver `../proxy-precios/README.md`.
 
 ---
 
