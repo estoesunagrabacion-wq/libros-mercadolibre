@@ -291,7 +291,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v18</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v19</span></p>
 </div>
 
 <script>
@@ -1125,7 +1125,7 @@ $("btnManual").addEventListener("click",()=>{ const t=$("manualTexto").value.tri
 $("manualTexto").addEventListener("keydown",e=>{ if(e.key==="Enter"){ const t=e.target.value.trim(); if(t) procesarManual(t); }});
 
 /* ---------- Compartir la app ---------- */
-const CANONICAL="https://estoesunagrabacion-wq.github.io/detective-sintactico/";
+const CANONICAL="https://estoesunagrabacion-wq.github.io/libros-mercadolibre/";
 const APP_URL = location.protocol.indexOf("http")===0 ? (location.origin+location.pathname) : CANONICAL;
 const MSG_APP = "📚 Cargá tus libros para Mercado Libre sacando una foto con esta app: "+APP_URL;
 $("appUrl").textContent = APP_URL;
