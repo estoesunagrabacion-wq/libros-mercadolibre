@@ -10,7 +10,7 @@ idiomas: italiano, ruso, francés, etc.), donde muchas veces no hay código de b
 Viene en **dos versiones**:
 - 💻 **De escritorio** (este README): procesás una **carpeta de fotos en lote** desde la compu.
 - 📱 **Web para el celular** (ya publicada en
-  **https://estoesunagrabacion-wq.github.io/detective-sintactico/**): sacás la **foto con la
+  **https://estoesunagrabacion-wq.github.io/libros-mercadolibre/**): sacás la **foto con la
   cámara** del teléfono, ves los datos con botón de **copiar** (ideal para cargar de a uno) y
   descargás un **CSV** con todos los libros juntos (ideal para **carga masiva**).
   El código es el `index.html` de la raíz del repo. Ver `web/README.md`.

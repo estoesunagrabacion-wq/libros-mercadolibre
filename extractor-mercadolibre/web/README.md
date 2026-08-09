@@ -2,7 +2,7 @@
 
 Ya está **publicada y online**. Abrila desde el celular en:
 
-### 👉 https://estoesunagrabacion-wq.github.io/detective-sintactico/
+### 👉 https://estoesunagrabacion-wq.github.io/libros-mercadolibre/
 
 (El código de la página es el archivo `index.html` de la **raíz del repositorio**; se
 publica solo con GitHub Pages cada vez que se actualiza `main`. El juego "Detective
