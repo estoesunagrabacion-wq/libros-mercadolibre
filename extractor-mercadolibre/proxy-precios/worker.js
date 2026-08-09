@@ -73,24 +73,36 @@ async function desdeAPI(q) {
   }
 }
 
-// Lee la página de resultados de ML y extrae los precios visibles.
+// Lee la página de resultados de ML y extrae los precios (dos métodos, se usa el que traiga más).
 async function desdeHTML(q) {
   const u = "https://listado.mercadolibre.com.ar/" + encodeURIComponent(q);
   const r = await fetch(u, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
       "Accept-Language": "es-AR,es;q=0.9",
+      "Accept": "text/html,application/xhtml+xml",
     },
   });
   const html = await r.text();
-  const precios = [];
-  const re = /andes-money-amount__fraction[^>]*>([\d.]+)</g;
   let m;
-  while ((m = re.exec(html))) {
+
+  // Método 1: precios visibles en la página (lo que ve el comprador).
+  const frac = [];
+  const reFrac = /andes-money-amount__fraction[^>]*>([\d.]+)</g;
+  while ((m = reFrac.exec(html))) {
     const n = parseInt(m[1].replace(/\./g, ""), 10);
-    if (!isNaN(n)) precios.push(n);
+    if (!isNaN(n)) frac.push(n);
   }
-  return precios;
+
+  // Método 2: JSON embebido en la página ("price": 25000).
+  const jsn = [];
+  const reJson = /"price"\s*:\s*([0-9]+(?:\.[0-9]+)?)/g;
+  while ((m = reJson.exec(html))) {
+    const n = Math.round(parseFloat(m[1]));
+    if (!isNaN(n)) jsn.push(n);
+  }
+
+  return frac.length >= jsn.length ? frac : jsn;
 }
 
 // Filtra valores fuera de rango razonable y outliers (IQR) para que la mediana sea confiable.
