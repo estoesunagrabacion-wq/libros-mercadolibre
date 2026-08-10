@@ -24,7 +24,8 @@ Viene en **dos versiones**:
    Abrís el archivo, **copiás las filas** y las pegás en la planilla que descargás de ML.
 
 Por cada libro completa lo que puede con la **IA** (lee la tapa) + **Google Books /
-OpenLibrary** (por ISBN o título); lo que no encuentra queda **en blanco**. Los campos
+OpenLibrary** (por ISBN o título); lo que no encuentra queda **en blanco**. Cuando
+OpenLibrary lo tiene, también trae **medidas (alto/ancho/grosor) y peso** del libro por ISBN. Los campos
 de logística (condición, stock, medidas del paquete, envío) van con **valores por defecto
 configurables**.
 
