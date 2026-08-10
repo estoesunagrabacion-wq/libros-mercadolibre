@@ -291,7 +291,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v19</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v20</span></p>
 </div>
 
 <script>
@@ -682,6 +682,39 @@ async function openLibraryISBN(isbn){
       ciudad:(v.publish_places||[]).map(p=>p.name).join(", ")};
   }catch(e){ return {}; }
 }
+// Parsea "20.3 x 13.3 x 2 centimeters" / "8 x 5 x 0.5 inches" -> {altura_cm, ancho_cm, grosor_cm}
+function parseDimensiones(s){
+  if(!s) return {};
+  const nums=(String(s).match(/[\d.]+/g)||[]).map(Number).filter(n=>!isNaN(n));
+  if(nums.length<3) return {};
+  const f=/inch|"/i.test(s)?2.54:1;
+  const cm=nums.slice(0,3).map(n=>String(Math.round(n*f*10)/10));
+  return {altura_cm:cm[0], ancho_cm:cm[1], grosor_cm:cm[2]};
+}
+// Parsea "340 grams" / "1.2 pounds" / "12 ounces" -> gramos (string)
+function parsePeso(s){
+  if(!s) return "";
+  const n=parseFloat((String(s).match(/[\d.]+/)||[])[0]); if(isNaN(n)) return "";
+  if(/pound|\blb/i.test(s)) return String(Math.round(n*453.592));
+  if(/ounce|\boz/i.test(s)) return String(Math.round(n*28.35));
+  if(/kg|kilo/i.test(s)) return String(Math.round(n*1000));
+  return String(Math.round(n)); // gramos
+}
+// OpenLibrary jscmd=details: trae medidas físicas y peso (además de páginas/editorial/año/lugar).
+async function openLibraryDetails(isbn){
+  try{
+    const r=await fetch("https://openlibrary.org/api/books?format=json&jscmd=details&bibkeys=ISBN:"+encodeURIComponent(isbn));
+    const d=await r.json(); const v=(d["ISBN:"+isbn]||{}).details; if(!v) return {};
+    const out={};
+    if(v.number_of_pages) out.paginas=String(v.number_of_pages);
+    if(v.publishers&&v.publishers.length) out.editorial=v.publishers.join(", ");
+    if(v.publish_places&&v.publish_places.length) out.ciudad=v.publish_places.join(", ");
+    if(v.publish_date){ const mm=String(v.publish_date).match(/\d{4}/); if(mm) out.anio=mm[0]; }
+    Object.assign(out, parseDimensiones(v.physical_dimensions));
+    const w=parsePeso(v.weight); if(w) out.peso_g=w;
+    return out;
+  }catch(e){ return {}; }
+}
 async function openLibraryBuscar(titulo, autor){
   try{
     const u="https://openlibrary.org/search.json?limit=1&fields=title,author_name,first_publish_year,publisher,number_of_pages_median&title="
@@ -699,6 +732,10 @@ async function enriquecer(datos){
   if(isbn.length===10||isbn.length===13){
     rellenar(datos, await googleBooks("isbn:"+isbn));
     rellenar(datos, await openLibraryISBN(isbn));
+    // Medidas/peso del libro (si faltan y OpenLibrary los tiene).
+    if(!String(datos.altura_cm||"").trim() || !String(datos.peso_g||"").trim()){
+      rellenar(datos, await openLibraryDetails(isbn));
+    }
   }
   // Búsqueda por título (siempre que falten datos): completa páginas/editorial/año en libros sin ISBN.
   if((datos.titulo_libro||"").trim()){

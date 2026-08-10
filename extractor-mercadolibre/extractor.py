@@ -389,6 +389,62 @@ def openlibrary_isbn(isbn):
         return {}
 
 
+def parse_dimensiones(s):
+    # "20.3 x 13.3 x 2 centimeters" / "8 x 5 x 0.5 inches" -> {altura_cm, ancho_cm, grosor_cm}
+    if not s:
+        return {}
+    nums = [float(x) for x in re.findall(r"[\d.]+", str(s))]
+    if len(nums) < 3:
+        return {}
+    f = 2.54 if re.search(r'inch|"', str(s), re.I) else 1.0
+    cm = [str(round(n * f, 1)) for n in nums[:3]]
+    return {"altura_cm": cm[0], "ancho_cm": cm[1], "grosor_cm": cm[2]}
+
+
+def parse_peso(s):
+    # "340 grams" / "1.2 pounds" / "12 ounces" -> gramos (str)
+    if not s:
+        return ""
+    m = re.search(r"[\d.]+", str(s))
+    if not m:
+        return ""
+    n = float(m.group(0))
+    if re.search(r"pound|\blb", str(s), re.I):
+        return str(round(n * 453.592))
+    if re.search(r"ounce|\boz", str(s), re.I):
+        return str(round(n * 28.35))
+    if re.search(r"kg|kilo", str(s), re.I):
+        return str(round(n * 1000))
+    return str(round(n))  # gramos
+
+
+def openlibrary_details(isbn):
+    # jscmd=details: trae medidas físicas y peso (además de páginas/editorial/año/lugar).
+    try:
+        r = requests.get("https://openlibrary.org/api/books",
+                         params={"format": "json", "jscmd": "details", "bibkeys": f"ISBN:{isbn}"}, timeout=30)
+        v = (r.json().get(f"ISBN:{isbn}") or {}).get("details")
+        if not v:
+            return {}
+        out = {}
+        if v.get("number_of_pages"):
+            out["paginas"] = str(v["number_of_pages"])
+        if v.get("publishers"):
+            out["editorial"] = ", ".join(v["publishers"])
+        if v.get("publish_places"):
+            out["ciudad"] = ", ".join(v["publish_places"])
+        m = re.search(r"\d{4}", v.get("publish_date", "") or "")
+        if m:
+            out["anio"] = m.group(0)
+        out.update(parse_dimensiones(v.get("physical_dimensions")))
+        w = parse_peso(v.get("weight"))
+        if w:
+            out["peso_g"] = w
+        return out
+    except Exception:
+        return {}
+
+
 def openlibrary_buscar(titulo, autor):
     try:
         params = {"limit": 1, "title": titulo,
@@ -417,6 +473,9 @@ def enriquecer(datos):
     if len(isbn) in (10, 13):
         rellenar(datos, google_books(f"isbn:{isbn}"))
         rellenar(datos, openlibrary_isbn(isbn))
+        # Medidas/peso del libro (si faltan y OpenLibrary los tiene).
+        if not limpiar(datos.get("altura_cm")) or not limpiar(datos.get("peso_g")):
+            rellenar(datos, openlibrary_details(isbn))
     # Búsqueda por título (completa páginas/editorial/año en libros sin ISBN).
     if limpiar(datos.get("titulo_libro")):
         if not all(limpiar(datos.get(k)) for k in ("paginas", "editorial", "anio")):

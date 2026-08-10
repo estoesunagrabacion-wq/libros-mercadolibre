@@ -79,7 +79,8 @@ regenerarlo tras cambiar algún campo.
 ### ¿De dónde salen los datos?
 1. La **IA con visión** lee la tapa y deduce los datos.
 2. **Google Books** y **OpenLibrary** (gratis) completan por ISBN o título: editorial, año,
-   páginas, idioma, subtítulo, etc.
+   páginas, idioma, subtítulo, etc. Cuando OpenLibrary lo tiene, también trae **medidas
+   (alto/ancho/grosor) y peso** del libro por ISBN.
 Lo que no aparece en ninguna fuente queda **en blanco**. El **precio lo definís vos**: hay botones
 a **Mercado Libre / Iberlibro / eBay** para ver precios reales.
 
