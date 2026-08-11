@@ -24,8 +24,10 @@ Viene en **dos versiones**:
    Abrís el archivo, **copiás las filas** y las pegás en la planilla que descargás de ML.
 
 Por cada libro completa lo que puede con la **IA** (lee la tapa) + **Google Books /
-OpenLibrary** (por ISBN o título); lo que no encuentra queda **en blanco**. Cuando
-OpenLibrary lo tiene, también trae **medidas (alto/ancho/grosor) y peso** del libro por ISBN. Los campos
+OpenLibrary** (por ISBN o título); lo que no encuentra queda **en blanco**. Cuando lo
+tienen, también traen **medidas (alto/ancho/grosor) y peso** del libro por ISBN (las medidas
+se **redondean hacia arriba**). Opcionalmente puede consultar la **BNE (Biblioteca Nacional
+de España)** para medidas/páginas de libros en español: poné `"bne": true` en `config.json`. Los campos
 de logística (condición, stock, medidas del paquete, envío) van con **valores por defecto
 configurables**.
 
@@ -143,6 +145,7 @@ python extractor.py --carpeta "C:\Users\vos\Desktop\libros" --salida "hoy.xlsx"
 | `libreria` | Nombre de tu librería (cierre de la descripción) | `Librería Los Siete Pilares` |
 | `retiro_texto` | Texto de retiro/ubicación (cierre de la descripción) | (frase de retiro) |
 | `titulo_italica` | Título del libro en itálicas (Unicode) en la descripción | `false` |
+| `bne` | Consultar la **BNE** por ISBN (medidas/páginas de libros en español) | `false` / `true` |
 | `plantilla` | Ruta a la planilla oficial de ML para **rellenarla** | `""` (vacío = crea `salida.xlsx`) |
 | `max_largo_titulo` | Largo máximo del título | `60` |
 

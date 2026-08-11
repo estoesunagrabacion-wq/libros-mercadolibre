@@ -109,6 +109,9 @@
         <label>Proxy de precios (URL) <span class="muted">— opcional, para el precio real de ML</span></label>
         <input id="proxyPrecios" type="text" placeholder="https://tu-worker.workers.dev" autocomplete="off" />
 
+        <label>Proxy BNE (URL) <span class="muted">— opcional, datos/medidas de libros en español</span></label>
+        <input id="proxyBne" type="text" placeholder="https://tu-worker-bne.workers.dev" autocomplete="off" />
+
         <div class="grid2">
           <div>
             <label>Etiqueta del título</label>
@@ -291,7 +294,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v20</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v21</span></p>
 </div>
 
 <script>
@@ -419,7 +422,7 @@ function cfgDefault(){
     cuotas:"No agregar cuotas",costoCuotas:"Sin costo",
     libreria:"Librería Los Siete Pilares",
     retiroTexto:"Retiro en persona en una librería a la calle en la zona de Paraguay y Reconquista.",
-    tituloItalica:false, proxyPrecios:""};
+    tituloItalica:false, proxyPrecios:"", proxyBne:""};
 }
 function cargarCfg(){
   try{ return Object.assign(cfgDefault(), JSON.parse(localStorage.getItem("extractorCfg")||"{}")); }
@@ -459,7 +462,7 @@ function cargarLibros(){
 function guardarLibros(){ localStorage.setItem("extractorLibrosV3", JSON.stringify(libros)); }
 
 function pintarCfg(){
-  $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||""; $("proxyPrecios").value=C.proxyPrecios||"";
+  $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||""; $("proxyPrecios").value=C.proxyPrecios||""; $("proxyBne").value=C.proxyBne||"";
   $("etiqueta").value=C.etiqueta; $("condicionDef").value=C.condicion; $("sku").value=C.sku; $("stock").value=C.stock;
   $("precioModo").value=C.precioModo; $("precioFijo").value=C.precioFijo;
   $("paqAncho").value=C.paqAncho; $("paqAlto").value=C.paqAlto; $("paqProf").value=C.paqProf; $("paqPeso").value=C.paqPeso;
@@ -475,7 +478,7 @@ $("proveedor").addEventListener("change", ()=>{ $("keyHelp").innerHTML=KEY_HELP[
 $("precioModo").addEventListener("change", ()=>{ $("precioFijoWrap").classList.toggle("hidden", $("precioModo").value!=="fijo"); });
 $("guardarCfg").addEventListener("click", ()=>{
   const t=id=>$(id).value.trim();
-  C={ proveedor:$("proveedor").value, apiKey:t("apiKey"), modelo:t("modelo"), proxyPrecios:t("proxyPrecios"), etiqueta:t("etiqueta"),
+  C={ proveedor:$("proveedor").value, apiKey:t("apiKey"), modelo:t("modelo"), proxyPrecios:t("proxyPrecios"), proxyBne:t("proxyBne"), etiqueta:t("etiqueta"),
     condicion:$("condicionDef").value, sku:t("sku"), stock:t("stock")||"1",
     precioModo:$("precioModo").value, precioFijo:t("precioFijo"),
     paqAncho:t("paqAncho"), paqAlto:t("paqAlto"), paqProf:t("paqProf"), paqPeso:t("paqPeso"),
@@ -667,7 +670,7 @@ async function googleBooks(q){
     return {titulo_libro:v.title||"", subtitulo:v.subtitle||"", autor:(v.authors||[]).join(", "),
       editorial:v.publisher||"", anio:(v.publishedDate||"").slice(0,4), idioma:IDIOMAS[v.language]||v.language||"",
       paginas:v.pageCount?String(v.pageCount):"", tema_genero:(v.categories||[]).join(", "),
-      descripcion:v.description||"", isbn:isbnObj?isbnObj.identifier:""};
+      descripcion:v.description||"", isbn:isbnObj?isbnObj.identifier:"", ...gbDimensiones(v.dimensions)};
   }catch(e){ return {}; }
 }
 async function openLibraryISBN(isbn){
@@ -682,14 +685,21 @@ async function openLibraryISBN(isbn){
       ciudad:(v.publish_places||[]).map(p=>p.name).join(", ")};
   }catch(e){ return {}; }
 }
-// Parsea "20.3 x 13.3 x 2 centimeters" / "8 x 5 x 0.5 inches" -> {altura_cm, ancho_cm, grosor_cm}
+// Redondeo hacia arriba con 1 cm de margen para el envío (21.2 -> 23, 24 -> 25).
+function redondearCm(n){ return String(Math.ceil(n)+1); }
+// Parsea "20.3 x 13.3 x 2 centimeters" / "8 x 5 x 0.5 inches" -> {altura_cm, ancho_cm, grosor_cm} (redondeado)
 function parseDimensiones(s){
   if(!s) return {};
   const nums=(String(s).match(/[\d.]+/g)||[]).map(Number).filter(n=>!isNaN(n));
   if(nums.length<3) return {};
   const f=/inch|"/i.test(s)?2.54:1;
-  const cm=nums.slice(0,3).map(n=>String(Math.round(n*f*10)/10));
+  const cm=nums.slice(0,3).map(n=>redondearCm(n*f));
   return {altura_cm:cm[0], ancho_cm:cm[1], grosor_cm:cm[2]};
+}
+// Google Books a veces trae volumeInfo.dimensions {height,width,thickness} (ej. "24.00 cm"), en cualquier idioma.
+function gbDimensiones(dm){
+  if(!dm || !dm.height || !dm.width || !dm.thickness) return {};
+  return parseDimensiones(dm.height+" x "+dm.width+" x "+dm.thickness);
 }
 // Parsea "340 grams" / "1.2 pounds" / "12 ounces" -> gramos (string)
 function parsePeso(s){
@@ -715,6 +725,23 @@ async function openLibraryDetails(isbn){
     return out;
   }catch(e){ return {}; }
 }
+// BNE (Biblioteca Nacional de España) vía Worker proxy: bueno para libros en español (medidas y páginas).
+async function bneDetails(isbn){
+  if(!C.proxyBne) return {};
+  try{
+    const sep=C.proxyBne.indexOf("?")>=0?"&":"?";
+    const r=await fetch(C.proxyBne+sep+"isbn="+encodeURIComponent(isbn));
+    const d=await r.json();
+    const out={};
+    if(d.paginas) out.paginas=String(d.paginas);
+    if(d.altura_cm) out.altura_cm=redondearCm(parseFloat(d.altura_cm));
+    if(d.ancho_cm) out.ancho_cm=redondearCm(parseFloat(d.ancho_cm));
+    if(d.editorial) out.editorial=d.editorial;
+    if(d.anio) out.anio=String(d.anio);
+    if(d.ciudad) out.ciudad=d.ciudad;
+    return out;
+  }catch(e){ return {}; }
+}
 async function openLibraryBuscar(titulo, autor){
   try{
     const u="https://openlibrary.org/search.json?limit=1&fields=title,author_name,first_publish_year,publisher,number_of_pages_median&title="
@@ -735,6 +762,10 @@ async function enriquecer(datos){
     // Medidas/peso del libro (si faltan y OpenLibrary los tiene).
     if(!String(datos.altura_cm||"").trim() || !String(datos.peso_g||"").trim()){
       rellenar(datos, await openLibraryDetails(isbn));
+    }
+    // BNE: si todavía faltan las medidas, probamos la Biblioteca Nacional de España (mejor para español).
+    if(!String(datos.altura_cm||"").trim()){
+      rellenar(datos, await bneDetails(isbn));
     }
   }
   // Búsqueda por título (siempre que falten datos): completa páginas/editorial/año en libros sin ISBN.
