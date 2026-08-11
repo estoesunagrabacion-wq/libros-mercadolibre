@@ -462,12 +462,13 @@ def openlibrary_details(isbn):
         return {}
 
 
+# La BNE usa Ex Libris Alma. SRU: https://catalogo.bne.es/view/sru/34BNE_INST (índice alma.isbn).
 BNE_CANDIDATOS = [
-    ("isbn", "isbn={isbn}"),
-    ("bath.isbn", "bath.isbn={isbn}"),
-    ("1.4", "1.4={isbn}"),
+    ("alma.isbn", "alma.isbn={isbn}"),
+    ('alma.isbn="..."', 'alma.isbn="{isbn}"'),
+    ("alma.all_for_ui", "alma.all_for_ui={isbn}"),
 ]
-BNE_BASE = "https://catalogo.bne.es/uhtbin/sru"
+BNE_BASE = "https://catalogo.bne.es/view/sru/34BNE_INST"
 
 
 def _marc_datafield(xml, tag):
@@ -515,7 +516,7 @@ def bne_details(isbn):
     # Consulta la BNE por SRU (MARCXML). Redondea las medidas hacia arriba con margen.
     for _, forma in BNE_CANDIDATOS:
         try:
-            params = {"version": "1.1", "operation": "searchRetrieve",
+            params = {"version": "1.2", "operation": "searchRetrieve",
                       "recordSchema": "marcxml", "maximumRecords": "1",
                       "query": forma.format(isbn=isbn)}
             r = requests.get(BNE_BASE, params=params,
