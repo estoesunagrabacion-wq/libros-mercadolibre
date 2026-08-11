@@ -116,6 +116,17 @@ cada uno. Así evitás que Mercado Libre te rechace la planilla.
 > así el Excel ya baja con la columna Fotos completa y no hay que tocarla después.
 > El **ISBN** también es obligatorio: si el libro no tiene, poné uno de relleno válido (como hacés a mano).
 
+### Foto genérica (para no pelear con el gestor de fotos)
+En **⚙️ Configuración → Foto genérica (URL)** podés pegar el link de **una** imagen. Si está
+lleno, ese link se usa en la columna **Fotos** de **todos** los libros que no tengan sus propias
+URLs; si lo dejás vacío, la columna Fotos queda en blanco (como antes).
+
+### ISBN genérico (para libros viejos sin ISBN)
+Los libros antiguos no tienen ISBN, pero ML lo exige y rechaza los inventados. Debajo del campo
+**ISBN** hay una casilla **"ISBN genérico"**: al tildarla se completa con un ISBN **real** (que ML
+acepta) aunque no sea el del libro. Cuál se usa se configura en **⚙️ Configuración → ISBN genérico**
+(por defecto uno válido; podés cambiarlo por tu ISBN de relleno preferido).
+
 ### Qué trae la planilla
 
 Las **61 columnas** de la planilla oficial **"Publicar varios productos"** de Mercado Libre
@@ -138,8 +149,10 @@ se ven bien.
 
 ### Precio (sugerencia, no se completa solo)
 Por cada libro ves una **estimación orientativa** de la IA y **botones** que abren la búsqueda
-de ese libro en **Mercado Libre, Iberlibro y eBay** para que veas precios reales. El campo de
-precio no se llena automáticamente (salvo que elijas ese modo en Configuración).
+de ese libro en **Mercado Libre, Iberlibro, eBay y Google** para que veas precios reales. En
+Iberlibro, eBay y Google se agrega el **año de edición** (si está) porque se usan sobre todo para
+libros antiguos. El campo de precio no se llena automáticamente (salvo que elijas ese modo en
+Configuración).
 
 ---
 

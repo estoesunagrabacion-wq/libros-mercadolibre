@@ -70,6 +70,7 @@ CONFIG_POR_DEFECTO = {
     "etiqueta_titulo": "Microcentro",
     "condicion": "Usado",
     "sku_por_defecto": "",
+    "foto_generica": "",                # URL de una foto genérica para la columna Fotos (o "" para dejarla vacía)
     "stock": 1,
     "precio": "manual",                 # manual | sugerir | <número>
     "max_largo_titulo": 60,
@@ -111,7 +112,7 @@ COLUMNAS = [
     ("Cantidad de caracteres", None),
     ("Condición", "__condicion"),
     ("ISBN", "isbn"),
-    ("Fotos", None),
+    ("Fotos", "__fotos"),
     ("SKU", "__sku"),
     ("Stock", "__stock"),
     ("Precio [$]", "__precio"),
@@ -665,6 +666,7 @@ def construir_registro(datos, cfg):
         "__titulo": armar_titulo(datos, cfg),
         "__condicion": limpiar(datos.get("condicion")) or cfg.get("condicion", "Usado"),
         "__sku": cfg.get("sku_por_defecto", ""),
+        "__fotos": cfg.get("foto_generica", ""),
         "__stock": cfg.get("stock", 1),
         "__precio": resolver_precio(datos, cfg),
         "__descripcion": componer_descripcion(datos, cfg),
