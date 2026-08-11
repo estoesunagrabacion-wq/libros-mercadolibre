@@ -79,8 +79,13 @@ regenerarlo tras cambiar algún campo.
 ### ¿De dónde salen los datos?
 1. La **IA con visión** lee la tapa y deduce los datos.
 2. **Google Books** y **OpenLibrary** (gratis) completan por ISBN o título: editorial, año,
-   páginas, idioma, subtítulo, etc. Cuando OpenLibrary lo tiene, también trae **medidas
+   páginas, idioma, subtítulo, etc. Cuando lo tienen, también traen **medidas
    (alto/ancho/grosor) y peso** del libro por ISBN.
+3. **BNE (Biblioteca Nacional de España)** — *opcional, requiere proxy* — completa medidas
+   y páginas para **libros en español**, que es donde las otras fuentes suelen fallar. Ver
+   `../proxy-bne/README.md`.
+
+> Las **medidas** se muestran **redondeadas hacia arriba** (con un cm de margen para el envío).
 Lo que no aparece en ninguna fuente queda **en blanco**. El **precio lo definís vos**: hay botones
 a **Mercado Libre / Iberlibro / eBay** para ver precios reales.
 

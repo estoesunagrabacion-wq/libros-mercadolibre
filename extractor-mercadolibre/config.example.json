@@ -18,5 +18,6 @@
   "costo_envio": "A cargo del comprador",
   "retiro": "Acepto",
   "cuotas": "No agregar cuotas",
-  "costo_cuotas": "Sin costo"
+  "costo_cuotas": "Sin costo",
+  "bne": false
 }

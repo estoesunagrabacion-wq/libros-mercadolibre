@@ -30,6 +30,7 @@ import argparse
 import base64
 import io
 import json
+import math
 import mimetypes
 import os
 import re
@@ -84,6 +85,8 @@ CONFIG_POR_DEFECTO = {
     "libreria": "Librería Los Siete Pilares",
     "retiro_texto": "Retiro en persona en una librería a la calle en la zona de Paraguay y Reconquista.",
     "titulo_italica": False,
+    # Consultar la BNE (Biblioteca Nacional de España) por ISBN para medidas/páginas de libros en español.
+    "bne": False,
     # Si apuntás a la planilla oficial de ML, se rellena esa (en vez de crear salida.xlsx).
     "plantilla": "",
 }
@@ -360,12 +363,14 @@ def google_books(q):
         for x in v.get("industryIdentifiers", []):
             if "ISBN" in x.get("type", ""):
                 isbn = x.get("identifier", ""); break
-        return {"titulo_libro": v.get("title", ""), "subtitulo": v.get("subtitle", ""),
-                "autor": ", ".join(v.get("authors", [])), "editorial": v.get("publisher", ""),
-                "anio": (v.get("publishedDate", "") or "")[:4],
-                "idioma": IDIOMAS.get(v.get("language", ""), v.get("language", "")),
-                "paginas": str(v.get("pageCount", "") or ""), "tema_genero": ", ".join(v.get("categories", [])),
-                "descripcion": v.get("description", ""), "isbn": isbn}
+        out = {"titulo_libro": v.get("title", ""), "subtitulo": v.get("subtitle", ""),
+               "autor": ", ".join(v.get("authors", [])), "editorial": v.get("publisher", ""),
+               "anio": (v.get("publishedDate", "") or "")[:4],
+               "idioma": IDIOMAS.get(v.get("language", ""), v.get("language", "")),
+               "paginas": str(v.get("pageCount", "") or ""), "tema_genero": ", ".join(v.get("categories", [])),
+               "descripcion": v.get("description", ""), "isbn": isbn}
+        out.update(gb_dimensiones(v.get("dimensions")))
+        return out
     except Exception:
         return {}
 
@@ -389,16 +394,28 @@ def openlibrary_isbn(isbn):
         return {}
 
 
+def redondear_cm(n):
+    # Redondeo hacia arriba con 1 cm de margen para el envío (21.2 -> 23, 24 -> 25).
+    return str(math.ceil(n) + 1)
+
+
 def parse_dimensiones(s):
-    # "20.3 x 13.3 x 2 centimeters" / "8 x 5 x 0.5 inches" -> {altura_cm, ancho_cm, grosor_cm}
+    # "20.3 x 13.3 x 2 centimeters" / "8 x 5 x 0.5 inches" -> {altura_cm, ancho_cm, grosor_cm} (redondeado)
     if not s:
         return {}
     nums = [float(x) for x in re.findall(r"[\d.]+", str(s))]
     if len(nums) < 3:
         return {}
     f = 2.54 if re.search(r'inch|"', str(s), re.I) else 1.0
-    cm = [str(round(n * f, 1)) for n in nums[:3]]
+    cm = [redondear_cm(n * f) for n in nums[:3]]
     return {"altura_cm": cm[0], "ancho_cm": cm[1], "grosor_cm": cm[2]}
+
+
+def gb_dimensiones(dm):
+    # Google Books a veces trae volumeInfo.dimensions {height,width,thickness} (ej. "24.00 cm").
+    if not dm or not dm.get("height") or not dm.get("width") or not dm.get("thickness"):
+        return {}
+    return parse_dimensiones(f"{dm['height']} x {dm['width']} x {dm['thickness']}")
 
 
 def parse_peso(s):
@@ -445,6 +462,76 @@ def openlibrary_details(isbn):
         return {}
 
 
+BNE_CANDIDATOS = [
+    ("isbn", "isbn={isbn}"),
+    ("bath.isbn", "bath.isbn={isbn}"),
+    ("1.4", "1.4={isbn}"),
+]
+BNE_BASE = "https://catalogo.bne.es/uhtbin/sru"
+
+
+def _marc_datafield(xml, tag):
+    m = re.search(r'<(?:\w+:)?datafield[^>]*tag="' + tag + r'"[\s\S]*?</(?:\w+:)?datafield>', xml, re.I)
+    return m.group(0) if m else ""
+
+
+def _marc_subfield(bloque, code):
+    if not bloque:
+        return ""
+    m = re.search(r'<(?:\w+:)?subfield[^>]*code="' + code + r'"[^>]*>([^<]*)<', bloque, re.I)
+    return m.group(1).strip() if m else ""
+
+
+def parse_marc(xml):
+    # MARCXML de la BNE: 300$a páginas, 300$c medidas; 260/264 ciudad/editorial/año.
+    out = {}
+    if not xml or not re.search(r"<(?:\w+:)?record[\s>]", xml):
+        return out
+    f300 = _marc_datafield(xml, "300")
+    pag = _marc_subfield(f300, "a")
+    m = re.search(r"\d+", pag)
+    if m:
+        out["paginas"] = m.group(0)
+    dim = _marc_subfield(f300, "c")  # "21 cm" / "24 x 17 cm"
+    nums = [float(x.replace(",", ".")) for x in re.findall(r"[\d.,]+", dim)]
+    if nums:
+        out["altura_cm"] = str(nums[0])
+        if len(nums) > 1:
+            out["ancho_cm"] = str(nums[1])
+    f = _marc_datafield(xml, "264") or _marc_datafield(xml, "260")
+    ciudad = re.sub(r"[\s:;,]+$", "", _marc_subfield(f, "a"))
+    editorial = re.sub(r"[\s:;,]+$", "", _marc_subfield(f, "b"))
+    anio = re.search(r"\d{4}", _marc_subfield(f, "c") or "")
+    if ciudad:
+        out["ciudad"] = ciudad
+    if editorial:
+        out["editorial"] = editorial
+    if anio:
+        out["anio"] = anio.group(0)
+    return out
+
+
+def bne_details(isbn):
+    # Consulta la BNE por SRU (MARCXML). Redondea las medidas hacia arriba con margen.
+    for _, forma in BNE_CANDIDATOS:
+        try:
+            params = {"version": "1.1", "operation": "searchRetrieve",
+                      "recordSchema": "marcxml", "maximumRecords": "1",
+                      "query": forma.format(isbn=isbn)}
+            r = requests.get(BNE_BASE, params=params,
+                             headers={"User-Agent": "Mozilla/5.0 (compatible; LibrosBot/1.0)"}, timeout=30)
+            rec = parse_marc(r.text)
+            if rec.get("paginas") or rec.get("altura_cm") or rec.get("editorial"):
+                if rec.get("altura_cm"):
+                    rec["altura_cm"] = redondear_cm(float(rec["altura_cm"]))
+                if rec.get("ancho_cm"):
+                    rec["ancho_cm"] = redondear_cm(float(rec["ancho_cm"]))
+                return rec
+        except Exception:
+            continue
+    return {}
+
+
 def openlibrary_buscar(titulo, autor):
     try:
         params = {"limit": 1, "title": titulo,
@@ -468,7 +555,7 @@ def rellenar(datos, extra):
             datos[k] = v
 
 
-def enriquecer(datos):
+def enriquecer(datos, cfg=None):
     isbn = re.sub(r"[^0-9Xx]", "", datos.get("isbn", "") or "")
     if len(isbn) in (10, 13):
         rellenar(datos, google_books(f"isbn:{isbn}"))
@@ -476,6 +563,10 @@ def enriquecer(datos):
         # Medidas/peso del libro (si faltan y OpenLibrary los tiene).
         if not limpiar(datos.get("altura_cm")) or not limpiar(datos.get("peso_g")):
             rellenar(datos, openlibrary_details(isbn))
+        # BNE (opcional): si faltan las medidas, la Biblioteca Nacional de España suele
+        # traerlas para libros en español.
+        if cfg and cfg.get("bne") and not limpiar(datos.get("altura_cm")):
+            rellenar(datos, bne_details(isbn))
     # Búsqueda por título (completa páginas/editorial/año en libros sin ISBN).
     if limpiar(datos.get("titulo_libro")):
         if not all(limpiar(datos.get(k)) for k in ("paginas", "editorial", "anio")):
@@ -718,12 +809,12 @@ def main():
             if args.isbn:
                 print(f"🔎 ISBN {args.isbn} ...")
                 datos = {"isbn": re.sub(r'[^0-9Xx]', '', args.isbn), "confianza": "alta"}
-                enriquecer(datos)
+                enriquecer(datos, cfg)
                 if not limpiar(datos.get("titulo_libro")):
-                    datos = parsear_json(llamar_ia(cfg, prompt_texto("ISBN " + args.isbn))); enriquecer(datos)
+                    datos = parsear_json(llamar_ia(cfg, prompt_texto("ISBN " + args.isbn))); enriquecer(datos, cfg)
             else:
                 print(f"🔎 {args.texto} ...")
-                datos = parsear_json(llamar_ia(cfg, prompt_texto(args.texto))); enriquecer(datos)
+                datos = parsear_json(llamar_ia(cfg, prompt_texto(args.texto))); enriquecer(datos, cfg)
             registros.append(construir_registro(datos, cfg))
             print(f"   ✔ {registros[-1]['Título']}")
         except Exception as e:
@@ -750,7 +841,7 @@ def main():
                 try:
                     imagenes = [imagen_a_b64(r) for r in rutas]
                     datos = parsear_json(llamar_ia(cfg, prompt_texto(""), imagenes))
-                    enriquecer(datos)
+                    enriquecer(datos, cfg)
                     reg = construir_registro(datos, cfg)
                     registros.append(reg)
                     conf = limpiar(datos.get("confianza")) or "s/d"
