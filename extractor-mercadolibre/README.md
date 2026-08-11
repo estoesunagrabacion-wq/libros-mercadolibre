@@ -136,6 +136,7 @@ python extractor.py --carpeta "C:\Users\vos\Desktop\libros" --salida "hoy.xlsx"
 | `etiqueta_titulo` | Se agrega al final del título | `Microcentro` (o `""` para ninguna) |
 | `condicion` | Columna Condición | `Usado` / `Nuevo` |
 | `sku_por_defecto` | Columna SKU / ubicación física | `""` |
+| `foto_generica` | URL de una foto genérica para la columna Fotos (vacío = sin foto) | `""` |
 | `stock` | Columna Stock | `1` |
 | `precio` | Columna Precio | `manual` (vacío), `sugerir` (la IA propone), o un número fijo |
 | `paq_ancho` / `paq_alto` / `paq_prof` | Medidas del **paquete** de envío (cm) | `24` / `17` / `4` |

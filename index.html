@@ -112,6 +112,12 @@
         <label>Proxy BNE (URL) <span class="muted">— opcional, datos/medidas de libros en español</span></label>
         <input id="proxyBne" type="text" placeholder="https://tu-worker-bne.workers.dev" autocomplete="off" />
 
+        <label>Foto genérica (URL) <span class="muted">— opcional; si la ponés, se usa en la columna Fotos de cada libro</span></label>
+        <input id="fotoGenerica" type="text" placeholder="https://... (dejá vacío para no poner ninguna)" autocomplete="off" />
+
+        <label>ISBN genérico <span class="muted">— un ISBN real que ML acepta, para libros sin ISBN propio</span></label>
+        <input id="isbnGenerico" type="text" placeholder="9788437619187" autocomplete="off" />
+
         <div class="grid2">
           <div>
             <label>Etiqueta del título</label>
@@ -294,7 +300,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v21</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v22</span></p>
 </div>
 
 <script>
@@ -311,7 +317,7 @@ const COLUMNAS = [
   ["Cantidad de caracteres", ()=>""],
   ["Condición", (g,cfg)=>g("condicion")||cfg.condicion||"Usado"],
   ["ISBN", g=>g("isbn")],
-  ["Fotos", g=>g("fotos")],
+  ["Fotos", (g,cfg)=>g("fotos")||cfg.fotoGenerica||""],
   ["SKU", (g,cfg)=>g("sku")||cfg.sku||""],
   ["Stock", (g,cfg)=>cfg.stock||"1"],
   ["Precio [$]", g=>g("precio")],
@@ -422,7 +428,8 @@ function cfgDefault(){
     cuotas:"No agregar cuotas",costoCuotas:"Sin costo",
     libreria:"Librería Los Siete Pilares",
     retiroTexto:"Retiro en persona en una librería a la calle en la zona de Paraguay y Reconquista.",
-    tituloItalica:false, proxyPrecios:"", proxyBne:""};
+    tituloItalica:false, proxyPrecios:"", proxyBne:"",
+    fotoGenerica:"", isbnGenerico:"9788437619187"};
 }
 function cargarCfg(){
   try{ return Object.assign(cfgDefault(), JSON.parse(localStorage.getItem("extractorCfg")||"{}")); }
@@ -433,7 +440,7 @@ function guardarCfgStorage(){ localStorage.setItem("extractorCfg", JSON.stringif
    para poder re-editarlo sin perder datos. */
 function cfgSnapshot(){
   const k=["condicion","sku","stock","paqAncho","paqAlto","paqProf","paqPeso","cuotas","costoCuotas",
-           "formaEnvio","costoEnvio","retiro","etiqueta","libreria","retiroTexto","tituloItalica"];
+           "formaEnvio","costoEnvio","retiro","etiqueta","libreria","retiroTexto","tituloItalica","fotoGenerica"];
   const o={}; k.forEach(x=>o[x]=C[x]); return o;
 }
 function migrarViejo(fila){
@@ -462,7 +469,7 @@ function cargarLibros(){
 function guardarLibros(){ localStorage.setItem("extractorLibrosV3", JSON.stringify(libros)); }
 
 function pintarCfg(){
-  $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||""; $("proxyPrecios").value=C.proxyPrecios||""; $("proxyBne").value=C.proxyBne||"";
+  $("proveedor").value=C.proveedor; $("apiKey").value=C.apiKey; $("modelo").value=C.modelo||""; $("proxyPrecios").value=C.proxyPrecios||""; $("proxyBne").value=C.proxyBne||""; $("fotoGenerica").value=C.fotoGenerica||""; $("isbnGenerico").value=C.isbnGenerico||"";
   $("etiqueta").value=C.etiqueta; $("condicionDef").value=C.condicion; $("sku").value=C.sku; $("stock").value=C.stock;
   $("precioModo").value=C.precioModo; $("precioFijo").value=C.precioFijo;
   $("paqAncho").value=C.paqAncho; $("paqAlto").value=C.paqAlto; $("paqProf").value=C.paqProf; $("paqPeso").value=C.paqPeso;
@@ -478,7 +485,8 @@ $("proveedor").addEventListener("change", ()=>{ $("keyHelp").innerHTML=KEY_HELP[
 $("precioModo").addEventListener("change", ()=>{ $("precioFijoWrap").classList.toggle("hidden", $("precioModo").value!=="fijo"); });
 $("guardarCfg").addEventListener("click", ()=>{
   const t=id=>$(id).value.trim();
-  C={ proveedor:$("proveedor").value, apiKey:t("apiKey"), modelo:t("modelo"), proxyPrecios:t("proxyPrecios"), proxyBne:t("proxyBne"), etiqueta:t("etiqueta"),
+  C={ proveedor:$("proveedor").value, apiKey:t("apiKey"), modelo:t("modelo"), proxyPrecios:t("proxyPrecios"), proxyBne:t("proxyBne"),
+    fotoGenerica:t("fotoGenerica"), isbnGenerico:t("isbnGenerico"), etiqueta:t("etiqueta"),
     condicion:$("condicionDef").value, sku:t("sku"), stock:t("stock")||"1",
     precioModo:$("precioModo").value, precioFijo:t("precioFijo"),
     paqAncho:t("paqAncho"), paqAlto:t("paqAlto"), paqProf:t("paqProf"), paqPeso:t("paqPeso"),
@@ -511,6 +519,17 @@ function construirCampos(){
       wrap.appendChild(el); wrap.appendChild(cp);
       el.id="f_"+c.id; cont.appendChild(wrap);
       if(c.id==="titulo_libro"||c.id==="autor") el.addEventListener("input",regenerarTitulo);
+      if(c.id==="isbn"){
+        const row=document.createElement("label");
+        row.style.cssText="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--muted,#666);cursor:pointer";
+        const chk=document.createElement("input"); chk.type="checkbox"; chk.id="chkIsbnGen"; chk.style.width="auto";
+        chk.addEventListener("change",()=>{
+          if(chk.checked){ el.value=C.isbnGenerico||""; }
+          else if(el.value===(C.isbnGenerico||"")){ el.value=""; }
+        });
+        const sp=document.createElement("span"); sp.textContent="ISBN genérico (uno real que ML acepta, para libros sin ISBN)";
+        row.appendChild(chk); row.appendChild(sp); wrap.appendChild(row);
+      }
       return;
     }
     el.id="f_"+c.id; wrap.appendChild(el); cont.appendChild(wrap);
@@ -940,14 +959,19 @@ function mostrarResultado(d){
   $("cardResultado").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function pintarLinksPrecio(){
-  const q=[getCampo("titulo_libro"),getCampo("autor")].filter(Boolean).join(" ").trim();
-  const e=encodeURIComponent(q);
+  const titulo=getCampo("titulo_libro"), autor=getCampo("autor"), anio=getCampo("anio");
+  const base=[titulo,autor].filter(Boolean).join(" ").trim();
+  if(!base){ $("precioLinks").innerHTML=""; return; }
+  // Iberlibro/eBay/Google se usan sobre todo para libros antiguos: sumamos el año si lo hay.
+  const conAnio=[titulo,autor,anio].filter(Boolean).join(" ").trim();
+  const e=encodeURIComponent(base), ey=encodeURIComponent(conAnio);
   const sitios=[
     ["🟡 Mercado Libre","https://listado.mercadolibre.com.ar/"+e],
-    ["📗 Iberlibro","https://www.iberlibro.com/servlet/SearchResults?kn="+e],
-    ["🔵 eBay","https://www.ebay.com/sch/i.html?_nkw="+e],
+    ["📗 Iberlibro","https://www.iberlibro.com/servlet/SearchResults?kn="+ey],
+    ["🔵 eBay","https://www.ebay.com/sch/i.html?_nkw="+ey],
+    ["🔎 Google","https://www.google.com/search?q="+ey],
   ];
-  $("precioLinks").innerHTML = q ? sitios.map(s=>`<a class="btn sec sm" href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a>`).join("") : "";
+  $("precioLinks").innerHTML = sitios.map(s=>`<a class="btn sec sm" href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a>`).join("");
 }
 async function consultarPrecioReal(){
   const box=$("precioRealBox");
