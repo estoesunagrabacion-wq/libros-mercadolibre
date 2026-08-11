@@ -20,13 +20,15 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// Distintos endpoints/formas de consulta de la BNE que probamos en orden hasta que
-// uno devuelva un registro. Si la BNE cambia su servicio, se ajustan acá.
+// La BNE usa Ex Libris Alma. SRU: https://catalogo.bne.es/view/sru/34BNE_INST
+// Índices bajo el namespace "alma": isbn, title, creator, subjects, issn, all_for_ui.
+// Probamos varias formas de la consulta hasta que una devuelva un registro.
+const SRU_BASE = "https://catalogo.bne.es/view/sru/34BNE_INST";
+const sru = (query) => SRU_BASE + "?operation=searchRetrieve&version=1.2&recordSchema=marcxml&maximumRecords=1&query=" + encodeURIComponent(query);
 const CANDIDATOS = [
-  (isbn) => ["catalogo/isbn", "https://catalogo.bne.es/uhtbin/sru?version=1.1&operation=searchRetrieve&recordSchema=marcxml&maximumRecords=1&query=" + encodeURIComponent("isbn=" + isbn)],
-  (isbn) => ["catalogo/bath.isbn", "https://catalogo.bne.es/uhtbin/sru?version=1.1&operation=searchRetrieve&recordSchema=marcxml&maximumRecords=1&query=" + encodeURIComponent("bath.isbn=" + isbn)],
-  (isbn) => ["catalogo/1.4", "https://catalogo.bne.es/uhtbin/sru?version=1.1&operation=searchRetrieve&recordSchema=marcxml&maximumRecords=1&query=" + encodeURIComponent("1.4=" + isbn)],
-  (isbn) => ["catalogo-http/isbn", "http://catalogo.bne.es/uhtbin/sru?version=1.1&operation=searchRetrieve&recordSchema=marcxml&maximumRecords=1&query=" + encodeURIComponent("isbn=" + isbn)],
+  (isbn) => ["alma.isbn", sru("alma.isbn=" + isbn)],
+  (isbn) => ['alma.isbn="..."', sru('alma.isbn="' + isbn + '"')],
+  (isbn) => ["alma.all_for_ui", sru("alma.all_for_ui=" + isbn)],
 ];
 
 export default {
