@@ -187,6 +187,22 @@
     </details>
   </div>
 
+  <!-- CHEQUEO DE DUPLICADOS -->
+  <div class="card">
+    <details id="dupDetails">
+      <summary>🔁 Chequeo de duplicados (publicaciones de ML) — <span id="dupResumen" class="pill">sin cargar</span></summary>
+      <div style="margin-top:8px">
+        <p class="small muted">Descargá de Mercado Libre el <b>Excel de tus publicaciones</b> e importalo acá. Cuando cargues un libro que ya tengas publicado, la app te avisa (por <b>ISBN</b>, <b>título + autor</b> o <b>SKU</b>). El archivo se lee <b>en tu teléfono</b>; no se sube a ningún lado.</p>
+        <input id="fileDup" class="hidden" type="file" accept=".xlsx" />
+        <div class="cap-btns">
+          <button class="btn sec" id="btnImportDup">📂 Importar Excel de ML</button>
+          <button class="btn sec hidden" id="btnVaciarDup">🗑️ Vaciar</button>
+        </div>
+        <div id="dupStatus" class="small muted" style="margin-top:8px"></div>
+      </div>
+    </details>
+  </div>
+
   <!-- CAPTURA -->
   <div class="card">
     <h2>1) Foto(s) del libro</h2>
@@ -220,6 +236,7 @@
   <!-- RESULTADO -->
   <div class="card hidden" id="cardResultado">
     <h2>2) Datos de la publicación <span id="confBadge"></span> <span id="colaInfo" class="pill hidden"></span></h2>
+    <div id="dupWarn" class="status err hidden" style="margin-bottom:10px"></div>
 
     <div class="field">
       <label>TÍTULO de la publicación (máx 60)</label>
@@ -301,7 +318,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v23</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v24</span></p>
 
   <!-- Overlay del escáner de código de barras -->
   <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -526,7 +543,7 @@ function construirCampos(){
       const cp=document.createElement("button"); cp.className="copy"; cp.dataset.for="f_"+c.id; cp.textContent="copiar";
       wrap.appendChild(el); wrap.appendChild(cp);
       el.id="f_"+c.id; cont.appendChild(wrap);
-      if(c.id==="titulo_libro"||c.id==="autor") el.addEventListener("input",regenerarTitulo);
+      if(c.id==="titulo_libro"||c.id==="autor") el.addEventListener("input",()=>{ regenerarTitulo(); chequearDupCampos(); });
       if(c.id==="isbn"){
         const row=document.createElement("label");
         row.style.cssText="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--muted,#666);cursor:pointer";
@@ -544,7 +561,7 @@ function construirCampos(){
           if(isbnValido(val)){ msg.textContent="ISBN válido ✓"; msg.style.color="#1a7f37"; }
           else{ msg.textContent="⚠️ ISBN inválido (revisá el dígito de control)"; msg.style.color="#b3261e"; }
         };
-        el.addEventListener("input",chequear); chk.addEventListener("change",chequear);
+        el.addEventListener("input",()=>{ chequear(); chequearDupCampos(); }); chk.addEventListener("change",chequear);
         wrap.appendChild(msg);
       }
       return;
@@ -938,6 +955,159 @@ async function scanLoop(){
   scanTimer=setTimeout(scanLoop, 250);
 }
 
+/* ============================================================
+   Chequeo de duplicados: lee el Excel de publicaciones de ML
+   (en el navegador, sin librerías) y avisa si un libro ya está.
+   ============================================================ */
+async function _inflateRaw(bytes){
+  const ds=new DecompressionStream("deflate-raw");
+  const stream=new Response(new Blob([bytes]).stream().pipeThrough(ds));
+  return new Uint8Array(await stream.arrayBuffer());
+}
+function _rd16(b,o){ return b[o]|(b[o+1]<<8); }
+function _rd32(b,o){ return (b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0; }
+async function _leerZip(buf, quiere){
+  const b=new Uint8Array(buf); let eo=-1;
+  for(let i=b.length-22;i>=0;i--){ if(_rd32(b,i)===0x06054b50){ eo=i; break; } }
+  if(eo<0) throw new Error("No parece un Excel válido.");
+  const nEnt=_rd16(b,eo+10); let off=_rd32(b,eo+16); const salida={};
+  for(let n=0;n<nEnt;n++){
+    if(_rd32(b,off)!==0x02014b50) break;
+    const metodo=_rd16(b,off+10), compSize=_rd32(b,off+20);
+    const nameLen=_rd16(b,off+28), extraLen=_rd16(b,off+30), commLen=_rd16(b,off+32);
+    const loOff=_rd32(b,off+42);
+    const nombre=new TextDecoder().decode(b.subarray(off+46, off+46+nameLen));
+    off += 46+nameLen+extraLen+commLen;
+    if(!quiere(nombre)) continue;
+    const lNameLen=_rd16(b,loOff+26), lExtraLen=_rd16(b,loOff+28);
+    const dataOff=loOff+30+lNameLen+lExtraLen;
+    const comp=b.subarray(dataOff, dataOff+compSize);
+    salida[nombre] = metodo===0 ? comp.slice() : await _inflateRaw(comp);
+  }
+  return salida;
+}
+function _txt(bytes){ return new TextDecoder().decode(bytes); }
+function _unxml(s){ return s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&"); }
+function _sharedStrings(xml){
+  if(!xml) return []; const res=[]; const re=/<si>([\s\S]*?)<\/si>/g; let m;
+  while((m=re.exec(xml))){ let s=""; const rt=/<t[^>]*>([\s\S]*?)<\/t>/g; let mm; while((mm=rt.exec(m[1]))) s+=mm[1]; res.push(_unxml(s)); }
+  return res;
+}
+function _colIdx(ref){ const m=/^([A-Z]+)/.exec(ref); if(!m) return 0; let n=0; for(const ch of m[1]) n=n*26+(ch.charCodeAt(0)-64); return n-1; }
+function _parseSheet(xml, shared){
+  const filas=[]; const reRow=/<row[^>]*>([\s\S]*?)<\/row>/g; let mr;
+  while((mr=reRow.exec(xml))){
+    const celdas=[]; const reC=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g; let mc;
+    while((mc=reC.exec(mr[1]))){
+      const attrs=mc[1]||"", inner=mc[2]||"";
+      const ref=(/r="([^"]+)"/.exec(attrs)||[])[1]||"";
+      const t=(/t="([^"]+)"/.exec(attrs)||[])[1]||"";
+      let val=""; const vv=/<v>([\s\S]*?)<\/v>/.exec(inner); const is=/<t[^>]*>([\s\S]*?)<\/t>/.exec(inner);
+      if(t==="s" && vv) val=shared[parseInt(vv[1],10)]||"";
+      else if(vv) val=_unxml(vv[1]); else if(is) val=_unxml(is[1]);
+      const idx=ref?_colIdx(ref):celdas.length; celdas[idx]=val;
+    }
+    for(let i=0;i<celdas.length;i++) if(celdas[i]==null) celdas[i]="";
+    filas.push(celdas);
+  }
+  return filas;
+}
+async function _leerXlsx(buf){
+  const want=n=> n==="xl/sharedStrings.xml" || /^xl\/worksheets\/sheet\d+\.xml$/.test(n);
+  const ent=await _leerZip(buf, want);
+  const shared=_sharedStrings(ent["xl/sharedStrings.xml"]?_txt(ent["xl/sharedStrings.xml"]):"");
+  const hojas=Object.keys(ent).filter(n=>/worksheets\/sheet\d+\.xml$/.test(n))
+    .sort((a,b)=>(+/sheet(\d+)/.exec(a)[1])-(+/sheet(\d+)/.exec(b)[1]));
+  if(!hojas.length) throw new Error("El Excel no tiene hojas legibles.");
+  return _parseSheet(_txt(ent[hojas[0]]), shared);
+}
+function normText(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+}
+function detectarCols(headers){
+  const norm=headers.map(normText);
+  const find=res=>{ for(let i=0;i<norm.length;i++){ if(res.some(r=>r.test(norm[i]))) return i; } return -1; };
+  return {
+    titulo: find([/titulo del libro/, /titulo/, /^title/, /nombre/]),
+    isbn:   find([/isbn/, /codigo universal/, /\bean\b/, /gtin/]),
+    autor:  find([/autor/]),
+    sku:    find([/\bsku\b/, /codigo interno/]),
+  };
+}
+let pubIndex=null;   // {fecha,count,isbns:Set,claves:Set,skus:Set}
+function cargarPubIndex(){
+  try{
+    const raw=JSON.parse(localStorage.getItem("mlPublicaciones")||"null");
+    if(!raw) return null;
+    return {fecha:raw.fecha, count:raw.count,
+      isbns:new Set(raw.isbns||[]), claves:new Set(raw.claves||[]), skus:new Set(raw.skus||[])};
+  }catch(e){ return null; }
+}
+async function importarPublicacionesML(file){
+  const st=$("dupStatus");
+  st.textContent="Leyendo el Excel…";
+  try{
+    const buf=await file.arrayBuffer();
+    const filas=await _leerXlsx(buf);
+    if(!filas.length) throw new Error("El Excel está vacío.");
+    // Buscar la fila de encabezados (primeras 15 filas) que tenga al menos el título.
+    let hi=-1, cols=null;
+    for(let i=0;i<Math.min(filas.length,15);i++){ const c=detectarCols(filas[i]); if(c.titulo>=0){ hi=i; cols=c; break; } }
+    if(hi<0) throw new Error("No encontré una columna de Título en el Excel. Pasame la fila de encabezados y lo ajusto.");
+    const isbns=new Set(), claves=new Set(), skus=new Set();
+    let n=0;
+    for(let i=hi+1;i<filas.length;i++){
+      const f=filas[i]; if(!f || !f.some(x=>String(x||"").trim())) continue;
+      const titulo=cols.titulo>=0?f[cols.titulo]:"";
+      const autor=cols.autor>=0?f[cols.autor]:"";
+      const isbn=cols.isbn>=0?String(f[cols.isbn]||"").replace(/[^0-9Xx]/g,""):"";
+      const sku=cols.sku>=0?String(f[cols.sku]||"").trim():"";
+      if(!normText(titulo) && !isbn && !sku) continue;
+      if(isbn.length>=10) isbns.add(isbn);
+      if(normText(titulo)) claves.add(normText(titulo)+"|"+normText(autor));
+      if(sku) skus.add(sku.toLowerCase());
+      n++;
+    }
+    const fecha=new Date().toISOString().slice(0,10);
+    localStorage.setItem("mlPublicaciones", JSON.stringify({fecha, count:n,
+      isbns:[...isbns], claves:[...claves], skus:[...skus]}));
+    pubIndex=cargarPubIndex();
+    const detce=[cols.isbn>=0?"ISBN":"", cols.autor>=0?"autor":"", cols.sku>=0?"SKU":""].filter(Boolean).join(", ");
+    st.innerHTML="✅ Importadas <b>"+n+"</b> publicaciones. Columnas usadas: Título"+(detce?", "+detce:"")+".";
+    pintarDupResumen();
+  }catch(e){
+    st.innerHTML='<span style="color:#b3261e">❌ No pude leer el Excel: '+escapeHTML(e.message||String(e))+'</span>';
+  }
+}
+function pintarDupResumen(){
+  const p=$("dupResumen"), b=$("btnVaciarDup");
+  if(pubIndex && pubIndex.count){ p.textContent=pubIndex.count+" publicaciones ("+pubIndex.fecha+")"; b.classList.remove("hidden"); }
+  else{ p.textContent="sin cargar"; b.classList.add("hidden"); }
+}
+// Devuelve el motivo por el que un libro ya estaría publicado, o "".
+function yaPublicado(datos){
+  if(!pubIndex || !pubIndex.count) return "";
+  const isbn=String(datos.isbn||"").replace(/[^0-9Xx]/g,"");
+  if(isbn.length>=10 && pubIndex.isbns.has(isbn)) return "ISBN";
+  const clave=normText(datos.titulo_libro)+"|"+normText(datos.autor);
+  if(normText(datos.titulo_libro) && pubIndex.claves.has(clave)) return "título + autor";
+  const sku=String(datos.sku||"").trim().toLowerCase();
+  if(sku && pubIndex.skus.has(sku)) return "SKU";
+  return "";
+}
+function chequearDupActual(d){
+  const box=$("dupWarn"); if(!box) return;
+  const motivo=yaPublicado(d);
+  if(motivo){ box.innerHTML="⚠️ <b>Puede que ya tengas este libro publicado</b> en ML (coincide el <b>"+motivo+"</b>). Revisalo antes de volver a publicarlo."; box.classList.remove("hidden"); }
+  else box.classList.add("hidden");
+}
+// Re-chequea con lo que hay ahora en los campos (al editar título/autor/ISBN).
+function chequearDupCampos(){
+  if(!$("f_isbn")) return;
+  chequearDupActual({ isbn:getCampo("isbn"), titulo_libro:getCampo("titulo_libro"), autor:getCampo("autor"), sku:getCampo("sku") });
+}
+
 /* ---------- Mostrar resultado ---------- */
 function num(x){ const n=parseInt(x); return isNaN(n)?null:n; }
 function fmt(n){ return "$"+Number(n).toLocaleString("es-AR"); }
@@ -1018,6 +1188,7 @@ function mostrarResultado(d){
   const c=(d.confianza||"").toLowerCase();
   $("confBadge").innerHTML = c ? `<span class="conf ${c}">confianza ${c}</span>` : "";
   $("obs").textContent = d.observaciones ? ("⚠️ "+d.observaciones) : "";
+  chequearDupActual(d);
   $("cardResultado").classList.remove("hidden");
   $("cardResultado").scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -1288,6 +1459,17 @@ $("manualTexto").addEventListener("keydown",e=>{ if(e.key==="Enter"){ const t=e.
 if(soportaScan) $("btnScan").classList.remove("hidden");
 $("btnScan").addEventListener("click",abrirScanner);
 $("btnScanCancel").addEventListener("click",cerrarScanner);
+
+/* ---------- Chequeo de duplicados ---------- */
+pubIndex=cargarPubIndex(); pintarDupResumen();
+$("btnImportDup").addEventListener("click",()=>{
+  if(typeof DecompressionStream==="undefined"){ $("dupStatus").innerHTML='<span style="color:#b3261e">Tu navegador no puede abrir el Excel (probá Chrome actualizado).</span>'; return; }
+  $("fileDup").click();
+});
+$("fileDup").addEventListener("change",async e=>{ if(e.target.files[0]) await importarPublicacionesML(e.target.files[0]); e.target.value=""; });
+$("btnVaciarDup").addEventListener("click",()=>{
+  localStorage.removeItem("mlPublicaciones"); pubIndex=null; pintarDupResumen(); $("dupStatus").textContent="Lista de publicaciones borrada.";
+});
 
 /* ---------- Compartir la app ---------- */
 const CANONICAL="https://estoesunagrabacion-wq.github.io/libros-mercadolibre/";
