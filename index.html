@@ -318,7 +318,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v24</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v25</span></p>
 
   <!-- Overlay del escáner de código de barras -->
   <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -1012,6 +1012,7 @@ function _parseSheet(xml, shared){
   }
   return filas;
 }
+// Devuelve TODAS las hojas (cada una = array de filas), en orden.
 async function _leerXlsx(buf){
   const want=n=> n==="xl/sharedStrings.xml" || /^xl\/worksheets\/sheet\d+\.xml$/.test(n);
   const ent=await _leerZip(buf, want);
@@ -1019,7 +1020,7 @@ async function _leerXlsx(buf){
   const hojas=Object.keys(ent).filter(n=>/worksheets\/sheet\d+\.xml$/.test(n))
     .sort((a,b)=>(+/sheet(\d+)/.exec(a)[1])-(+/sheet(\d+)/.exec(b)[1]));
   if(!hojas.length) throw new Error("El Excel no tiene hojas legibles.");
-  return _parseSheet(_txt(ent[hojas[0]]), shared);
+  return hojas.map(h=>_parseSheet(_txt(ent[h]), shared));
 }
 function normText(s){
   return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
@@ -1029,52 +1030,70 @@ function detectarCols(headers){
   const norm=headers.map(normText);
   const find=res=>{ for(let i=0;i<norm.length;i++){ if(res.some(r=>r.test(norm[i]))) return i; } return -1; };
   return {
-    titulo: find([/titulo del libro/, /titulo/, /^title/, /nombre/]),
+    titulo: find([/^title$/, /titulo del libro/, /^titulo/, /titulo/, /nombre/]),
     isbn:   find([/isbn/, /codigo universal/, /\bean\b/, /gtin/]),
-    autor:  find([/autor/]),
-    sku:    find([/\bsku\b/, /codigo interno/]),
+    autor:  find([/^autor/, /autor/]),
+    sku:    find([/^sku$/, /\bsku\b/, /codigo interno/]),
   };
 }
-let pubIndex=null;   // {fecha,count,isbns:Set,claves:Set,skus:Set}
+// Palabras que delatan una fila de encabezado/rótulo (no datos reales).
+const _HDR_WORDS=new Set(["titulo","title","obligatorio","informacion del producto","publicaciones","condiciones de entrega","condiciones de publicacion"]);
+let pubIndex=null;   // {fecha,count,isbns:Set,skus:Set,titulos:[[tokens],...]}
 function cargarPubIndex(){
   try{
     const raw=JSON.parse(localStorage.getItem("mlPublicaciones")||"null");
     if(!raw) return null;
     return {fecha:raw.fecha, count:raw.count,
-      isbns:new Set(raw.isbns||[]), claves:new Set(raw.claves||[]), skus:new Set(raw.skus||[])};
+      isbns:new Set(raw.isbns||[]), skus:new Set(raw.skus||[]), titulos:raw.titulos||[]};
   }catch(e){ return null; }
+}
+// Tokens significativos de un título (saca acentos, palabras cortas y la etiqueta del título).
+function tokensTitulo(s){
+  const et=normText((typeof C!=="undefined" && C.etiqueta)||"");
+  return normText(s).split(" ").filter(w=>w.length>=3 && w!==et);
 }
 async function importarPublicacionesML(file){
   const st=$("dupStatus");
   st.textContent="Leyendo el Excel…";
   try{
     const buf=await file.arrayBuffer();
-    const filas=await _leerXlsx(buf);
-    if(!filas.length) throw new Error("El Excel está vacío.");
-    // Buscar la fila de encabezados (primeras 15 filas) que tenga al menos el título.
-    let hi=-1, cols=null;
-    for(let i=0;i<Math.min(filas.length,15);i++){ const c=detectarCols(filas[i]); if(c.titulo>=0){ hi=i; cols=c; break; } }
-    if(hi<0) throw new Error("No encontré una columna de Título en el Excel. Pasame la fila de encabezados y lo ajusto.");
-    const isbns=new Set(), claves=new Set(), skus=new Set();
+    const hojas=await _leerXlsx(buf);   // todas las hojas
+    // Buscar, en cualquier hoja, la fila de encabezados (título / ISBN / SKU).
+    let filas=null, hi=-1, cols=null;
+    for(const h of hojas){
+      for(let i=0;i<Math.min(h.length,20);i++){
+        const c=detectarCols(h[i]);
+        if(c.titulo>=0 || c.isbn>=0 || c.sku>=0){ filas=h; hi=i; cols=c; break; }
+      }
+      if(filas) break;
+    }
+    if(hi<0){
+      const muestra=(hojas.find(h=>h.some(r=>r.some(x=>String(x||"").trim())))||[[]])
+        .slice(0,4).map((f,i)=>"fila "+(i+1)+": "+f.filter(x=>String(x||"").trim()).slice(0,12).join(" | ")).join("  ||  ");
+      throw new Error("No reconocí las columnas. Esto es lo que veo → "+muestra+" — pasame esta lista y lo ajusto.");
+    }
+    const isbns=new Set(), skus=new Set(), titulos=[];
     let n=0;
     for(let i=hi+1;i<filas.length;i++){
       const f=filas[i]; if(!f || !f.some(x=>String(x||"").trim())) continue;
-      const titulo=cols.titulo>=0?f[cols.titulo]:"";
-      const autor=cols.autor>=0?f[cols.autor]:"";
+      const titulo=cols.titulo>=0?String(f[cols.titulo]||""):"";
+      const tnorm=normText(titulo);
       const isbn=cols.isbn>=0?String(f[cols.isbn]||"").replace(/[^0-9Xx]/g,""):"";
       const sku=cols.sku>=0?String(f[cols.sku]||"").trim():"";
-      if(!normText(titulo) && !isbn && !sku) continue;
+      // Saltar filas de encabezado/rótulo repetidas (ML tiene varias antes de los datos).
+      if(_HDR_WORDS.has(tnorm)) continue;
+      if(!tnorm && !isbn && !sku) continue;
       if(isbn.length>=10) isbns.add(isbn);
-      if(normText(titulo)) claves.add(normText(titulo)+"|"+normText(autor));
       if(sku) skus.add(sku.toLowerCase());
+      if(tnorm){ const tk=tokensTitulo(titulo); if(tk.length) titulos.push(tk); }
       n++;
     }
     const fecha=new Date().toISOString().slice(0,10);
     localStorage.setItem("mlPublicaciones", JSON.stringify({fecha, count:n,
-      isbns:[...isbns], claves:[...claves], skus:[...skus]}));
+      isbns:[...isbns], skus:[...skus], titulos}));
     pubIndex=cargarPubIndex();
-    const detce=[cols.isbn>=0?"ISBN":"", cols.autor>=0?"autor":"", cols.sku>=0?"SKU":""].filter(Boolean).join(", ");
-    st.innerHTML="✅ Importadas <b>"+n+"</b> publicaciones. Columnas usadas: Título"+(detce?", "+detce:"")+".";
+    const detce=["Título", cols.isbn>=0?"ISBN":"", cols.sku>=0?"SKU":""].filter(Boolean).join(", ");
+    st.innerHTML="✅ Importadas <b>"+n+"</b> publicaciones. Columnas usadas: "+detce+". El aviso compara por <b>título</b>.";
     pintarDupResumen();
   }catch(e){
     st.innerHTML='<span style="color:#b3261e">❌ No pude leer el Excel: '+escapeHTML(e.message||String(e))+'</span>';
@@ -1085,15 +1104,29 @@ function pintarDupResumen(){
   if(pubIndex && pubIndex.count){ p.textContent=pubIndex.count+" publicaciones ("+pubIndex.fecha+")"; b.classList.remove("hidden"); }
   else{ p.textContent="sin cargar"; b.classList.add("hidden"); }
 }
+// ¿El título candidato se parece a alguno ya publicado? (comparación por tokens)
+function tituloParecido(cand){
+  const tk=tokensTitulo(cand); if(tk.length<2) return false;
+  const setC=new Set(tk);
+  for(const t of pubIndex.titulos){
+    if(t.length<2) continue;
+    let shared=0; for(const w of t) if(setC.has(w)) shared++;
+    const ratio=shared/Math.min(tk.length, t.length);
+    if(shared>=3 && ratio>=0.6) return true;
+    if(shared>=2 && ratio>=0.85) return true;
+  }
+  return false;
+}
 // Devuelve el motivo por el que un libro ya estaría publicado, o "".
 function yaPublicado(datos){
   if(!pubIndex || !pubIndex.count) return "";
   const isbn=String(datos.isbn||"").replace(/[^0-9Xx]/g,"");
-  if(isbn.length>=10 && pubIndex.isbns.has(isbn)) return "ISBN";
-  const clave=normText(datos.titulo_libro)+"|"+normText(datos.autor);
-  if(normText(datos.titulo_libro) && pubIndex.claves.has(clave)) return "título + autor";
+  if(isbn.length>=10 && pubIndex.isbns && pubIndex.isbns.has(isbn)) return "ISBN";
   const sku=String(datos.sku||"").trim().toLowerCase();
-  if(sku && pubIndex.skus.has(sku)) return "SKU";
+  if(sku && pubIndex.skus && pubIndex.skus.has(sku)) return "SKU";
+  // El "Título" de ML es el título de la publicación (título del libro + autor + etiqueta).
+  const base=String(datos.titulo||"").trim() || ((datos.titulo_libro||"")+" "+(datos.autor||"")).trim();
+  if(pubIndex.titulos && pubIndex.titulos.length && tituloParecido(base)) return "título";
   return "";
 }
 function chequearDupActual(d){
@@ -1102,10 +1135,10 @@ function chequearDupActual(d){
   if(motivo){ box.innerHTML="⚠️ <b>Puede que ya tengas este libro publicado</b> en ML (coincide el <b>"+motivo+"</b>). Revisalo antes de volver a publicarlo."; box.classList.remove("hidden"); }
   else box.classList.add("hidden");
 }
-// Re-chequea con lo que hay ahora en los campos (al editar título/autor/ISBN).
+// Re-chequea con lo que hay ahora en los campos (usa el título compuesto de la publicación).
 function chequearDupCampos(){
   if(!$("f_isbn")) return;
-  chequearDupActual({ isbn:getCampo("isbn"), titulo_libro:getCampo("titulo_libro"), autor:getCampo("autor"), sku:getCampo("sku") });
+  chequearDupActual({ isbn:getCampo("isbn"), titulo:getCampo("title"), titulo_libro:getCampo("titulo_libro"), autor:getCampo("autor"), sku:getCampo("sku") });
 }
 
 /* ---------- Mostrar resultado ---------- */
@@ -1188,7 +1221,7 @@ function mostrarResultado(d){
   const c=(d.confianza||"").toLowerCase();
   $("confBadge").innerHTML = c ? `<span class="conf ${c}">confianza ${c}</span>` : "";
   $("obs").textContent = d.observaciones ? ("⚠️ "+d.observaciones) : "";
-  chequearDupActual(d);
+  chequearDupCampos();
   $("cardResultado").classList.remove("hidden");
   $("cardResultado").scrollIntoView({behavior:"smooth",block:"start"});
 }

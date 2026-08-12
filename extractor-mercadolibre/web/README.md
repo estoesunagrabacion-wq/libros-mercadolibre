@@ -96,12 +96,13 @@ a **Mercado Libre / Iberlibro / eBay** para ver precios reales.
 
 ### Chequeo de duplicados (¿ya lo tengo publicado?)
 En la tarjeta **🔁 Chequeo de duplicados** podés importar el **Excel de tus publicaciones**
-que descargás de Mercado Libre. La app lo lee **en tu teléfono** (no sube nada) y arma un índice
-por **ISBN**, **título + autor** y **SKU**. A partir de ahí, cuando cargás/escaneás un libro que
-coincide con algo ya publicado, te avisa arriba de los datos: *"⚠️ Puede que ya tengas este libro
-publicado"*. Es solo un aviso (revender otro ejemplar del mismo título es normal): vos decidís.
-Detecta solo las columnas del Excel (Título, ISBN, SKU, Autor); si tu export usa otros nombres,
-avisá y se ajusta. Tocá **🗑️ Vaciar** para borrar la lista importada.
+que descargás de Mercado Libre. La app lo lee **en tu teléfono** (no sube nada), busca la hoja
+**"Publicaciones"** (saltea las hojas de ayuda y las filas de encabezado) y arma un índice por
+**título** (y por **SKU**/ISBN si el export los trae). A partir de ahí, cuando cargás/escaneás un
+libro parecido a algo ya publicado, te avisa arriba de los datos: *"⚠️ Puede que ya tengas este
+libro publicado"*. La comparación de títulos es aproximada (por palabras), así que es un **aviso**,
+no un bloqueo: revender otro ejemplar del mismo título es normal, vos decidís. Tocá **🗑️ Vaciar**
+para borrar la lista importada.
 
 ### Precio real de ML (opcional)
 Si desplegás el **proxy de precios** (carpeta `../proxy-precios/`, un Cloudflare Worker gratis) y
