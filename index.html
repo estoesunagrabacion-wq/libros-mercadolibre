@@ -318,7 +318,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v25</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v26</span></p>
 
   <!-- Overlay del escáner de código de barras -->
   <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -388,17 +388,20 @@ const COLUMNAS = [
   ["En imprenta mayúscula", ()=>""],
   ["Cantidad de libros por set", ()=>""],
   ["Cantidad de páginas", g=>g("paginas")],
-  ["Altura", g=>g("altura_cm")],
+  ["Altura", g=>_entUp(g("altura_cm"))],
   ["Unidad de Altura", g=>g("altura_cm")?"cm":""],
-  ["Ancho", g=>g("ancho_cm")],
+  ["Ancho", g=>_entUp(g("ancho_cm"))],
   ["Unidad de Ancho", g=>g("ancho_cm")?"cm":""],
-  ["Peso", g=>g("peso_g")],
+  ["Peso", g=>_entRound(g("peso_g"))],
   ["Unidad de Peso", g=>g("peso_g")?"g":""],
   ["Material de la tapa del libro", g=>g("material_tapa")],
   ["Resumen de errores", ()=>""],
   ["BUYBOX_FORMULA", ()=>""],
   ["HIDDEN_PICTURES", ()=>""],
 ];
+// Red de seguridad para el Excel: las medidas siempre enteras (sin decimales).
+function _entUp(v){ const n=parseFloat(String(v||"").replace(",",".")); return isNaN(n)?(v||""):String(Math.ceil(n)); }
+function _entRound(v){ const n=parseFloat(String(v||"").replace(",",".")); return isNaN(n)?(v||""):String(Math.round(n)); }
 
 /* Campos editables que se muestran en pantalla (además de título/precio/descripción). */
 const CAMPOS = [
@@ -808,6 +811,13 @@ async function openLibraryBuscar(titulo, autor){
 }
 function rellenar(datos, extra){ for(const k in extra){ if(extra[k] && !(String(datos[k]||"").trim())) datos[k]=extra[k]; } }
 async function enriquecer(datos){
+  // Las medidas que mide la IA con la regla pueden traer decimales: redondearlas hacia arriba
+  // (las que vengan de las bases de datos ya vienen redondeadas).
+  ["altura_cm","ancho_cm","grosor_cm"].forEach(k=>{
+    const v=String(datos[k]||"").trim(); if(!v) return;
+    const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) datos[k]=redondearCm(n);
+  });
+  { const v=String(datos.peso_g||"").trim(); if(v){ const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) datos.peso_g=String(Math.round(n)); } }
   const isbn=(datos.isbn||"").replace(/[^0-9Xx]/g,"");
   if(isbn.length===10||isbn.length===13){
     rellenar(datos, await googleBooks("isbn:"+isbn));

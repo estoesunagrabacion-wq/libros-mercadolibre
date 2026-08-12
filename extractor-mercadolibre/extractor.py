@@ -558,6 +558,19 @@ def rellenar(datos, extra):
 
 
 def enriquecer(datos, cfg=None):
+    # Las medidas que mide la IA con la regla pueden traer decimales: redondearlas hacia arriba
+    # (las que vengan de las bases de datos ya vienen redondeadas).
+    for k in ("altura_cm", "ancho_cm", "grosor_cm"):
+        v = limpiar(datos.get(k))
+        if v:
+            m = re.search(r"[\d.,]+", v)
+            if m:
+                datos[k] = redondear_cm(float(m.group(0).replace(",", ".")))
+    pw = limpiar(datos.get("peso_g"))
+    if pw:
+        m = re.search(r"[\d.,]+", pw)
+        if m:
+            datos["peso_g"] = str(round(float(m.group(0).replace(",", "."))))
     isbn = re.sub(r"[^0-9Xx]", "", datos.get("isbn", "") or "")
     if len(isbn) in (10, 13):
         rellenar(datos, google_books(f"isbn:{isbn}"))
@@ -689,7 +702,14 @@ def construir_registro(datos, cfg):
         elif clave.startswith("__"):
             reg[header] = derivados.get(clave, "")
         else:
-            reg[header] = limpiar(datos.get(clave))
+            val = limpiar(datos.get(clave))
+            # Red de seguridad: medidas del libro siempre enteras (sin decimales).
+            if val and clave in ("altura_cm", "ancho_cm", "peso_g"):
+                m = re.search(r"[\d.,]+", val)
+                if m:
+                    x = float(m.group(0).replace(",", "."))
+                    val = str(round(x) if clave == "peso_g" else math.ceil(x))
+            reg[header] = val
     return reg
 
 
