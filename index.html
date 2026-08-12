@@ -197,6 +197,7 @@
         <button class="btn" id="btnCam">📷 Cámara</button>
         <button class="btn sec" id="btnGal">🖼️ Galería</button>
       </div>
+      <button class="btn sec hidden" id="btnScan" style="width:100%;margin-top:8px">🔖 Escanear código de barras (ISBN)</button>
       <div id="thumbs" class="thumbs"></div>
       <label class="chk"><input type="checkbox" id="chkVarios" /> La(s) foto(s) tienen <b>varios libros distintos</b></label>
       <button class="btn blue hidden" id="btnAnalizar">🔎 Analizar</button>
@@ -300,7 +301,14 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v22</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v23</span></p>
+
+  <!-- Overlay del escáner de código de barras -->
+  <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <video id="scanVideo" playsinline muted style="max-width:100%;max-height:80vh"></video>
+    <p style="color:#fff;margin:12px;text-align:center">Apuntá al código de barras del libro…</p>
+    <button class="btn sec" id="btnScanCancel" style="max-width:200px">Cancelar</button>
+  </div>
 </div>
 
 <script>
@@ -529,6 +537,15 @@ function construirCampos(){
         });
         const sp=document.createElement("span"); sp.textContent="ISBN genérico (uno real que ML acepta, para libros sin ISBN)";
         row.appendChild(chk); row.appendChild(sp); wrap.appendChild(row);
+        const msg=document.createElement("div"); msg.id="isbnMsg"; msg.style.cssText="font-size:12px;margin-top:4px";
+        const chequear=()=>{
+          const val=el.value.trim();
+          if(!val){ msg.textContent=""; return; }
+          if(isbnValido(val)){ msg.textContent="ISBN válido ✓"; msg.style.color="#1a7f37"; }
+          else{ msg.textContent="⚠️ ISBN inválido (revisá el dígito de control)"; msg.style.color="#b3261e"; }
+        };
+        el.addEventListener("input",chequear); chk.addEventListener("change",chequear);
+        wrap.appendChild(msg);
       }
       return;
     }
@@ -875,6 +892,52 @@ async function procesarManual(dato){
   }catch(e){ setStatus("err","❌ "+e.message); }
 }
 
+/* ---------- Validación de ISBN (dígito de control) ---------- */
+function isbnValido(raw){
+  const s=String(raw||"").replace(/[^0-9Xx]/g,"").toUpperCase();
+  if(s.length===13){
+    if(!/^\d{13}$/.test(s)) return false;
+    let sum=0; for(let i=0;i<12;i++) sum+=(i%2?3:1)*(+s[i]);
+    return (10-(sum%10))%10 === +s[12];
+  }
+  if(s.length===10){
+    if(!/^\d{9}[\dX]$/.test(s)) return false;
+    let sum=0; for(let i=0;i<9;i++) sum+=(10-i)*(+s[i]);
+    sum += (s[9]==="X"?10:+s[9]);
+    return sum%11===0;
+  }
+  return false;
+}
+
+/* ---------- Escáner de código de barras (ISBN) ---------- */
+const soportaScan = (typeof window!=="undefined") && ("BarcodeDetector" in window);
+let scanStream=null, scanTimer=null, scanDetector=null;
+async function abrirScanner(){
+  if(!soportaScan){ setStatus("err","Este navegador no puede escanear (probá Chrome en Android). Podés escribir el ISBN a mano."); return; }
+  try{
+    scanDetector = scanDetector || new BarcodeDetector({formats:["ean_13"]});
+    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    const v=$("scanVideo"); v.srcObject=scanStream; await v.play();
+    $("scanOverlay").classList.remove("hidden");
+    scanLoop();
+  }catch(e){ setStatus("err","No pude abrir la cámara: "+(e.message||e)); cerrarScanner(); }
+}
+function cerrarScanner(){
+  if(scanTimer){ clearTimeout(scanTimer); scanTimer=null; }
+  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+  const v=$("scanVideo"); if(v) v.srcObject=null;
+  $("scanOverlay").classList.add("hidden");
+}
+async function scanLoop(){
+  if(!scanStream) return;
+  try{
+    const codes=await scanDetector.detect($("scanVideo"));
+    const hit=(codes||[]).map(c=>String(c.rawValue||"").replace(/\D/g,"")).find(v=>/^97[89]\d{10}$/.test(v));
+    if(hit){ cerrarScanner(); $("manualTexto").value=hit; procesarManual(hit); return; }
+  }catch(e){}
+  scanTimer=setTimeout(scanLoop, 250);
+}
+
 /* ---------- Mostrar resultado ---------- */
 function num(x){ const n=parseInt(x); return isNaN(n)?null:n; }
 function fmt(n){ return "$"+Number(n).toLocaleString("es-AR"); }
@@ -895,7 +958,7 @@ function precioResuelto(d){
 }
 function armarTitulo(t,a){ let x=[t,a,C.etiqueta].filter(v=>v&&v.trim()).join(" ").replace(/\s+/g," ").trim();
   if(x.length>60) x=x.slice(0,60).trim(); return x; }
-function setCampo(id,v){ const el=$("f_"+id); if(el) el.value=(v==null?"":v); }
+function setCampo(id,v){ const el=$("f_"+id); if(el){ el.value=(v==null?"":v); if(id==="isbn") el.dispatchEvent(new Event("input")); } }
 function getCampo(id){ const el=$("f_"+id); return el?String(el.value).trim():""; }
 
 /* Título en itálicas Unicode (solo letras/dígitos ASCII; los acentos quedan normales). */
@@ -1121,6 +1184,13 @@ function pintarValidacion(){
   }else{
     html+='<div class="status ok" style="margin-top:8px">✅ Todos los libros tienen los datos obligatorios (salvo las Fotos, que van en ML).</div>';
   }
+  const malIsbn=libros.map((it,i)=>({i, isbn:(it.vals&&it.vals.isbn)||"", title:(it.vals&&it.vals.title)||"(sin título)"}))
+    .filter(x=>x.isbn.trim() && !isbnValido(x.isbn));
+  if(malIsbn.length){
+    html+='<div class="status err" style="margin-top:8px"><b>⚠️ '+malIsbn.length+' libro(s) con ISBN inválido</b> (ML los rechaza; revisá el dígito o usá el ISBN genérico):<ul style="margin:6px 0 0;padding-left:18px">';
+    malIsbn.forEach(p=>{ html+=`<li>#${p.i+1} ${escapeHTML(p.title.slice(0,40))} — <b>${escapeHTML(p.isbn)}</b> · <a href="#" data-edit="${p.i}">editar</a></li>`; });
+    html+='</ul></div>';
+  }
   box.innerHTML=html;
   box.querySelectorAll('[data-edit]').forEach(a=>a.addEventListener('click',ev=>{ ev.preventDefault(); editarItem(parseInt(a.dataset.edit,10)); }));
 }
@@ -1215,6 +1285,9 @@ $("fileGal").addEventListener("change",async e=>{ await sumarArchivos([...e.targ
 $("btnAnalizar").addEventListener("click",analizarFotos);
 $("btnManual").addEventListener("click",()=>{ const t=$("manualTexto").value.trim(); if(t) procesarManual(t); });
 $("manualTexto").addEventListener("keydown",e=>{ if(e.key==="Enter"){ const t=e.target.value.trim(); if(t) procesarManual(t); }});
+if(soportaScan) $("btnScan").classList.remove("hidden");
+$("btnScan").addEventListener("click",abrirScanner);
+$("btnScanCancel").addEventListener("click",cerrarScanner);
 
 /* ---------- Compartir la app ---------- */
 const CANONICAL="https://estoesunagrabacion-wq.github.io/libros-mercadolibre/";

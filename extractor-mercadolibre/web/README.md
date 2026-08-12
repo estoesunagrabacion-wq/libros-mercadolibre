@@ -54,6 +54,11 @@ El campo **SKU / ubicación** viene con tu valor por defecto (Configuración) y 
 libro. En la lista, cada libro tiene **✏️ Editar** (lo vuelve a abrir con todos sus datos para
 modificarlo sin perder nada) y **✕ Quitar**.
 
+### Escanear el código de barras (ISBN)
+Si el libro tiene **código de barras**, tocá **🔖 Escanear código de barras (ISBN)**: se abre la
+cámara, apuntás al código y la app carga el ISBN y busca los datos sola (sin gastar IA). Funciona
+en **Chrome de Android**; en iPhone (Safari) el botón no aparece y se escribe el ISBN a mano.
+
 ### Varias fotos del mismo libro
 Sumá tapa + contratapa + la hoja con el **ISBN** antes de tocar **Analizar**: la app las combina
 en un solo libro y, con el ISBN, trae muchos más datos (editorial, año, páginas, etc.).
@@ -115,6 +120,9 @@ cada uno. Así evitás que Mercado Libre te rechace la planilla.
 > las URLs y pegalas en el campo **Fotos (URLs de ML)** de cada libro en la app (separadas por coma):
 > así el Excel ya baja con la columna Fotos completa y no hay que tocarla después.
 > El **ISBN** también es obligatorio: si el libro no tiene, poné uno de relleno válido (como hacés a mano).
+
+> La app **valida el dígito de control** del ISBN: te avisa debajo del campo si está mal escrito, y
+> lista los libros con ISBN inválido en el aviso de datos obligatorios (así evitás rechazos de ML).
 
 ### Foto genérica (para no pelear con el gestor de fotos)
 En **⚙️ Configuración → Foto genérica (URL)** podés pegar el link de **una** imagen. Si está
