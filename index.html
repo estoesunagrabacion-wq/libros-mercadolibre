@@ -320,7 +320,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v28</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v29</span></p>
 
   <!-- Overlay del escáner de código de barras -->
   <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -672,20 +672,31 @@ async function pedirGemini(modelo,prompt,imagenes){
     body:JSON.stringify({contents:[{parts}],generationConfig:{response_mime_type:"application/json",temperature:0.1}})});
 }
 async function leerGemini(r){ const d=await r.json(); return d.candidates[0].content.parts[0].text; }
+const _esTransitorio = s => [429,500,502,503,504].includes(s);
 async function llamarGemini(prompt,imagenes){
-  if(C.modelo){ const r=await pedirGemini(C.modelo,prompt,imagenes);
-    if(r.ok) return leerGemini(r); if(r.status!==404) throw new Error(await mensajeError(r)); }
-  if(!geminiCandidatos) geminiCandidatos=await listarModelosGemini();
-  const cand=geminiCandidatos.filter(n=>!geminiMalos.has(n));
-  if(!cand.length) throw new Error("Ningún modelo de Gemini de tu clave está disponible. Generá la clave en un proyecto nuevo, o usá OpenAI/Claude.");
-  let ult=null;
-  for(const modelo of cand){
-    const r=await pedirGemini(modelo,prompt,imagenes);
-    if(r.ok) return leerGemini(r);
-    if(r.status===404){ geminiMalos.add(modelo); ult=await mensajeError(r); continue; }
-    throw new Error(await mensajeError(r));
+  // Lista de modelos disponibles (con el modelo fijo, si hay, primero).
+  let lista=[];
+  try{ if(!geminiCandidatos) geminiCandidatos=await listarModelosGemini(); lista=geminiCandidatos.slice(); }
+  catch(e){ if(!C.modelo) throw e; }
+  if(C.modelo) lista=[C.modelo, ...lista.filter(n=>n!==C.modelo)];
+  lista=lista.filter(n=>!geminiMalos.has(n));
+  if(!lista.length) throw new Error("Ningún modelo de Gemini de tu clave está disponible. Generá la clave en un proyecto nuevo, o usá otro servicio (Grok/OpenAI/Claude).");
+  let ultTrans=null, huboTrans=false;
+  for(let pasada=0; pasada<2; pasada++){
+    for(const modelo of lista){
+      if(geminiMalos.has(modelo)) continue;
+      const r=await pedirGemini(modelo,prompt,imagenes);
+      if(r.ok) return leerGemini(r);
+      const st=r.status, msg=await mensajeError(r);
+      if(st===404){ geminiMalos.add(modelo); continue; }        // no existe: descartarlo
+      if(_esTransitorio(st)){ huboTrans=true; ultTrans=msg; continue; }  // sobrecarga: probar otro
+      throw new Error(msg);                                      // error real (clave, cuota, etc.)
+    }
+    if(!huboTrans) break;
+    if(pasada===0) await new Promise(res=>setTimeout(res,2500)); // esperar y reintentar una vez
   }
-  throw new Error("Los modelos de Gemini de tu clave dan 404. Generá la clave en un proyecto nuevo, o usá OpenAI/Claude. "+(ult||""));
+  if(huboTrans) throw new Error("Los modelos de Gemini están sobrecargados en este momento (503). Reintentá en unos segundos, o cambiá a otro servicio (Grok / OpenAI / Claude) en ⚙️ Configuración. "+(ultTrans||""));
+  throw new Error("Ningún modelo de Gemini de tu clave respondió. Generá la clave en un proyecto nuevo, o usá otro servicio (Grok/OpenAI/Claude).");
 }
 // Caller genérico para APIs compatibles con OpenAI (OpenAI, Grok/xAI, DeepSeek).
 async function llamarOAI(url, modeloDef, prompt, imagenes, permiteFotos){
