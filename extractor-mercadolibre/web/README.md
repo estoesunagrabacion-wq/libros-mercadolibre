@@ -42,7 +42,8 @@ abre la misma herramienta en su celular, sin instalar nada (cada uno usa su prop
 2. Elegí el **servicio de IA** y pegá tu **API key**:
    - **Google Gemini (gratis para empezar):** conseguí la clave en
      https://aistudio.google.com/app/apikey
-   - OpenAI o Claude también funcionan (pegás su clave).
+   - **OpenAI**, **Claude (Anthropic)** o **Grok (xAI)** también leen las fotos (pegás su clave).
+   - **DeepSeek** también sirve, pero **no lee fotos**: usalo solo para buscar por **ISBN o texto**.
 3. Ajustá la **etiqueta del título** (ej. `Microcentro`), la **moneda** y el modo de **precio**.
 4. Tocá **💾 Guardar configuración**. Listo (queda guardado en el teléfono).
 

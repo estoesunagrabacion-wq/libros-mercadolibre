@@ -128,7 +128,7 @@ python extractor.py --carpeta "C:\Users\vos\Desktop\libros" --salida "hoy.xlsx"
 
 | Campo | Qué hace | Valores |
 |-------|----------|---------|
-| `proveedor` | Qué IA usar | `gemini`, `openai`, `anthropic` |
+| `proveedor` | Qué IA usar | `gemini`, `openai`, `anthropic`, `grok`, `deepseek` (deepseek: solo ISBN/texto) |
 | `api_key` | Tu clave | (texto) |
 | `modelo` | Modelo puntual (opcional) | vacío = **autodetección** (Gemini) |
 | `carpeta_fotos` | Dónde están las fotos | `fotos` |

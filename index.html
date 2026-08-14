@@ -98,6 +98,8 @@
           <option value="gemini">Google Gemini (recomendado — tiene plan gratis)</option>
           <option value="openai">OpenAI (GPT-4o-mini)</option>
           <option value="anthropic">Claude (Anthropic)</option>
+          <option value="grok">Grok (xAI)</option>
+          <option value="deepseek">DeepSeek (solo ISBN/texto — no lee fotos)</option>
         </select>
 
         <label>API key <span class="muted" id="keyHelp"></span></label>
@@ -318,7 +320,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v26</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v27</span></p>
 
   <!-- Overlay del escáner de código de barras -->
   <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -434,11 +436,14 @@ const CAMPOS = [
   {id:"material_tapa", label:"Material de la tapa"},
 ];
 
-const MODELOS = { gemini:"gemini-2.5-flash", openai:"gpt-4o-mini", anthropic:"claude-3-5-sonnet-20241022" };
+const MODELOS = { gemini:"gemini-2.5-flash", openai:"gpt-4o-mini", anthropic:"claude-3-5-sonnet-20241022",
+  grok:"grok-2-vision-1212", deepseek:"deepseek-chat" };
 const KEY_HELP = {
   gemini:'(gratis en <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>)',
   openai:'(en platform.openai.com)',
-  anthropic:'(en console.anthropic.com)'
+  anthropic:'(en console.anthropic.com)',
+  grok:'(en <a href="https://console.x.ai" target="_blank" rel="noopener">console.x.ai</a> — sí lee fotos)',
+  deepseek:'(en <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a> — NO lee fotos, solo ISBN/texto)'
 };
 
 const $ = (id)=>document.getElementById(id);
@@ -639,7 +644,9 @@ async function llamarIA(prompt, imagenes){
   imagenes = imagenes || [];
   if(!C.apiKey) throw new Error("Falta la API key. Abrí ⚙️ Configuración y pegá tu clave.");
   if(C.proveedor==="gemini") return llamarGemini(prompt,imagenes);
-  if(C.proveedor==="openai") return llamarOpenAI(prompt,imagenes);
+  if(C.proveedor==="openai") return llamarOAI("https://api.openai.com/v1/chat/completions", MODELOS.openai, prompt, imagenes, true);
+  if(C.proveedor==="grok") return llamarOAI("https://api.x.ai/v1/chat/completions", MODELOS.grok, prompt, imagenes, true);
+  if(C.proveedor==="deepseek") return llamarOAI("https://api.deepseek.com/chat/completions", MODELOS.deepseek, prompt, imagenes, false);
   if(C.proveedor==="anthropic") return llamarAnthropic(prompt,imagenes);
   throw new Error("Proveedor desconocido");
 }
@@ -679,12 +686,18 @@ async function llamarGemini(prompt,imagenes){
   }
   throw new Error("Los modelos de Gemini de tu clave dan 404. Generá la clave en un proyecto nuevo, o usá OpenAI/Claude. "+(ult||""));
 }
-async function llamarOpenAI(prompt,imagenes){
-  const content=[{type:"text",text:prompt}];
-  imagenes.forEach(im=>content.push({type:"image_url",image_url:{url:`data:${im.mime};base64,${im.b64}`}}));
-  const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
+// Caller genérico para APIs compatibles con OpenAI (OpenAI, Grok/xAI, DeepSeek).
+async function llamarOAI(url, modeloDef, prompt, imagenes, permiteFotos){
+  if(imagenes.length && !permiteFotos)
+    throw new Error("Este proveedor no puede leer fotos. Usalo con ISBN o texto, o elegí Gemini / Grok / OpenAI / Claude para leer la tapa.");
+  let content=prompt;
+  if(imagenes.length){
+    content=[{type:"text",text:prompt}];
+    imagenes.forEach(im=>content.push({type:"image_url",image_url:{url:`data:${im.mime};base64,${im.b64}`}}));
+  }
+  const r=await fetch(url,{method:"POST",
     headers:{"Content-Type":"application/json","Authorization":"Bearer "+C.apiKey},
-    body:JSON.stringify({model:C.modelo||MODELOS.openai,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
+    body:JSON.stringify({model:C.modelo||modeloDef,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
   if(!r.ok) throw new Error(await mensajeError(r));
   return (await r.json()).choices[0].message.content;
 }

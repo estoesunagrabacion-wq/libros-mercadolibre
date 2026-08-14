@@ -96,11 +96,21 @@ MODELOS_POR_DEFECTO = {
     "gemini": "gemini-2.5-flash",  # si no existe, se autodetecta uno disponible
     "openai": "gpt-4o-mini",
     "anthropic": "claude-3-5-sonnet-20241022",
+    "grok": "grok-2-vision-1212",
+    "deepseek": "deepseek-chat",   # solo texto (no lee fotos)
 }
 VAR_ENTORNO_KEY = {
     "gemini": "GEMINI_API_KEY",
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
+    "grok": "XAI_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+}
+# APIs compatibles con OpenAI: (URL, ¿lee fotos?)
+OPENAI_COMPAT = {
+    "openai": ("https://api.openai.com/v1/chat/completions", True),
+    "grok": ("https://api.x.ai/v1/chat/completions", True),
+    "deepseek": ("https://api.deepseek.com/chat/completions", False),
 }
 EXTENSIONES_IMAGEN = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".bmp", ".gif"}
 
@@ -295,12 +305,20 @@ def llamar_gemini(cfg, prompt, imagenes):
                        "Generá la clave en un proyecto nuevo, o usá OpenAI/Claude.")
 
 
-def llamar_openai(cfg, prompt, imagenes):
-    modelo = cfg["modelo"] or MODELOS_POR_DEFECTO["openai"]
-    content = [{"type": "text", "text": prompt}]
-    for b64, mime in imagenes:
-        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
-    r = requests.post("https://api.openai.com/v1/chat/completions",
+def llamar_oai(cfg, prompt, imagenes):
+    # Compatible con OpenAI, Grok (xAI) y DeepSeek.
+    url, permite_fotos = OPENAI_COMPAT[cfg["proveedor"]]
+    modelo = cfg["modelo"] or MODELOS_POR_DEFECTO[cfg["proveedor"]]
+    if imagenes and not permite_fotos:
+        raise RuntimeError(f"El proveedor '{cfg['proveedor']}' no lee fotos; usalo con --isbn o --texto, "
+                           "o elegí gemini/grok/openai/anthropic para las fotos.")
+    if imagenes:
+        content = [{"type": "text", "text": prompt}]
+        for b64, mime in imagenes:
+            content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
+    else:
+        content = prompt
+    r = requests.post(url,
                       headers={"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"},
                       json={"model": modelo, "messages": [{"role": "user", "content": content}],
                             "response_format": {"type": "json_object"}, "temperature": 0.1}, timeout=180)
@@ -327,7 +345,7 @@ def llamar_ia(cfg, prompt, imagenes=None):
     imagenes = imagenes or []
     p = cfg["proveedor"]
     if p == "gemini": return llamar_gemini(cfg, prompt, imagenes)
-    if p == "openai": return llamar_openai(cfg, prompt, imagenes)
+    if p in OPENAI_COMPAT: return llamar_oai(cfg, prompt, imagenes)
     if p == "anthropic": return llamar_anthropic(cfg, prompt, imagenes)
     raise ValueError(f"Proveedor desconocido: {p}")
 
