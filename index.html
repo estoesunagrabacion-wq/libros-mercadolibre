@@ -320,7 +320,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v27</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v28</span></p>
 
   <!-- Overlay del escáner de código de barras -->
   <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -374,6 +374,7 @@ const COLUMNAS = [
   ["Volumen del libro", ()=>""],
   ["Índice", g=>g("indice")],
   ["Año de publicación", g=>g("anio")],
+  ["Género del libro", ()=>""],
   ["Páginas para colorear", ()=>""],
   ["Realidad aumentada", ()=>""],
   ["Coautores", g=>g("coautores")],
@@ -1310,7 +1311,7 @@ function snapshotItem(){
   return { vals, cfg:cfgSnapshot(),
            confianza:(actual&&actual.confianza)||"", observaciones:(actual&&actual.observaciones)||"" };
 }
-// Construye la fila de 61 columnas a partir de un libro guardado.
+// Construye la fila de 62 columnas a partir de un libro guardado.
 function filaFromItem(item){
   const v=item.vals||{}; const cfg=item.cfg||{};
   const g=id=>String(v[id]!=null?v[id]:"").trim();

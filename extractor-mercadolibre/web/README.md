@@ -148,7 +148,7 @@ acepta) aunque no sea el del libro. Cuál se usa se configura en **⚙️ Config
 
 ### Qué trae la planilla
 
-Las **61 columnas** de la planilla oficial **"Publicar varios productos"** de Mercado Libre
+Las **62 columnas** de la planilla oficial **"Publicar varios productos"** de Mercado Libre
 (categoría Libros Físicos), en el mismo orden (A → BI): Título, Condición, ISBN, SKU, Stock,
 Precio, Descripción, medidas y peso del paquete, forma de envío y condiciones de venta, y
 todas las características del libro (Autor, Editorial, Subtítulo, Serie, Idioma, Edición, Tapa,

@@ -19,7 +19,7 @@ Viene en **dos versiones**:
 
 1. Tomás fotos de las tapas y las ponés en la carpeta `fotos/` (una foto por libro).
 2. Corrés un comando.
-3. Se genera `salida.xlsx` con **las 61 columnas** de la planilla oficial
+3. Se genera `salida.xlsx` con **las 62 columnas** de la planilla oficial
    **"Publicar varios productos"** de Mercado Libre (Libros Físicos), en orden.
    Abrís el archivo, **copiás las filas** y las pegás en la planilla que descargás de ML.
 
@@ -185,7 +185,7 @@ correspondiente. También podés dejar la clave en una variable de entorno
 
 ## Cómo pasar los datos a Mercado Libre
 
-La salida usa las **61 columnas** de la planilla oficial **"Publicar varios productos"**
+La salida usa las **62 columnas** de la planilla oficial **"Publicar varios productos"**
 (Libros Físicos). Para publicar:
 
 1. Descargá esa planilla desde Mercado Libre (Publicar → varios productos → Libros Físicos).
