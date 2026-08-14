@@ -5,7 +5,7 @@ Extractor de datos de libros para publicaciones de Mercado Libre (versión escri
 
 A partir de FOTOS de libros (tapa, y opcionalmente contratapa / hoja con el ISBN),
 usa un modelo de IA con visión + bases de datos gratuitas (Google Books / OpenLibrary)
-y genera un Excel con las 61 columnas de la planilla oficial
+y genera un Excel con las 62 columnas de la planilla oficial
 "Publicar varios productos" de Mercado Libre (Libros Físicos).
 
 Uso rápido:
@@ -114,7 +114,7 @@ OPENAI_COMPAT = {
 }
 EXTENSIONES_IMAGEN = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".bmp", ".gif"}
 
-# Las 61 columnas de la planilla, en orden. Cada entrada: (encabezado, clave o None).
+# Las 62 columnas de la planilla, en orden. Cada entrada: (encabezado, clave o None).
 # clave None = columna gris/automática (queda vacía).
 COLUMNAS = [
     ("Código de catálogo ML", None),
@@ -152,6 +152,7 @@ COLUMNAS = [
     ("Volumen del libro", None),
     ("Índice", "indice"),
     ("Año de publicación", "anio"),
+    ("Género del libro", None),
     ("Páginas para colorear", None),
     ("Realidad aumentada", None),
     ("Coautores", "coautores"),
@@ -613,7 +614,7 @@ def enriquecer(datos, cfg=None):
 
 
 # ---------------------------------------------------------------------------
-# Armado del registro (61 columnas)
+# Armado del registro (62 columnas)
 # ---------------------------------------------------------------------------
 
 def limpiar(x):
@@ -926,7 +927,7 @@ def main():
             escribir_excel(registros, salida)
     else:
         escribir_excel(registros, salida)
-        print(f"\n✅ Listo. {len(registros)} fila(s) con las 61 columnas de ML en:\n   {salida}")
+        print(f"\n✅ Listo. {len(registros)} fila(s) con las 62 columnas de ML en:\n   {salida}")
         print("   Abrí el archivo, copiá las filas y pegalas en la planilla que bajás de Mercado Libre.")
 
 
