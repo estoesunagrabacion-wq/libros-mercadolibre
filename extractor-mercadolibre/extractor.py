@@ -287,23 +287,37 @@ def _pedir_gemini(cfg, modelo, prompt, imagenes):
 
 def llamar_gemini(cfg, prompt, imagenes):
     global _gemini_modelos
-    if cfg.get("modelo"):
-        r = _pedir_gemini(cfg, cfg["modelo"], prompt, imagenes)
-        if r.ok:
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-        if r.status_code != 404:
-            r.raise_for_status()
     if _gemini_modelos is None:
         _gemini_modelos = _listar_modelos_gemini(cfg)
-    for modelo in [m for m in _gemini_modelos if m not in _gemini_malos]:
-        r = _pedir_gemini(cfg, modelo, prompt, imagenes)
-        if r.ok:
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-        if r.status_code == 404:
-            _gemini_malos.add(modelo); continue
-        r.raise_for_status()
-    raise RuntimeError("Ningún modelo de Gemini de tu clave está disponible (404). "
-                       "Generá la clave en un proyecto nuevo, o usá OpenAI/Claude.")
+    lista = list(_gemini_modelos)
+    if cfg.get("modelo"):
+        lista = [cfg["modelo"]] + [m for m in lista if m != cfg["modelo"]]
+    lista = [m for m in lista if m not in _gemini_malos]
+    if not lista:
+        raise RuntimeError("Ningún modelo de Gemini de tu clave está disponible. "
+                           "Generá la clave en un proyecto nuevo, o usá otro servicio (grok/openai/anthropic).")
+    hubo_trans = False
+    for pasada in range(2):
+        for modelo in lista:
+            if modelo in _gemini_malos:
+                continue
+            r = _pedir_gemini(cfg, modelo, prompt, imagenes)
+            if r.ok:
+                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            if r.status_code == 404:
+                _gemini_malos.add(modelo); continue          # no existe: descartarlo
+            if r.status_code in (429, 500, 502, 503, 504):
+                hubo_trans = True; continue                  # sobrecarga: probar otro
+            r.raise_for_status()                             # error real (clave, cuota, etc.)
+        if not hubo_trans:
+            break
+        if pasada == 0:
+            time.sleep(3)                                    # esperar y reintentar una vez
+    if hubo_trans:
+        raise RuntimeError("Los modelos de Gemini están sobrecargados en este momento (503). "
+                           "Reintentá en un momento, o usá otro servicio (grok/openai/anthropic).")
+    raise RuntimeError("Ningún modelo de Gemini de tu clave respondió. "
+                       "Generá la clave en un proyecto nuevo, o usá otro servicio (grok/openai/anthropic).")
 
 
 def llamar_oai(cfg, prompt, imagenes):
