@@ -92,6 +92,16 @@ pantalla principal.
   gastos en **Efectivo** y también los que **no** tengan medio indicado; quedan afuera
   solo los marcados como Tarjeta u Otros (ej. alquiler por transferencia).
 
+### Corregir un error
+
+- **Deshacer último:** en la pantalla principal, el botón *↶ Deshacer último movimiento*
+  borra el registro más reciente (con confirmación).
+- **Eliminar cualquiera:** en *Ver detalle*, cada movimiento tiene un botón 🗑 para
+  borrarlo (con confirmación). Antes de borrar, la app valida que sea el movimiento
+  correcto; si la lista cambió, avisa y no borra nada.
+- También podés **editar o borrar** directamente en la pestaña `Registro` de la
+  planilla, como con cualquier Google Sheet.
+
 ### Separación por día en la planilla
 
 Cuando cambia el día, la app deja **una fila en blanco** en la pestaña `Registro`,

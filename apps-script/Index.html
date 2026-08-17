@@ -190,6 +190,33 @@
     }
     .ver-detalle:hover { color: var(--gold-bright); }
 
+    .deshacer {
+      display: block; width: 100%; margin-top: 2px; cursor: pointer;
+      background: transparent; border: 0; padding: 6px 0 0;
+      color: var(--gold-dim); font-family: var(--serif-text); font-style: italic; font-size: .92rem;
+      transition: color .15s;
+    }
+    .deshacer:hover { color: var(--gasto); }
+
+    /* Confirmación de borrado */
+    .confirm {
+      position: fixed; inset: 0; z-index: 95; display: none;
+      background: rgba(8, 6, 4, .74); backdrop-filter: blur(2px); padding: 24px;
+    }
+    .confirm.abierto { display: flex; align-items: center; justify-content: center; }
+    .confirm-box {
+      width: 100%; max-width: 380px; background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--line); border-radius: 4px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    }
+    .confirm-msg { color: var(--parchment); font-size: 1.08rem; line-height: 1.5; margin-bottom: 20px; }
+    .confirm-acc { display: flex; gap: 10px; justify-content: flex-end; }
+    .confirm-acc button {
+      cursor: pointer; border-radius: 3px; padding: 11px 18px;
+      font-family: var(--serif-display); font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+    }
+    .confirm-no { background: transparent; color: var(--gold); border: 1px solid var(--line); }
+    .confirm-si { background: linear-gradient(180deg, var(--gasto), var(--gasto-deep)); color: #f6efdc; border: 1px solid var(--gasto); }
+
     /* Ventana de detalle */
     .modal {
       position: fixed; inset: 0; z-index: 80; display: none;
@@ -252,7 +279,7 @@
     }
     .detalle-cont { overflow-y: auto; padding: 6px 20px 20px; }
 
-    .mov { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+    .mov { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
     .mov:last-child { border-bottom: 0; }
     .mov .info { flex: 1; min-width: 0; }
     .mov .det { color: var(--parchment); font-size: 1.05rem; }
@@ -263,6 +290,11 @@
     .mov.ingreso .monto { color: #7fc79b; }
     .mov.egreso .monto { color: #d98b78; }
     .mov .usd { display: block; font-size: .78rem; color: var(--gold-dim); font-weight: 400; text-align: right; }
+    .mov .del {
+      flex-shrink: 0; width: 30px; height: 30px; border-radius: 3px; cursor: pointer;
+      background: transparent; border: 1px solid var(--line-soft); color: var(--gold-dim); font-size: .82rem; line-height: 1;
+    }
+    .mov .del:hover { color: var(--gasto); border-color: var(--gasto); }
     .vacio { text-align: center; color: var(--gold-dim); font-style: italic; padding: 30px 0; }
 
     @media (max-width: 430px) {
@@ -344,6 +376,7 @@
         <div class="res-block" id="resMes"></div>
       </div>
       <button class="ver-detalle" onclick="abrirDetalle()">Ver detalle del día y del mes →</button>
+      <button class="deshacer" onclick="pedirDeshacer()">↶ Deshacer último movimiento</button>
     </div>
 
     <footer class="pie">
@@ -384,6 +417,17 @@
       </div>
       <div id="detalleResumen" class="detalle-resumen"></div>
       <div id="detalleCont" class="detalle-cont"></div>
+    </div>
+  </div>
+
+  <!-- Confirmación para eliminar -->
+  <div id="confirm" class="confirm" onclick="fondoConfirm(event)">
+    <div class="confirm-box">
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-acc">
+        <button class="confirm-no" onclick="cerrarConfirm()">Cancelar</button>
+        <button class="confirm-si" onclick="confirmarSi()">Eliminar</button>
+      </div>
     </div>
   </div>
 
@@ -516,6 +560,8 @@
     var tabActual = 'hoy';
     var filtroActual = 'todos';
     var mesesCargados = false;
+    var listaVisible = [];      // lo que se está mostrando en el detalle
+    var confirmCb = null;       // acción pendiente de confirmar
 
     var MESES_NOMBRE = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -678,6 +724,7 @@
     function renderDetalle(lista) {
       var cont = document.getElementById('detalleCont');
       var resu = document.getElementById('detalleResumen');
+      listaVisible = lista;
       if (!lista.length) {
         resu.textContent = (filtroActual === 'caja')
           ? 'En caja: ' + pesos(0) + ' · sin movimientos en efectivo ' + periodoTexto()
@@ -710,7 +757,9 @@
         html += '<div class="meta">' + m.hora + '</div></div>';
         html += '<div class="monto">' + (m.monto > 0 ? (esEgr ? '−' : '') + pesos(m.monto) : '—');
         if (m.usd > 0) { html += '<span class="usd">' + dolares(m.usd) + '</span>'; }
-        html += '</div></div>';
+        html += '</div>';
+        html += '<button class="del" title="Eliminar" onclick="pedirEliminar(' + m.fila + ',' + m.orden + ')">🗑</button>';
+        html += '</div>';
       });
       cont.innerHTML = html;
     }
@@ -721,7 +770,58 @@
       });
     }
 
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { cerrarDetalle(); } });
+    /* ── Confirmación y borrado ── */
+    function confirmar(msg, cb) {
+      document.getElementById('confirmMsg').textContent = msg;
+      confirmCb = cb;
+      document.getElementById('confirm').classList.add('abierto');
+    }
+    function cerrarConfirm() { document.getElementById('confirm').classList.remove('abierto'); confirmCb = null; }
+    function fondoConfirm(e) { if (e.target === document.getElementById('confirm')) { cerrarConfirm(); } }
+    function confirmarSi() { var cb = confirmCb; cerrarConfirm(); if (cb) { cb(); } }
+
+    function recargarVista() {
+      if (tabActual === 'hoy' || tabActual === 'mes') {
+        google.script.run.withSuccessHandler(function (d) { detalleData = d; pintar(); }).getDetalle();
+      } else if (tabActual === 'meses') {
+        verMes();
+      } else if (tabActual === 'rango') {
+        verRango();
+      }
+    }
+
+    function pedirEliminar(fila, orden) {
+      var it = null;
+      for (var i = 0; i < listaVisible.length; i++) {
+        if (listaVisible[i].orden === orden) { it = listaVisible[i]; break; }
+      }
+      var desc = it ? ('«' + it.detalle + '»') : 'este movimiento';
+      confirmar('¿Eliminar ' + desc + '? No se puede deshacer.', function () {
+        google.script.run
+          .withSuccessHandler(function (res) { renderResumen(res); recargarVista(); toast('Movimiento eliminado', 'ok'); })
+          .withFailureHandler(function (e) { toast('No se pudo eliminar: ' + e.message, 'error'); })
+          .eliminarMovimiento(fila, orden);
+      });
+    }
+
+    function pedirDeshacer() {
+      confirmar('¿Borrar el último movimiento cargado?', function () {
+        google.script.run
+          .withSuccessHandler(function (res) {
+            renderResumen(res);
+            if (document.getElementById('modal').classList.contains('abierto')) { recargarVista(); }
+            toast('Último movimiento eliminado', 'ok');
+          })
+          .withFailureHandler(function (e) { toast('No se pudo deshacer: ' + e.message, 'error'); })
+          .eliminarUltimo();
+      });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') { return; }
+      if (document.getElementById('confirm').classList.contains('abierto')) { cerrarConfirm(); }
+      else { cerrarDetalle(); }
+    });
 
     google.script.run
       .withSuccessHandler(renderResumen)

@@ -242,7 +242,7 @@ function acumular_(o, mov) {
  * Convierte una fila de la planilla en un objeto de movimiento, o null si la
  * fila no es un movimiento (fila en blanco / separador).
  */
-function filaAMovimiento_(f) {
+function filaAMovimiento_(f, fila) {
   var fecha = f[0];
   if (!(fecha instanceof Date)) {
     return null;
@@ -255,7 +255,8 @@ function filaAMovimiento_(f) {
   var medioIng = ta > 0 ? 'Tarjeta' : (ot > 0 ? 'Otros' : (ef > 0 ? 'Efectivo' : ''));
 
   return {
-    orden: fecha.getTime(),
+    fila: fila,                 // fila real en la planilla (para borrar/corregir)
+    orden: fecha.getTime(),     // sello para validar antes de borrar
     hora: Utilities.formatDate(fecha, TZ, 'dd/MM HH:mm'),
     detalle: f[2],
     tipo: esEgreso ? 'Egreso' : 'Ingreso',
@@ -277,8 +278,8 @@ function getDetalle() {
   var hoyStr = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   var mesStr = Utilities.formatDate(new Date(), TZ, 'yyyy-MM');
 
-  valores.forEach(function (f) {
-    var item = filaAMovimiento_(f);
+  valores.forEach(function (f, i) {
+    var item = filaAMovimiento_(f, i + 2);   // los datos empiezan en la fila 2
     if (!item) { return; }
     var fStr = Utilities.formatDate(f[0], TZ, 'yyyy-MM-dd');
     var fMes = Utilities.formatDate(f[0], TZ, 'yyyy-MM');
@@ -307,12 +308,12 @@ function getDetalleRango(desde, hasta) {
   hasta = String(hasta || '');
 
   var valores = hoja.getRange(2, 1, ultima - 1, ENCABEZADOS.length).getValues();
-  valores.forEach(function (f) {
+  valores.forEach(function (f, i) {
     if (!(f[0] instanceof Date)) { return; }
     var fStr = Utilities.formatDate(f[0], TZ, 'yyyy-MM-dd');
     if (desde && fStr < desde) { return; }
     if (hasta && fStr > hasta) { return; }
-    var item = filaAMovimiento_(f);
+    var item = filaAMovimiento_(f, i + 2);
     if (item) { out.push(item); }
   });
 
@@ -355,11 +356,50 @@ function getDetalleMes(mes) {
   }
   mes = String(mes || '');
   var valores = hoja.getRange(2, 1, ultima - 1, ENCABEZADOS.length).getValues();
-  valores.forEach(function (f) {
+  valores.forEach(function (f, i) {
     if (String(f[1]) !== mes) { return; }   // columna "Mes"
-    var item = filaAMovimiento_(f);
+    var item = filaAMovimiento_(f, i + 2);
     if (item) { out.push(item); }
   });
   out.sort(function (a, b) { return b.orden - a.orden; });
   return out;
+}
+
+/**
+ * Elimina el movimiento de una fila. Para no borrar el equivocado, valida que
+ * la fecha de esa fila coincida con el "sello" (timestamp) del movimiento que
+ * se está viendo. Si la lista cambió, tira un error en vez de borrar a ciegas.
+ */
+function eliminarMovimiento(fila, sello) {
+  fila = Number(fila);
+  var hoja = getHojaRegistro_();
+  if (!fila || fila < 2 || fila > hoja.getLastRow()) {
+    throw new Error('La fila ya no existe. Recargá el detalle e intentá de nuevo.');
+  }
+  var fecha = hoja.getRange(fila, 1).getValue();
+  if (!(fecha instanceof Date)) {
+    throw new Error('Esa fila no es un movimiento.');
+  }
+  if (sello && fecha.getTime() !== Number(sello)) {
+    throw new Error('La lista cambió. Recargá el detalle e intentá de nuevo.');
+  }
+  hoja.deleteRow(fila);
+  return getResumen();
+}
+
+/**
+ * Elimina el último movimiento cargado ("Deshacer último").
+ */
+function eliminarUltimo() {
+  var hoja = getHojaRegistro_();
+  var ultima = hoja.getLastRow();
+  if (ultima < 2) {
+    throw new Error('No hay movimientos para deshacer.');
+  }
+  var fecha = hoja.getRange(ultima, 1).getValue();
+  if (!(fecha instanceof Date)) {
+    throw new Error('No hay un movimiento para deshacer.');
+  }
+  hoja.deleteRow(ultima);
+  return getResumen();
 }
