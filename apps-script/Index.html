@@ -188,6 +188,7 @@
     .pie { text-align: center; margin-top: 26px; }
     .pie-nombre { font-family: var(--serif-display); font-size: .78rem; letter-spacing: .22em; text-indent: .22em; text-transform: uppercase; color: var(--gold-dim); }
     .pie-dir { font-style: italic; font-size: .85rem; margin-top: 4px; color: #9a8b64; }
+    .pie-ver { font-size: .7rem; letter-spacing: .1em; color: var(--gold-dim); margin-top: 6px; opacity: .7; }
 
     /* Resumen */
     .resumen h2 {
@@ -438,6 +439,7 @@
     <footer class="pie">
       <div class="pie-nombre">Héctor Tito Delgado</div>
       <div class="pie-dir">Paraguay 439 · (1057) CABA</div>
+      <div class="pie-ver">versión 8</div>
     </footer>
   </div>
 
@@ -876,22 +878,23 @@
       }
       var desc = it ? ('«' + it.detalle + '»') : 'este movimiento';
       confirmar('¿Eliminar ' + desc + '? No se puede deshacer.', function () {
+        toast('Eliminando…', '');
         google.script.run
-          .withSuccessHandler(function (res) { renderResumen(res); recargarVista(); toast('Movimiento eliminado', 'ok'); })
-          .withFailureHandler(function (e) { toast('No se pudo eliminar: ' + e.message, 'error'); })
+          .withSuccessHandler(function (res) { toast('Movimiento eliminado', 'ok'); try { renderResumen(res); recargarVista(); } catch (e) {} })
+          .withFailureHandler(function (e) { toast('No se pudo eliminar', 'error'); alert('No se pudo eliminar:\n' + e.message); })
           .eliminarMovimiento(fila, orden);
       });
     }
 
     function pedirDeshacer() {
       confirmar('¿Borrar el último movimiento cargado?', function () {
+        toast('Eliminando…', '');
         google.script.run
           .withSuccessHandler(function (res) {
-            renderResumen(res);
-            if (document.getElementById('modal').classList.contains('abierto')) { recargarVista(); }
             toast('Último movimiento eliminado', 'ok');
+            try { renderResumen(res); if (document.getElementById('modal').classList.contains('abierto')) { recargarVista(); } } catch (e) {}
           })
-          .withFailureHandler(function (e) { toast('No se pudo deshacer: ' + e.message, 'error'); })
+          .withFailureHandler(function (e) { toast('No se pudo deshacer', 'error'); alert('No se pudo deshacer:\n' + e.message); })
           .eliminarUltimo();
       });
     }
@@ -1000,9 +1003,10 @@
       for (var i = 0; i < clientesData.length; i++) { if (clientesData[i].fila === fila) { c = clientesData[i]; break; } }
       var desc = c ? ('«' + c.nombre + '»') : 'esta ficha';
       confirmar('¿Eliminar ' + desc + '? No se puede deshacer.', function () {
+        toast('Eliminando…', '');
         google.script.run
           .withSuccessHandler(function (lista) { clientesData = lista || []; renderClientes(); toast('Ficha eliminada', 'ok'); })
-          .withFailureHandler(function (e) { toast('No se pudo eliminar: ' + e.message, 'error'); })
+          .withFailureHandler(function (e) { toast('No se pudo eliminar', 'error'); alert('No se pudo eliminar:\n' + e.message); })
           .eliminarCliente(fila, sello);
       });
     }
