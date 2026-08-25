@@ -371,20 +371,34 @@ function getDetalleMes(mes) {
  * se está viendo. Si la lista cambió, tira un error en vez de borrar a ciegas.
  */
 function eliminarMovimiento(fila, sello) {
-  fila = Number(fila);
+  fila = Number(fila) || 0;
+  sello = Number(sello) || 0;
   var hoja = getHojaRegistro_();
-  if (!fila || fila < 2 || fila > hoja.getLastRow()) {
-    throw new Error('La fila ya no existe. Recargá el detalle e intentá de nuevo.');
+  var ultima = hoja.getLastRow();
+  if (ultima < 2) {
+    throw new Error('No hay movimientos.');
   }
-  var fecha = hoja.getRange(fila, 1).getValue();
-  if (!(fecha instanceof Date)) {
-    throw new Error('Esa fila no es un movimiento.');
+
+  // 1) Intenta en la fila indicada (tolerando pequeñas diferencias de milisegundos).
+  if (fila >= 2 && fila <= ultima) {
+    var fecha = hoja.getRange(fila, 1).getValue();
+    if (fecha instanceof Date && (!sello || Math.abs(fecha.getTime() - sello) <= 2000)) {
+      hoja.deleteRow(fila);
+      return getResumen();
+    }
   }
-  if (sello && fecha.getTime() !== Number(sello)) {
-    throw new Error('La lista cambió. Recargá el detalle e intentá de nuevo.');
+  // 2) Si la fila se movió, busca el movimiento por su fecha/hora (el sello).
+  if (sello) {
+    var fechas = hoja.getRange(2, 1, ultima - 1, 1).getValues();
+    for (var i = 0; i < fechas.length; i++) {
+      var d = fechas[i][0];
+      if (d instanceof Date && Math.abs(d.getTime() - sello) <= 2000) {
+        hoja.deleteRow(i + 2);
+        return getResumen();
+      }
+    }
   }
-  hoja.deleteRow(fila);
-  return getResumen();
+  throw new Error('No se encontró el movimiento. Recargá el detalle e intentá de nuevo.');
 }
 
 /**
@@ -478,7 +492,7 @@ function guardarCliente(datos) {
       throw new Error('La ficha ya no existe. Recargá la lista.');
     }
     var fa = hoja.getRange(fila, 1).getValue();
-    if (datos.sello && (!(fa instanceof Date) || fa.getTime() !== Number(datos.sello))) {
+    if (datos.sello && (!(fa instanceof Date) || Math.abs(fa.getTime() - Number(datos.sello)) > 2000)) {
       throw new Error('La ficha cambió. Recargá la lista e intentá de nuevo.');
     }
     hoja.getRange(fila, 2, 1, 5).setValues([fila5]);   // conserva la fecha de alta
@@ -490,15 +504,32 @@ function guardarCliente(datos) {
 
 /** Elimina una ficha de cliente (valida el sello antes de borrar). */
 function eliminarCliente(fila, sello) {
-  fila = Number(fila);
+  fila = Number(fila) || 0;
+  sello = Number(sello) || 0;
   var hoja = getHojaClientes_();
-  if (!fila || fila < 2 || fila > hoja.getLastRow()) {
-    throw new Error('La ficha ya no existe. Recargá la lista.');
+  var ultima = hoja.getLastRow();
+  if (ultima < 2) {
+    throw new Error('No hay fichas.');
   }
-  var fa = hoja.getRange(fila, 1).getValue();
-  if (sello && (!(fa instanceof Date) || fa.getTime() !== Number(sello))) {
-    throw new Error('La lista cambió. Recargá e intentá de nuevo.');
+
+  // 1) Intenta en la fila indicada.
+  if (fila >= 2 && fila <= ultima) {
+    var fa = hoja.getRange(fila, 1).getValue();
+    if (!sello || (fa instanceof Date && Math.abs(fa.getTime() - sello) <= 2000)) {
+      hoja.deleteRow(fila);
+      return getClientes();
+    }
   }
-  hoja.deleteRow(fila);
-  return getClientes();
+  // 2) Si la lista se movió, busca la ficha por su fecha de alta (el sello).
+  if (sello) {
+    var fechas = hoja.getRange(2, 1, ultima - 1, 1).getValues();
+    for (var i = 0; i < fechas.length; i++) {
+      var d = fechas[i][0];
+      if (d instanceof Date && Math.abs(d.getTime() - sello) <= 2000) {
+        hoja.deleteRow(i + 2);
+        return getClientes();
+      }
+    }
+  }
+  throw new Error('No se encontró la ficha. Recargá la lista.');
 }
