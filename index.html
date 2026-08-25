@@ -320,7 +320,7 @@
     </div>
   </div>
 
-  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v29</span></p>
+  <p class="small muted" style="text-align:center">Funciona en el navegador. No hay servidor: tus fotos y tu clave no salen de tu dispositivo (salvo la foto que se manda al servicio de IA para leerla). <span class="pill">v30</span></p>
 
   <!-- Overlay del escáner de código de barras -->
   <div id="scanOverlay" class="hidden" style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -641,6 +641,14 @@ function achicar(dataURL, max=1600){
 
 /* ---------- IA ----------
    imagenes = array de {b64, mime} (puede ser [] para solo texto) */
+// fetch con límite de tiempo: si el servidor de IA se cuelga, corta en vez de quedar trabado.
+async function fetchT(url, opts, ms){
+  const ac=new AbortController();
+  const t=setTimeout(()=>ac.abort(), ms||90000);
+  try{ return await fetch(url, Object.assign({}, opts, {signal:ac.signal})); }
+  catch(e){ if(e && e.name==="AbortError") throw new Error("La IA no respondió a tiempo (puede estar saturada). Reintentá, o cambiá de servicio en ⚙️ Configuración."); throw e; }
+  finally{ clearTimeout(t); }
+}
 async function llamarIA(prompt, imagenes){
   imagenes = imagenes || [];
   if(!C.apiKey) throw new Error("Falta la API key. Abrí ⚙️ Configuración y pegá tu clave.");
@@ -658,7 +666,7 @@ function puntajeModelo(n){ let s=0;
   if(/(exp|preview|thinking|tts|image|embedding|vision|aqa|learnlm|gemma)/i.test(n)) s-=300;
   if(/(1\.5|1\.0|8b)/.test(n)) s-=120; return s; }
 async function listarModelosGemini(){
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(C.apiKey)}`);
+  const r=await fetchT(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(C.apiKey)}`, {}, 30000);
   if(!r.ok) throw new Error(await mensajeError(r));
   const d=await r.json();
   return (d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent"))
@@ -668,7 +676,7 @@ async function pedirGemini(modelo,prompt,imagenes){
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(C.apiKey)}`;
   const parts=[{text:prompt}];
   imagenes.forEach(im=>parts.push({inline_data:{mime_type:im.mime,data:im.b64}}));
-  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+  return fetchT(url,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({contents:[{parts}],generationConfig:{response_mime_type:"application/json",temperature:0.1}})});
 }
 async function leerGemini(r){ const d=await r.json(); return d.candidates[0].content.parts[0].text; }
@@ -679,7 +687,7 @@ async function llamarGemini(prompt,imagenes){
   try{ if(!geminiCandidatos) geminiCandidatos=await listarModelosGemini(); lista=geminiCandidatos.slice(); }
   catch(e){ if(!C.modelo) throw e; }
   if(C.modelo) lista=[C.modelo, ...lista.filter(n=>n!==C.modelo)];
-  lista=lista.filter(n=>!geminiMalos.has(n));
+  lista=lista.filter(n=>!geminiMalos.has(n)).slice(0,5);   // probar solo los mejores, no decenas
   if(!lista.length) throw new Error("Ningún modelo de Gemini de tu clave está disponible. Generá la clave en un proyecto nuevo, o usá otro servicio (Grok/OpenAI/Claude).");
   let ultTrans=null, huboTrans=false;
   for(let pasada=0; pasada<2; pasada++){
@@ -707,7 +715,7 @@ async function llamarOAI(url, modeloDef, prompt, imagenes, permiteFotos){
     content=[{type:"text",text:prompt}];
     imagenes.forEach(im=>content.push({type:"image_url",image_url:{url:`data:${im.mime};base64,${im.b64}`}}));
   }
-  const r=await fetch(url,{method:"POST",
+  const r=await fetchT(url,{method:"POST",
     headers:{"Content-Type":"application/json","Authorization":"Bearer "+C.apiKey},
     body:JSON.stringify({model:C.modelo||modeloDef,messages:[{role:"user",content}],response_format:{type:"json_object"},temperature:0.1})});
   if(!r.ok) throw new Error(await mensajeError(r));
@@ -717,7 +725,7 @@ async function llamarAnthropic(prompt,imagenes){
   const content=[];
   imagenes.forEach(im=>content.push({type:"image",source:{type:"base64",media_type:im.mime,data:im.b64}}));
   content.push({type:"text",text:prompt});
-  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+  const r=await fetchT("https://api.anthropic.com/v1/messages",{method:"POST",
     headers:{"Content-Type":"application/json","x-api-key":C.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
     body:JSON.stringify({model:C.modelo||MODELOS.anthropic,max_tokens:2000,temperature:0.1,messages:[{role:"user",content}]})});
   if(!r.ok) throw new Error(await mensajeError(r));
