@@ -107,14 +107,53 @@
       font-size: .74rem; letter-spacing: .2em; text-indent: .2em; text-transform: uppercase;
       color: var(--gold); margin: 20px 0 8px;
     }
-    input[type="text"], input[type="number"] {
+    input[type="text"], input[type="number"], textarea {
       width: 100%; border: 1px solid #cbbd9c; border-radius: 3px;
       padding: 14px 14px; font-size: 1.15rem; font-family: var(--serif-text);
       background: var(--parchment); color: var(--ink);
       box-shadow: inset 0 1px 3px rgba(0,0,0,.12);
     }
-    input::placeholder { color: #a89b7d; font-style: italic; }
-    input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(199,162,78,.35); }
+    textarea { resize: vertical; line-height: 1.4; }
+    input::placeholder, textarea::placeholder { color: #a89b7d; font-style: italic; }
+    input:focus, textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(199,162,78,.35); }
+
+    /* Selector de sección Movimientos / Clientes */
+    .switch { display: flex; gap: 10px; margin-bottom: 18px; }
+    .switch button {
+      flex: 1; cursor: pointer; padding: 12px 0; border-radius: 3px;
+      font-family: var(--serif-display); font-weight: 600; font-size: .9rem;
+      letter-spacing: .14em; text-indent: .14em; text-transform: uppercase;
+      background: transparent; color: var(--gold); border: 1px solid var(--line); transition: all .15s;
+    }
+    .switch button.on { background: rgba(199,162,78,.16); color: var(--gold-bright); border-color: var(--gold); }
+
+    /* Clientes */
+    .cli-tools { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .cli-tools input { font-size: 1rem; padding: 11px 12px; }
+    .nuevo-cli {
+      flex-shrink: 0; cursor: pointer; white-space: nowrap;
+      font-family: var(--serif-display); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--gold-bright); background: rgba(199,162,78,.14); border: 1px solid var(--gold);
+      border-radius: 3px; padding: 11px 14px;
+    }
+    .cli { padding: 13px 0; border-bottom: 1px solid var(--line-soft); }
+    .cli:last-child { border-bottom: 0; }
+    .cli-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .cli .nom { color: var(--parchment); font-size: 1.12rem; font-weight: 600; }
+    .cli .alta { color: var(--gold-dim); font-size: .74rem; white-space: nowrap; }
+    .cli .cont { color: #b8a878; font-size: .88rem; margin-top: 3px; }
+    .cli .int { color: var(--gold); font-size: .92rem; font-style: italic; margin-top: 5px; }
+    .cli .obs { color: var(--gold-dim); font-size: .84rem; margin-top: 3px; }
+    .cli-acc { display: flex; gap: 8px; margin-top: 9px; }
+    .cli-acc button {
+      cursor: pointer; font-family: var(--serif-text); font-size: .82rem; padding: 5px 12px;
+      border-radius: 2px; background: transparent; color: var(--gold-dim); border: 1px solid var(--line-soft); transition: all .12s;
+    }
+    .cli-acc button:hover { color: var(--gold-bright); border-color: var(--gold); }
+    .cli-acc button.borrar:hover { color: var(--gasto); border-color: var(--gasto); }
+
+    .ficha-form { overflow-y: auto; padding: 4px 20px 22px; }
+    .ficha-form label:first-child { margin-top: 6px; }
 
     .preview { font-size: .95rem; color: var(--gold); font-style: italic; margin-top: 7px; min-height: 1.2em; }
 
@@ -336,6 +375,12 @@
       <div class="fecha" id="fechaHoy"></div>
     </header>
 
+    <div class="switch">
+      <button id="swMov" class="on" onclick="setSeccion('mov')">Movimientos</button>
+      <button id="swCli" onclick="setSeccion('cli')">Clientes</button>
+    </div>
+
+    <div id="secMovimientos">
     <div class="card">
       <div class="segmento">
         <button id="btnVenta" class="on-venta" onclick="setTipo('ingreso')">Venta</button>
@@ -378,6 +423,17 @@
       <button class="ver-detalle" onclick="abrirDetalle()">Ver detalle del día y del mes →</button>
       <button class="deshacer" onclick="pedirDeshacer()">↶ Deshacer último movimiento</button>
     </div>
+    </div><!-- /secMovimientos -->
+
+    <section id="secClientes" style="display:none">
+      <div class="card">
+        <div class="cli-tools">
+          <input type="text" id="cliBuscar" placeholder="Buscar por nombre o interés…" oninput="renderClientes()">
+          <button class="nuevo-cli" onclick="nuevoCliente()">＋ Nuevo</button>
+        </div>
+        <div id="cliLista"></div>
+      </div>
+    </section>
 
     <footer class="pie">
       <div class="pie-nombre">Héctor Tito Delgado</div>
@@ -417,6 +473,29 @@
       </div>
       <div id="detalleResumen" class="detalle-resumen"></div>
       <div id="detalleCont" class="detalle-cont"></div>
+    </div>
+  </div>
+
+  <!-- Ficha de cliente (alta / edición) -->
+  <div id="fichaModal" class="modal" onclick="fondoFicha(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div class="modal-title" id="fichaTitulo">Nuevo cliente</div>
+        <button class="cerrar" onclick="cerrarFicha()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="ficha-form">
+        <label for="cNombre">Nombre</label>
+        <input type="text" id="cNombre" autocomplete="off" placeholder="Nombre y apellido">
+        <label for="cTel">Teléfono</label>
+        <input type="text" id="cTel" inputmode="tel" autocomplete="off" placeholder="Ej: 11 5555-5555">
+        <label for="cMail">Mail</label>
+        <input type="text" id="cMail" inputmode="email" autocomplete="off" placeholder="nombre@correo.com">
+        <label for="cInt">Intereses</label>
+        <textarea id="cInt" rows="2" placeholder="Ej: Patagonia, pueblos originarios, primeras ediciones"></textarea>
+        <label for="cObs">Observaciones</label>
+        <textarea id="cObs" rows="2" placeholder="Notas varias"></textarea>
+        <button class="guardar venta" id="fichaGuardar" onclick="guardarFicha()">Guardar ficha</button>
+      </div>
     </div>
   </div>
 
@@ -817,10 +896,122 @@
       });
     }
 
+    /* ── Secciones Movimientos / Clientes ── */
+    var clientesData = [];
+    var clientesCargados = false;
+    var fichaFila = 0, fichaSello = 0;
+
+    function setSeccion(s) {
+      var mov = (s === 'mov');
+      document.getElementById('swMov').className = mov ? 'on' : '';
+      document.getElementById('swCli').className = mov ? '' : 'on';
+      document.getElementById('secMovimientos').style.display = mov ? 'block' : 'none';
+      document.getElementById('secClientes').style.display = mov ? 'none' : 'block';
+      if (!mov && !clientesCargados) { cargarClientes(); }
+    }
+
+    function cargarClientes() {
+      document.getElementById('cliLista').innerHTML = '<div class="vacio">Cargando…</div>';
+      google.script.run
+        .withSuccessHandler(function (lista) { clientesData = lista || []; clientesCargados = true; renderClientes(); })
+        .withFailureHandler(function (e) { document.getElementById('cliLista').innerHTML = '<div class="vacio">No se pudo cargar: ' + e.message + '</div>'; })
+        .getClientes();
+    }
+
+    function renderClientes() {
+      var cont = document.getElementById('cliLista');
+      var q = (document.getElementById('cliBuscar').value || '').trim().toLowerCase();
+      var lista = clientesData.filter(function (c) {
+        if (!q) { return true; }
+        return (c.nombre + ' ' + c.intereses + ' ' + c.mail + ' ' + c.telefono).toLowerCase().indexOf(q) !== -1;
+      });
+      if (!lista.length) {
+        cont.innerHTML = '<div class="vacio">' + (clientesData.length ? 'Sin resultados para la búsqueda.' : 'Todavía no hay clientes cargados.') + '</div>';
+        return;
+      }
+      var html = '';
+      lista.forEach(function (c) {
+        html += '<div class="cli">';
+        html += '<div class="cli-top"><span class="nom">' + escapar(c.nombre) + '</span>' +
+                (c.alta ? '<span class="alta">alta ' + c.alta + '</span>' : '') + '</div>';
+        var contacto = [];
+        if (c.telefono) { contacto.push('☎ ' + escapar(c.telefono)); }
+        if (c.mail) { contacto.push('✉ ' + escapar(c.mail)); }
+        if (contacto.length) { html += '<div class="cont">' + contacto.join(' · ') + '</div>'; }
+        if (c.intereses) { html += '<div class="int">' + escapar(c.intereses) + '</div>'; }
+        if (c.observaciones) { html += '<div class="obs">' + escapar(c.observaciones) + '</div>'; }
+        html += '<div class="cli-acc">';
+        html += '<button onclick="editarCliente(' + c.fila + ')">✎ Editar</button>';
+        html += '<button class="borrar" onclick="pedirEliminarCliente(' + c.fila + ',' + c.sello + ')">🗑 Borrar</button>';
+        html += '</div></div>';
+      });
+      cont.innerHTML = html;
+    }
+
+    function nuevoCliente() {
+      fichaFila = 0; fichaSello = 0;
+      document.getElementById('fichaTitulo').textContent = 'Nuevo cliente';
+      document.getElementById('cNombre').value = '';
+      document.getElementById('cTel').value = '';
+      document.getElementById('cMail').value = '';
+      document.getElementById('cInt').value = '';
+      document.getElementById('cObs').value = '';
+      document.getElementById('fichaModal').classList.add('abierto');
+      document.getElementById('cNombre').focus();
+    }
+
+    function editarCliente(fila) {
+      var c = null;
+      for (var i = 0; i < clientesData.length; i++) { if (clientesData[i].fila === fila) { c = clientesData[i]; break; } }
+      if (!c) { return; }
+      fichaFila = c.fila; fichaSello = c.sello;
+      document.getElementById('fichaTitulo').textContent = 'Editar cliente';
+      document.getElementById('cNombre').value = c.nombre;
+      document.getElementById('cTel').value = c.telefono;
+      document.getElementById('cMail').value = c.mail;
+      document.getElementById('cInt').value = c.intereses;
+      document.getElementById('cObs').value = c.observaciones;
+      document.getElementById('fichaModal').classList.add('abierto');
+    }
+
+    function cerrarFicha() { document.getElementById('fichaModal').classList.remove('abierto'); }
+    function fondoFicha(e) { if (e.target === document.getElementById('fichaModal')) { cerrarFicha(); } }
+
+    function guardarFicha() {
+      var nombre = document.getElementById('cNombre').value.trim();
+      if (!nombre) { toast('El nombre es obligatorio.', 'error'); return; }
+      var datos = {
+        fila: fichaFila, sello: fichaSello, nombre: nombre,
+        telefono: document.getElementById('cTel').value.trim(),
+        mail: document.getElementById('cMail').value.trim(),
+        intereses: document.getElementById('cInt').value.trim(),
+        observaciones: document.getElementById('cObs').value.trim()
+      };
+      var btn = document.getElementById('fichaGuardar');
+      btn.disabled = true; var txt = btn.textContent; btn.textContent = 'Guardando…';
+      google.script.run
+        .withSuccessHandler(function (lista) { clientesData = lista || []; renderClientes(); cerrarFicha(); btn.disabled = false; btn.textContent = txt; toast('Ficha guardada', 'ok'); })
+        .withFailureHandler(function (e) { btn.disabled = false; btn.textContent = txt; toast('No se pudo guardar: ' + e.message, 'error'); })
+        .guardarCliente(datos);
+    }
+
+    function pedirEliminarCliente(fila, sello) {
+      var c = null;
+      for (var i = 0; i < clientesData.length; i++) { if (clientesData[i].fila === fila) { c = clientesData[i]; break; } }
+      var desc = c ? ('«' + c.nombre + '»') : 'esta ficha';
+      confirmar('¿Eliminar ' + desc + '? No se puede deshacer.', function () {
+        google.script.run
+          .withSuccessHandler(function (lista) { clientesData = lista || []; renderClientes(); toast('Ficha eliminada', 'ok'); })
+          .withFailureHandler(function (e) { toast('No se pudo eliminar: ' + e.message, 'error'); })
+          .eliminarCliente(fila, sello);
+      });
+    }
+
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') { return; }
       if (document.getElementById('confirm').classList.contains('abierto')) { cerrarConfirm(); }
-      else { cerrarDetalle(); }
+      else if (document.getElementById('fichaModal').classList.contains('abierto')) { cerrarFicha(); }
+      else if (document.getElementById('modal').classList.contains('abierto')) { cerrarDetalle(); }
     });
 
     google.script.run

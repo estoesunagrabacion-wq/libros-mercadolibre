@@ -102,6 +102,17 @@ pantalla principal.
 - También podés **editar o borrar** directamente en la pestaña `Registro` de la
   planilla, como con cualquier Google Sheet.
 
+### Clientes
+
+Arriba de todo hay un selector **Movimientos / Clientes**. La sección *Clientes* es
+una base de fichas con **Nombre, Teléfono, Mail, Intereses y Observaciones** (más una
+fecha de alta automática), guardada en una pestaña nueva **`Clientes`**.
+
+- **＋ Nuevo** crea una ficha; el ✎ la edita y el 🗑 la borra (con confirmación).
+- El buscador filtra por **nombre, interés, mail o teléfono** — útil para encontrar a
+  quién avisarle cuando entra un libro que le interesa.
+- Es independiente de las ventas.
+
 ### Separación por día en la planilla
 
 Cuando cambia el día, la app deja **una fila en blanco** en la pestaña `Registro`,

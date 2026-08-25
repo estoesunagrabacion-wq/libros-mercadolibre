@@ -403,3 +403,102 @@ function eliminarUltimo() {
   hoja.deleteRow(ultima);
   return getResumen();
 }
+
+/* ══════════════════ CLIENTES ══════════════════ */
+
+var HOJA_CLIENTES = 'Clientes';
+var ENCABEZADOS_CLI = ['Fecha alta', 'Nombre', 'Teléfono', 'Mail', 'Intereses', 'Observaciones'];
+
+/** Devuelve la pestaña "Clientes", creándola con encabezados la primera vez. */
+function getHojaClientes_() {
+  var ss = getPlanilla_();
+  var hoja = ss.getSheetByName(HOJA_CLIENTES);
+  if (!hoja) {
+    hoja = ss.insertSheet(HOJA_CLIENTES);
+  }
+  var primera = hoja.getRange(1, 1, 1, ENCABEZADOS_CLI.length).getValues()[0];
+  var vacia = primera.every(function (c) { return c === '' || c === null; });
+  if (vacia) {
+    hoja.getRange(1, 1, 1, ENCABEZADOS_CLI.length)
+      .setValues([ENCABEZADOS_CLI])
+      .setFontWeight('bold').setBackground('#2b2b2b').setFontColor('#ffffff');
+    hoja.setFrozenRows(1);
+    hoja.getRange('A:A').setNumberFormat('dd/mm/yyyy hh:mm');
+    hoja.setColumnWidth(2, 200);   // Nombre
+    hoja.setColumnWidth(5, 320);   // Intereses
+    hoja.setColumnWidth(6, 320);   // Observaciones
+  }
+  return hoja;
+}
+
+/** Lista de clientes, ordenada por nombre. */
+function getClientes() {
+  var hoja = getHojaClientes_();
+  var ultima = hoja.getLastRow();
+  var out = [];
+  if (ultima < 2) {
+    return out;
+  }
+  var valores = hoja.getRange(2, 1, ultima - 1, ENCABEZADOS_CLI.length).getValues();
+  valores.forEach(function (f, i) {
+    var nombre = (f[1] || '').toString().trim();
+    if (!nombre) { return; }
+    var fa = f[0];
+    out.push({
+      fila: i + 2,
+      sello: (fa instanceof Date) ? fa.getTime() : 0,
+      alta: (fa instanceof Date) ? Utilities.formatDate(fa, TZ, 'dd/MM/yyyy') : '',
+      nombre: nombre,
+      telefono: (f[2] || '').toString(),
+      mail: (f[3] || '').toString(),
+      intereses: (f[4] || '').toString(),
+      observaciones: (f[5] || '').toString()
+    });
+  });
+  out.sort(function (a, b) { return a.nombre.localeCompare(b.nombre, 'es'); });
+  return out;
+}
+
+/**
+ * Alta o edición de un cliente. Si datos.fila >= 2 edita esa ficha (validando
+ * el sello); si no, crea una nueva con fecha de alta automática.
+ */
+function guardarCliente(datos) {
+  datos = datos || {};
+  var nombre = (datos.nombre || '').toString().trim();
+  if (!nombre) {
+    throw new Error('El nombre es obligatorio.');
+  }
+  var hoja = getHojaClientes_();
+  var fila = Number(datos.fila) || 0;
+  var fila5 = [nombre, datos.telefono || '', datos.mail || '', datos.intereses || '', datos.observaciones || ''];
+
+  if (fila >= 2) {
+    if (fila > hoja.getLastRow()) {
+      throw new Error('La ficha ya no existe. Recargá la lista.');
+    }
+    var fa = hoja.getRange(fila, 1).getValue();
+    if (datos.sello && (!(fa instanceof Date) || fa.getTime() !== Number(datos.sello))) {
+      throw new Error('La ficha cambió. Recargá la lista e intentá de nuevo.');
+    }
+    hoja.getRange(fila, 2, 1, 5).setValues([fila5]);   // conserva la fecha de alta
+  } else {
+    hoja.appendRow([new Date()].concat(fila5));
+  }
+  return getClientes();
+}
+
+/** Elimina una ficha de cliente (valida el sello antes de borrar). */
+function eliminarCliente(fila, sello) {
+  fila = Number(fila);
+  var hoja = getHojaClientes_();
+  if (!fila || fila < 2 || fila > hoja.getLastRow()) {
+    throw new Error('La ficha ya no existe. Recargá la lista.');
+  }
+  var fa = hoja.getRange(fila, 1).getValue();
+  if (sello && (!(fa instanceof Date) || fa.getTime() !== Number(sello))) {
+    throw new Error('La lista cambió. Recargá e intentá de nuevo.');
+  }
+  hoja.deleteRow(fila);
+  return getClientes();
+}
