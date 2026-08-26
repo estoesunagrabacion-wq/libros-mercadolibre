@@ -93,6 +93,18 @@
   td.der{text-align:right;white-space:nowrap}
   .vacio{text-align:center;color:var(--muted);padding:18px 8px;font-size:14px;line-height:1.5}
   .aviso{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+  .prev{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .prev-fila{display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:flex-start;cursor:pointer}
+  .prev-fila:last-child{border-bottom:none}
+  .prev-fila input{width:auto;flex:0 0 auto;margin-top:3px}
+  .prev-fila .t{flex:1;min-width:0}
+  .prev-fila b{font-size:14px}
+  .prev-fila .frase{display:block;color:var(--muted);font-size:12px;margin-top:3px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .prev-fila.duda b::after{content:' · revisar';color:var(--accent);font-size:11px;font-weight:400}
+  .prev-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:10px 12px;background:var(--card2);border-bottom:1px solid var(--line);font-size:13px}
+  .prev-cab a{color:var(--accent2);cursor:pointer;text-decoration:underline}
   code{background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
 </style>
 </head>
@@ -166,22 +178,50 @@
   <!-- ══════════ TEXTOS ══════════ -->
   <section id="vista-textos" class="hidden">
     <div class="card">
-      <h2>➕ Agregar un texto</h2>
-      <div class="row">
-        <div>
-          <label for="inLibro">Libro</label>
-          <input id="inLibro" list="librosSugeridos" placeholder="Ficciones" autocomplete="off">
-          <datalist id="librosSugeridos"></datalist>
-        </div>
-        <div>
-          <label for="inCuento">Título del cuento</label>
-          <input id="inCuento" placeholder="Las ruinas circulares" autocomplete="off">
-        </div>
+      <h2>➕ Agregar</h2>
+      <div class="chips" id="chipsAlta">
+        <div class="chip on" data-alta="libro">Un libro entero</div>
+        <div class="chip" data-alta="cuento">Un cuento suelto</div>
       </div>
-      <label for="inTexto">Texto completo (se parte solo en oraciones)</label>
-      <textarea id="inTexto" placeholder="Pegá acá el cuento entero…"></textarea>
-      <div class="small muted" id="conteo" style="margin:6px 0 10px">—</div>
-      <button class="btn full" id="btnGuardarTexto">Guardar texto</button>
+
+      <!-- ── libro entero ── -->
+      <div id="altaLibro">
+        <label for="inLibroTodo">Libro</label>
+        <input id="inLibroTodo" list="librosSugeridos" placeholder="Ficciones" autocomplete="off">
+        <label for="inTextoLibro">Texto del libro completo</label>
+        <textarea id="inTextoLibro" placeholder="Pegá acá el libro entero, con los títulos de los cuentos tal como aparecen…"></textarea>
+        <div class="small muted" id="conteoLibro" style="margin:6px 0 10px">—</div>
+        <button class="btn full" id="btnDetectar">Detectar cuentos</button>
+
+        <div id="preview"></div>
+        <button class="btn full blue hidden" id="btnImportarLibro" style="margin-top:10px">Importar los seleccionados</button>
+
+        <p class="aviso">
+          De <b>Ficciones</b> y <b>El Aleph</b> conoce el índice, así que corta por los títulos.
+          Para cualquier otro libro los busca solo: líneas cortas y sueltas entre párrafos.
+          En los dos casos revisás la lista antes de importar.
+        </p>
+      </div>
+
+      <!-- ── un cuento ── -->
+      <div id="altaCuento" class="hidden">
+        <div class="row">
+          <div>
+            <label for="inLibro">Libro</label>
+            <input id="inLibro" list="librosSugeridos" placeholder="Ficciones" autocomplete="off">
+          </div>
+          <div>
+            <label for="inCuento">Título del cuento</label>
+            <input id="inCuento" placeholder="Las ruinas circulares" autocomplete="off">
+          </div>
+        </div>
+        <label for="inTexto">Texto completo (se parte solo en oraciones)</label>
+        <textarea id="inTexto" placeholder="Pegá acá el cuento entero…"></textarea>
+        <div class="small muted" id="conteo" style="margin:6px 0 10px">—</div>
+        <button class="btn full" id="btnGuardarTexto">Guardar texto</button>
+      </div>
+
+      <datalist id="librosSugeridos"></datalist>
       <p class="aviso">
         Los textos se guardan <b>en este navegador</b>, no en el repositorio: no se publican.
         Para tenerlos en otro dispositivo, usá exportar / importar.
@@ -288,6 +328,238 @@ const cacheOraciones = new Map();
 function oracionesDe(t){
   if(!cacheOraciones.has(t.id)) cacheOraciones.set(t.id, partirOraciones(t.texto));
   return cacheOraciones.get(t.id);
+}
+
+/* ---------- partir un libro en cuentos ---------- */
+/* Los índices de estos dos libros vienen puestos: son los títulos por los
+   que hay que cortar. Para cualquier otro libro se detectan solos. */
+const INDICES = {
+  'ficciones': [
+    'Prólogo',
+    'Tlön, Uqbar, Orbis Tertius',
+    'El acercamiento a Almotásim',
+    'Pierre Menard, autor del Quijote',
+    'Las ruinas circulares',
+    'La lotería en Babilonia',
+    'Examen de la obra de Herbert Quain',
+    'La Biblioteca de Babel',
+    'El jardín de senderos que se bifurcan',
+    'Funes el memorioso',
+    'La forma de la espada',
+    'Tema del traidor y del héroe',
+    'La muerte y la brújula',
+    'El milagro secreto',
+    'Tres versiones de Judas',
+    'El fin',
+    'La secta del Fénix',
+    'El Sur'
+  ],
+  'el aleph': [
+    'El inmortal',
+    'El muerto',
+    'Los teólogos',
+    'Historia del guerrero y de la cautiva',
+    'Biografía de Tadeo Isidoro Cruz',
+    'Emma Zunz',
+    'La casa de Asterión',
+    'La otra muerte',
+    'Deutsches Requiem',
+    'La busca de Averroes',
+    'El Zahir',
+    'La escritura del dios',
+    'Abenjacán el Bojarí, muerto en su laberinto',
+    'Los dos reyes y los dos laberintos',
+    'La espera',
+    'El hombre en el umbral',
+    'El Aleph',
+    'La intrusa',
+    'Epílogo'
+  ]
+};
+const NO_SON_CUENTOS = new Set(['prologo','epilogo','posdata','indice','nota preliminar']);
+const MINIMO_CUENTO = 400;   // menos que esto es una línea de índice, no un cuento
+
+function normalizar(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+
+/* títulos de un libro conocido, o null */
+function indiceDe(libro){
+  return INDICES[normalizar(libro).replace(/\s+/g,' ')] || null;
+}
+
+/* ¿esta línea es el título "titulo"? */
+function esTitulo(linea, titulo){
+  const l = normalizar(linea), t = normalizar(titulo);
+  if(!l) return false;
+  if(l === t) return true;
+  // tolera el año o las fechas pegados al título: "Biografía… (1829-1874)"
+  return l.startsWith(t) && l.length - t.length <= 22;
+}
+
+/* detección genérica: línea corta y suelta, con un párrafo debajo */
+function pareceTitulo(lineas, i){
+  const l = (lineas[i]||'').trim();
+  if(!l || l.length > 70) return false;
+  if(/[.,;:]$/.test(l)) return false;
+  if(/^[a-záéíóúüñ]/.test(l)) return false;
+  if(!/[a-záéíóúüñ]/i.test(l)) return false;             // números sueltos, no
+  if(i > 0 && (lineas[i-1]||'').trim()) return false;    // tiene que venir de un blanco
+  for(let j = i+1; j < Math.min(i+4, lineas.length); j++){
+    const sig = (lineas[j]||'').trim();
+    if(!sig) continue;
+    return sig.length > 80;                              // debajo hay un párrafo, no otro título
+  }
+  return false;
+}
+
+function partirLibro(libro, texto){
+  const lineas = String(texto||'').replace(/\r/g,'').split('\n');
+  const titulos = indiceDe(libro);
+  const cortes = [];
+
+  if(titulos){
+    lineas.forEach((linea, i) => {
+      for(const t of titulos){
+        if(esTitulo(linea, t)){ cortes.push({i, cuento:t}); break; }
+      }
+    });
+  }else{
+    lineas.forEach((linea, i) => {
+      if(pareceTitulo(lineas, i)) cortes.push({i, cuento:linea.trim()});
+    });
+  }
+  if(!cortes.length) return [];
+
+  // el cuerpo de cada corte va hasta el corte siguiente
+  let piezas = cortes.map((c, k) => {
+    const hasta = k+1 < cortes.length ? cortes[k+1].i : lineas.length;
+    let cuerpo = lineas.slice(c.i+1, hasta);
+    // saco encabezados de sección que quedaron colgando al final ("ARTIFICIOS (1944)")
+    while(cuerpo.length){
+      const ult = cuerpo[cuerpo.length-1].trim();
+      if(!ult){ cuerpo.pop(); continue; }
+      if(ult.length < 60 && !/[.!?…][»”")\]]*$/.test(ult)){ cuerpo.pop(); continue; }
+      break;
+    }
+    return {cuento:c.cuento, texto:cuerpo.join('\n').trim()};
+  });
+
+  // fuera las líneas del índice del principio: no arrastran texto
+  piezas = piezas.filter(p => p.texto.length >= MINIMO_CUENTO);
+
+  // si un título quedó dos veces, el bueno es el del cuerpo más largo
+  const porTitulo = new Map();
+  piezas.forEach(p => {
+    const clave = normalizar(p.cuento);
+    const previa = porTitulo.get(clave);
+    if(!previa || p.texto.length > previa.texto.length){
+      if(previa) previa.duda = true;
+      porTitulo.set(clave, p);
+    }else{
+      p.duda = true;
+    }
+  });
+
+  return piezas.map(p => {
+    const oraciones = partirOraciones(p.texto);
+    const esCuento = !NO_SON_CUENTOS.has(normalizar(p.cuento));
+    return {
+      cuento: p.cuento,
+      texto: p.texto,
+      oraciones: oraciones.length,
+      arranque: oraciones[0] || '',
+      duda: !!p.duda,
+      incluir: !p.duda && esCuento && oraciones.length >= 3
+    };
+  });
+}
+
+/* ---------- previsualización del libro ---------- */
+let deteccion = null;
+
+function detectar(){
+  const libro = $('inLibroTodo').value.trim();
+  const texto = $('inTextoLibro').value;
+  if(!libro){ alert('Poné el nombre del libro.'); return; }
+  if(!texto.trim()){ alert('Falta pegar el texto del libro.'); return; }
+
+  deteccion = partirLibro(libro, texto);
+  if(!deteccion.length){
+    $('preview').innerHTML = '<div class="vacio">No se encontraron títulos.<br>' +
+      'Revisá que cada título esté en su propia línea, o cargá los cuentos de a uno.</div>';
+    $('btnImportarLibro').classList.add('hidden');
+    return;
+  }
+  pintarPreview();
+}
+
+function pintarPreview(){
+  const n = deteccion.filter(d => d.incluir).length;
+  $('preview').innerHTML =
+    `<div class="prev">
+       <div class="prev-cab">
+         <span>${deteccion.length} títulos encontrados</span>
+         <span><a data-todos="1">todos</a> · <a data-todos="0">ninguno</a></span>
+       </div>
+       ${deteccion.map((d,i) => `
+         <label class="prev-fila ${d.duda?'duda':''}">
+           <input type="checkbox" data-i="${i}" ${d.incluir?'checked':''}>
+           <span class="t">
+             <b>${esc(d.cuento)}</b>
+             <span class="small muted"> · ${d.oraciones} oraciones</span>
+             <span class="frase">${esc(d.arranque.slice(0,110))}</span>
+           </span>
+         </label>`).join('')}
+     </div>`;
+
+  $('preview').querySelectorAll('input[data-i]').forEach(c => {
+    c.onchange = () => { deteccion[+c.dataset.i].incluir = c.checked; actualizarBotonImportar(); };
+  });
+  $('preview').querySelectorAll('a[data-todos]').forEach(a => {
+    a.onclick = () => {
+      const v = a.dataset.todos === '1';
+      deteccion.forEach(d => d.incluir = v && d.oraciones >= 3);
+      pintarPreview();
+    };
+  });
+  actualizarBotonImportar();
+}
+
+function actualizarBotonImportar(){
+  const n = deteccion.filter(d => d.incluir).length;
+  const btn = $('btnImportarLibro');
+  btn.classList.remove('hidden');
+  btn.disabled = n === 0;
+  btn.textContent = n ? `Importar ${n} ${n===1?'cuento':'cuentos'}` : 'No hay nada seleccionado';
+}
+
+function importarLibro(){
+  const libro = $('inLibroTodo').value.trim();
+  const elegidos = deteccion.filter(d => d.incluir);
+  if(!elegidos.length) return;
+
+  const pisados = elegidos.filter(d => textos.some(t => t.libro === libro && t.cuento === d.cuento));
+  if(pisados.length && !confirm(`Ya hay ${pisados.length} de estos cuentos en ${libro}. ¿Reemplazarlos?`)) return;
+
+  let sumados = 0;
+  elegidos.forEach(d => {
+    const previo = textos.find(t => t.libro === libro && t.cuento === d.cuento);
+    if(previo){ textos = textos.filter(t => t !== previo); cacheOraciones.delete(previo.id); }
+    textos.push({id:'txt-' + Date.now() + '-' + azar(999999), libro, cuento:d.cuento, texto:d.texto});
+    sumados++;
+  });
+  persistirTextos();
+  pintarTextos();
+
+  deteccion = null;
+  $('preview').innerHTML = '';
+  $('btnImportarLibro').classList.add('hidden');
+  $('inTextoLibro').value = '';
+  $('conteoLibro').textContent = '—';
+  alert(`Listo: se cargaron ${sumados} cuentos de ${libro}.`);
+  if(!ronda) nuevaRonda();
 }
 
 /* ---------- utilidades ---------- */
@@ -656,9 +928,28 @@ $('btnReset').onclick = () => {
 };
 
 $('btnGuardarTexto').onclick = agregarTexto;
+$('btnDetectar').onclick = detectar;
+$('btnImportarLibro').onclick = importarLibro;
+
+document.querySelectorAll('#chipsAlta .chip').forEach(c => {
+  c.onclick = () => {
+    document.querySelectorAll('#chipsAlta .chip').forEach(x => x.classList.toggle('on', x === c));
+    $('altaLibro').classList.toggle('hidden', c.dataset.alta !== 'libro');
+    $('altaCuento').classList.toggle('hidden', c.dataset.alta !== 'cuento');
+  };
+});
+
+let tardanza;
 $('inTexto').addEventListener('input', () => {
-  const n = partirOraciones($('inTexto').value).length;
-  $('conteo').textContent = n ? `${n} oraciones detectadas` : '—';
+  clearTimeout(tardanza);
+  tardanza = setTimeout(() => {
+    const n = partirOraciones($('inTexto').value).length;
+    $('conteo').textContent = n ? `${n} oraciones detectadas` : '—';
+  }, 200);
+});
+$('inTextoLibro').addEventListener('input', () => {
+  const n = $('inTextoLibro').value.length;
+  $('conteoLibro').textContent = n ? `${n.toLocaleString('es-AR')} caracteres pegados` : '—';
 });
 $('btnExportar').onclick = exportar;
 $('btnImportar').onclick = () => $('fileImportar').click();

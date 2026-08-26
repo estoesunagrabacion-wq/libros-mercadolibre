@@ -14,9 +14,16 @@ cuentos cargados). Se puede elegir con qué libros jugar.
 El juego no trae textos: se los cargás vos, y quedan **en tu navegador**, no en
 el repositorio. Hay dos maneras:
 
-1. **Desde el juego** — pestaña *Textos*: libro, título, y el cuento pegado.
-   Se guarda en el navegador de ese dispositivo. Con *Exportar / Importar JSON*
-   lo pasás al celular o a otra máquina.
+1. **Desde el juego** — pestaña *Textos*. Dos modos:
+   - *Un libro entero*: pegás el libro completo y corta solo por los títulos.
+     De **Ficciones** y **El Aleph** conoce el índice; para cualquier otro libro
+     detecta los títulos por la forma (líneas cortas y sueltas, con un párrafo
+     debajo). Antes de importar te muestra la lista de lo que encontró, con las
+     oraciones de cada cuento y su primera línea, para destildar lo que no va.
+   - *Un cuento suelto*: libro, título y texto.
+
+   Todo se guarda en el navegador de ese dispositivo. Con *Exportar / Importar
+   JSON* lo pasás al celular o a otra máquina.
 
 2. **Desde un archivo** — copiá `corpus.ejemplo.js` como `corpus.js` y cargá ahí
    los cuentos. El juego lo levanta solo al abrir la página.
