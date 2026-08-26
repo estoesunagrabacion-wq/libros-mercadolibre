@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<title>¿De qué texto es? — juego de oraciones de Borges</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#111a2b; --card2:#0e1626; --line:#22314d;
+    --txt:#e6eef6; --muted:#9aa6b2; --accent:#ffd166; --accent2:#4ea1ff;
+    --ok:#37d67a; --err:#ff6b6b; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 14px 60px}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#13233a,#0a1626);
+    display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--line)}
+  h1{font-size:19px;margin:0}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+  .card h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .hidden{display:none!important}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+
+  /* tabs */
+  .tabs{display:flex;gap:8px;margin-bottom:14px}
+  .tab{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card2);
+    color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;text-align:center}
+  .tab.on{background:var(--card);color:var(--accent);border-color:rgba(255,209,102,.35)}
+
+  /* marcador */
+  .marcador{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+  .m{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}
+  .m b{display:block;font-size:18px;color:var(--accent)}
+  .m span{font-size:11px;color:var(--muted)}
+
+  /* fragmento */
+  .frag{background:var(--card2);border:1px solid var(--line);border-left:4px solid var(--accent);
+    border-radius:10px;padding:16px 16px 6px}
+  .frag p{font-family:Georgia,"Times New Roman",serif;font-size:18px;line-height:1.6;margin:0 0 12px}
+  .frag p.nueva{animation:aparecer .5s ease both}
+  @keyframes aparecer{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .frag p.n2,.frag p.n3{color:#cfdae6}
+  .nro{display:inline-block;min-width:20px;color:var(--accent);font-family:system-ui,sans-serif;
+    font-size:11px;vertical-align:super;margin-right:2px;opacity:.7}
+
+  .acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .btn{appearance:none;border:none;border-radius:10px;padding:12px 14px;font-size:15px;font-weight:700;
+    cursor:pointer;background:var(--accent);color:#1b1b1b;transition:transform .08s,filter .12s;
+    text-align:center;font-family:inherit}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn.sec{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+  .btn.blue{background:var(--accent2);color:#04121f}
+  .btn.full{width:100%}
+  .btn.sm{padding:8px 12px;font-size:13px}
+
+  /* opciones */
+  .opciones{display:grid;gap:8px;margin-top:14px}
+  .op{width:100%;text-align:left;padding:13px 14px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card2);color:var(--txt);font-size:15px;font-family:inherit;cursor:pointer;line-height:1.35}
+  .op:hover:not(:disabled){border-color:rgba(255,209,102,.4)}
+  .op:disabled{cursor:default}
+  .op .lib{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+  .op.bien{border-color:var(--ok);background:rgba(55,214,122,.12)}
+  .op.mal{border-color:var(--err);background:rgba(255,107,107,.10)}
+
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;background:var(--card2);color:var(--txt);border:1px solid var(--line);
+    border-radius:10px;padding:11px;font-size:15px;font-family:inherit}
+  textarea{min-height:160px;resize:vertical;line-height:1.5}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:140px}
+
+  .resultado{margin-top:14px;padding:14px;border-radius:10px;border:1px solid var(--line);background:var(--card2)}
+  .resultado.bien{border-left:4px solid var(--ok)}
+  .resultado.mal{border-left:4px solid var(--err)}
+  .resultado h3{margin:0 0 6px;font-size:16px}
+  .resultado .dato{font-family:Georgia,serif;font-size:17px}
+  .resultado .dato em{color:var(--accent);font-style:italic}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);
+    border-radius:999px;padding:6px 10px;font-size:13px;cursor:pointer;user-select:none}
+  .chip.on{border-color:rgba(255,209,102,.5);color:var(--accent)}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td{padding:9px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.der{text-align:right;white-space:nowrap}
+  .vacio{text-align:center;color:var(--muted);padding:18px 8px;font-size:14px;line-height:1.5}
+  .aviso{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+  code{background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">📖</div>
+    <div>
+      <h1>¿De qué texto es?</h1>
+      <p class="sub">Una oración al azar. Adiviná a qué cuento pertenece.</p>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-vista="jugar">Jugar</button>
+    <button class="tab" data-vista="textos">Textos</button>
+  </div>
+
+  <!-- ══════════ JUGAR ══════════ -->
+  <section id="vista-jugar">
+    <div class="marcador">
+      <div class="m"><b id="mPuntos">0</b><span>puntos</span></div>
+      <div class="m"><b id="mRacha">0</b><span>racha</span></div>
+      <div class="m"><b id="mAciertos">0</b><span>aciertos</span></div>
+      <div class="m"><b id="mJugadas">0</b><span>jugadas</span></div>
+    </div>
+
+    <div class="card hidden" id="cardVacio">
+      <div class="vacio">
+        Todavía no hay textos cargados.<br>
+        Andá a <b>Textos</b> y pegá un cuento para empezar a jugar.
+      </div>
+      <button class="btn full sec" id="irATextos">Cargar textos</button>
+    </div>
+
+    <div class="card hidden" id="cardJuego">
+      <div class="frag" id="frag"></div>
+
+      <div class="acciones">
+        <button class="btn sec" id="btnMas">Oración siguiente</button>
+        <button class="btn sec" id="btnRindo">Me rindo</button>
+      </div>
+
+      <div id="zonaRespuesta">
+        <div class="opciones" id="opciones"></div>
+        <div id="zonaDificil" class="hidden">
+          <label for="selCuento">Elegí el texto</label>
+          <select id="selCuento"></select>
+          <button class="btn full blue" id="btnAdivinar" style="margin-top:10px">Adivinar</button>
+        </div>
+      </div>
+
+      <div id="resultado"></div>
+
+      <button class="btn full hidden" id="btnOtra" style="margin-top:14px">Otra oración →</button>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Partida</h2>
+      <label>Dificultad</label>
+      <div class="chips" id="chipsModo">
+        <div class="chip on" data-modo="facil">Fácil · 4 opciones</div>
+        <div class="chip" data-modo="dificil">Difícil · lista completa</div>
+      </div>
+      <label style="margin-top:14px">Libros en juego</label>
+      <div class="chips" id="chipsLibros"></div>
+      <button class="btn full sec sm" id="btnReset" style="margin-top:16px">Reiniciar marcador</button>
+    </div>
+  </section>
+
+  <!-- ══════════ TEXTOS ══════════ -->
+  <section id="vista-textos" class="hidden">
+    <div class="card">
+      <h2>➕ Agregar un texto</h2>
+      <div class="row">
+        <div>
+          <label for="inLibro">Libro</label>
+          <input id="inLibro" list="librosSugeridos" placeholder="Ficciones" autocomplete="off">
+          <datalist id="librosSugeridos"></datalist>
+        </div>
+        <div>
+          <label for="inCuento">Título del cuento</label>
+          <input id="inCuento" placeholder="Las ruinas circulares" autocomplete="off">
+        </div>
+      </div>
+      <label for="inTexto">Texto completo (se parte solo en oraciones)</label>
+      <textarea id="inTexto" placeholder="Pegá acá el cuento entero…"></textarea>
+      <div class="small muted" id="conteo" style="margin:6px 0 10px">—</div>
+      <button class="btn full" id="btnGuardarTexto">Guardar texto</button>
+      <p class="aviso">
+        Los textos se guardan <b>en este navegador</b>, no en el repositorio: no se publican.
+        Para tenerlos en otro dispositivo, usá exportar / importar.
+        Si preferís un archivo, dejá tu copia en <code>borges/corpus.js</code> (está en el <code>.gitignore</code>).
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>📚 Textos cargados</h2>
+      <div id="listaTextos"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn sec sm" id="btnExportar">Exportar JSON</button>
+        <button class="btn sec sm" id="btnImportar">Importar JSON</button>
+      </div>
+      <input type="file" id="fileImportar" accept=".json,application/json" class="hidden">
+    </div>
+  </section>
+</div>
+
+<script src="corpus.js" onerror="window.__sinCorpusJs=true"></script>
+<script>
+/* ══════════════════════════════════════════════════════════
+   ¿De qué texto es? — juego de oraciones
+   Motor: parte los textos en oraciones, muestra una al azar y
+   deja pedir hasta dos oraciones más (tres en total).
+   ══════════════════════════════════════════════════════════ */
+
+const CLAVE_TEXTOS = 'borges-textos-v1';
+const CLAVE_STATS  = 'borges-stats-v1';
+const CLAVE_PREFS  = 'borges-prefs-v1';
+
+/* ---------- almacenamiento ---------- */
+function leer(clave, porDefecto){
+  try{ const v = localStorage.getItem(clave); return v ? JSON.parse(v) : porDefecto; }
+  catch(e){ return porDefecto; }
+}
+function guardar(clave, valor){
+  try{ localStorage.setItem(clave, JSON.stringify(valor)); }catch(e){}
+}
+
+let textos = leer(CLAVE_TEXTOS, []);
+let stats  = leer(CLAVE_STATS, {puntos:0, racha:0, mejorRacha:0, aciertos:0, jugadas:0});
+let prefs  = leer(CLAVE_PREFS, {modo:'facil', libros:null});
+
+/* textos que vengan de corpus.js (archivo local, no versionado) */
+if (window.CORPUS_BORGES && Array.isArray(window.CORPUS_BORGES.textos)) {
+  const yaEsta = (t) => textos.some(x => x.libro === t.libro && x.cuento === t.cuento);
+  window.CORPUS_BORGES.textos.forEach(t => {
+    if (t && t.libro && t.cuento && t.texto && !yaEsta(t)) {
+      textos.push({id:'archivo-'+t.libro+'-'+t.cuento, libro:t.libro, cuento:t.cuento, texto:t.texto, deArchivo:true});
+    }
+  });
+}
+
+/* ---------- partir en oraciones ---------- */
+const ABREVIATURAS = new Set([
+  'sr','sra','srta','dr','dra','ing','lic','prof','profa','etc','vol','pág','pag','págs','cap',
+  'fig','núm','num','ed','eds','trad','p','pp','op','cit','cf','ss','vs','st','mr','mrs','ms','ca','ibíd','ibid'
+]);
+
+function terminaEnAbreviatura(s){
+  if(!/[.]$/.test(s)) return false;
+  const palabra = s.slice(0,-1).split(/[\s(«"'“¿¡—-]+/).pop().toLowerCase();
+  if(!palabra) return false;
+  if(palabra.length === 1) return true;                 // iniciales: J. L. Borges
+  if(/^\d+$/.test(palabra)) return false;
+  return ABREVIATURAS.has(palabra.replace(/\.$/,''));
+}
+
+function partirOraciones(texto){
+  const parrafos = String(texto||'')
+    .replace(/\r/g,'')
+    .split(/\n+/)
+    .map(p => p.replace(/[ \t ]+/g,' ').trim())
+    .filter(Boolean);
+
+  const oraciones = [];
+  parrafos.forEach(parrafo => {
+    let trozos;
+    try{
+      trozos = parrafo.split(/(?<=[.!?…][»”"')\]]*)\s+(?=[«¿¡"(“A-ZÁÉÍÓÚÜÑ0-9])/);
+    }catch(e){                                          // navegador sin lookbehind
+      trozos = parrafo.split(/([.!?…]+["»”')\]]*)\s+/).reduce((acc,p,i,arr)=>{
+        if(i%2===0){ acc.push((p||'') + (arr[i+1]||'')); } return acc;
+      },[]).filter(s=>s.trim());
+    }
+    trozos.forEach(t => {
+      const s = t.trim();
+      if(!s) return;
+      const previa = oraciones[oraciones.length-1];
+      const mismaParrafo = previa && previa.parrafo === parrafo;
+      if(mismaParrafo && (terminaEnAbreviatura(previa.txt) || previa.txt.length < 3)){
+        previa.txt += ' ' + s;
+      }else{
+        oraciones.push({txt:s, parrafo:parrafo});
+      }
+    });
+  });
+  return oraciones.map(o => o.txt);
+}
+
+/* cache de oraciones por texto */
+const cacheOraciones = new Map();
+function oracionesDe(t){
+  if(!cacheOraciones.has(t.id)) cacheOraciones.set(t.id, partirOraciones(t.texto));
+  return cacheOraciones.get(t.id);
+}
+
+/* ---------- utilidades ---------- */
+const $ = (id) => document.getElementById(id);
+const azar = (n) => Math.floor(Math.random()*n);
+function mezclar(a){ const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=azar(i+1); [b[i],b[j]]=[b[j],b[i]]; } return b; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function librosDisponibles(){
+  return [...new Set(textos.map(t => t.libro))].sort((a,b)=>a.localeCompare(b,'es'));
+}
+function librosElegidos(){
+  const disp = librosDisponibles();
+  if(!prefs.libros) return disp;
+  const elegidos = prefs.libros.filter(l => disp.includes(l));
+  return elegidos.length ? elegidos : disp;
+}
+function textosEnJuego(){
+  const libros = librosElegidos();
+  return textos.filter(t => libros.includes(t.libro) && oracionesDe(t).length >= 3);
+}
+
+/* ---------- estado de la ronda ---------- */
+let ronda = null;   // {texto, oraciones:[3], mostradas:1, respondido:bool}
+let ultimoCuento = null;
+
+function nuevaRonda(){
+  const posibles = textosEnJuego();
+  if(!posibles.length){ pintarVacio(); return; }
+
+  let candidatos = posibles.length > 1 ? posibles.filter(t => t.id !== ultimoCuento) : posibles;
+  if(!candidatos.length) candidatos = posibles;
+  const texto = candidatos[azar(candidatos.length)];
+  ultimoCuento = texto.id;
+
+  const oraciones = oracionesDe(texto);
+  const topes = oraciones.length - 3;                  // que siempre haya dos más
+  // preferimos empezar en una oración con algo de sustancia
+  const buenos = [];
+  for(let i=0;i<=topes;i++) if(oraciones[i].length >= 45) buenos.push(i);
+  const inicio = buenos.length ? buenos[azar(buenos.length)] : azar(topes+1);
+
+  ronda = {
+    texto,
+    oraciones: oraciones.slice(inicio, inicio+3),
+    inicio,
+    total: oraciones.length,
+    mostradas: 1,
+    respondido: false
+  };
+  pintarRonda();
+}
+
+function pintarVacio(){
+  $('cardVacio').classList.remove('hidden');
+  $('cardJuego').classList.add('hidden');
+  ronda = null;
+  $('cardVacio').querySelector('.vacio').innerHTML = textos.length
+    ? 'No hay textos jugables con los libros elegidos.<br>Cada texto necesita al menos tres oraciones.'
+    : 'Todavía no hay textos cargados.<br>Andá a <b>Textos</b> y pegá un cuento para empezar a jugar.';
+}
+
+function pintarRonda(){
+  $('cardVacio').classList.add('hidden');
+  $('cardJuego').classList.remove('hidden');
+
+  const frag = $('frag');
+  frag.innerHTML = ronda.oraciones.slice(0, ronda.mostradas).map((o,i) =>
+    `<p class="${i===ronda.mostradas-1?'nueva':''} n${i+1}"><span class="nro">${i+1}</span>${esc(o)}</p>`
+  ).join('');
+
+  const quedan = 3 - ronda.mostradas;
+  $('btnMas').textContent = quedan ? `Oración siguiente (${quedan} más)` : 'No hay más oraciones';
+  $('btnMas').disabled = quedan === 0 || ronda.respondido;
+  $('btnRindo').disabled = ronda.respondido;
+
+  $('resultado').innerHTML = '';
+  $('btnOtra').classList.add('hidden');
+  $('zonaRespuesta').classList.remove('hidden');
+  pintarRespuesta();
+}
+
+/* ---------- opciones ---------- */
+function pintarRespuesta(){
+  const facil = prefs.modo === 'facil';
+  $('opciones').classList.toggle('hidden', !facil);
+  $('zonaDificil').classList.toggle('hidden', facil);
+  facil ? pintarOpciones() : pintarSelect();
+}
+
+function pintarOpciones(){
+  if(!ronda.opciones){
+    const pool = textosEnJuego();
+    const correcto = ronda.texto;
+    const otros = mezclar(pool.filter(t => t.id !== correcto.id)).slice(0, 3);
+    ronda.opciones = mezclar([correcto, ...otros]);
+  }
+
+  $('opciones').innerHTML = ronda.opciones.map((t,i) =>
+    `<button class="op" data-i="${i}">${esc(t.cuento)}<span class="lib">${esc(t.libro)}</span></button>`
+  ).join('');
+  $('opciones').querySelectorAll('.op').forEach(b => {
+    b.onclick = () => responder(ronda.opciones[+b.dataset.i]);
+  });
+}
+
+function pintarSelect(){
+  const pool = textosEnJuego();
+  const porLibro = {};
+  pool.forEach(t => (porLibro[t.libro] = porLibro[t.libro] || []).push(t));
+  const sel = $('selCuento');
+  sel.innerHTML = '<option value="">— elegí un texto —</option>' +
+    Object.keys(porLibro).sort((a,b)=>a.localeCompare(b,'es')).map(libro =>
+      `<optgroup label="${esc(libro)}">` +
+      porLibro[libro].sort((a,b)=>a.cuento.localeCompare(b.cuento,'es'))
+        .map(t => `<option value="${esc(t.id)}">${esc(t.cuento)}</option>`).join('') +
+      '</optgroup>'
+    ).join('');
+  sel.value = '';
+  sel.disabled = false;
+  $('btnAdivinar').disabled = false;
+}
+
+/* ---------- responder ---------- */
+function responder(elegido){
+  if(ronda.respondido) return;
+  const acierto = elegido && elegido.id === ronda.texto.id;
+  const puntos = acierto ? (4 - ronda.mostradas) : 0;   // 3 · 2 · 1
+
+  ronda.respondido = true;
+  stats.jugadas++;
+  if(acierto){
+    stats.aciertos++;
+    stats.puntos += puntos;
+    stats.racha++;
+    stats.mejorRacha = Math.max(stats.mejorRacha, stats.racha);
+  }else{
+    stats.racha = 0;
+  }
+  guardar(CLAVE_STATS, stats);
+  pintarMarcador();
+  mostrarResultado(acierto, puntos, elegido);
+}
+
+function rendirse(){
+  if(ronda.respondido) return;
+  ronda.respondido = true;
+  stats.jugadas++;
+  stats.racha = 0;
+  guardar(CLAVE_STATS, stats);
+  pintarMarcador();
+  mostrarResultado(false, 0, null);
+}
+
+function mostrarResultado(acierto, puntos, elegido){
+  $('btnMas').disabled = true;
+  $('btnRindo').disabled = true;
+
+  if(prefs.modo === 'facil'){
+    $('opciones').querySelectorAll('.op').forEach((b,i) => {
+      b.disabled = true;
+      const t = ronda.opciones[i];
+      if(t.id === ronda.texto.id) b.classList.add('bien');
+      else if(elegido && t.id === elegido.id) b.classList.add('mal');
+    });
+  }else{
+    $('selCuento').disabled = true;
+    $('btnAdivinar').disabled = true;
+  }
+
+  const donde = ubicacion(ronda);
+  const titulo = acierto
+    ? `✓ ¡Bien! +${puntos} ${puntos===1?'punto':'puntos'}`
+    : (elegido ? '✗ No era' : 'La respuesta era');
+
+  $('resultado').innerHTML =
+    `<div class="resultado ${acierto?'bien':'mal'}">
+       <h3>${titulo}</h3>
+       <div class="dato"><em>${esc(ronda.texto.cuento)}</em></div>
+       <div class="small muted" style="margin-top:4px">${esc(ronda.texto.libro)} · ${donde}</div>
+     </div>`;
+
+  $('zonaRespuesta').classList.add('hidden');
+  $('btnOtra').classList.remove('hidden');
+}
+
+function ubicacion(r){
+  const pos = r.inicio / Math.max(1, r.total - 3);
+  if(r.inicio === 0) return 'las primeras líneas';
+  if(r.inicio + 3 >= r.total) return 'el final';
+  if(pos < .34) return 'el comienzo';
+  if(pos < .67) return 'la mitad';
+  return 'el tramo final';
+}
+
+/* ---------- marcador ---------- */
+function pintarMarcador(){
+  $('mPuntos').textContent = stats.puntos;
+  $('mRacha').textContent = stats.racha;
+  $('mAciertos').textContent = stats.aciertos;
+  $('mJugadas').textContent = stats.jugadas;
+}
+
+/* ---------- textos ---------- */
+function pintarTextos(){
+  const cont = $('listaTextos');
+  if(!textos.length){
+    cont.innerHTML = '<div class="vacio">Todavía no cargaste ningún texto.</div>';
+  }else{
+    const orden = textos.slice().sort((a,b) =>
+      a.libro.localeCompare(b.libro,'es') || a.cuento.localeCompare(b.cuento,'es'));
+    cont.innerHTML = '<table>' + orden.map(t => {
+      const n = oracionesDe(t).length;
+      const flojo = n < 3 ? ' · <span style="color:var(--err)">muy corto</span>' : '';
+      return `<tr>
+        <td><b>${esc(t.cuento)}</b><br><span class="small muted">${esc(t.libro)} · ${n} oraciones${flojo}</span></td>
+        <td class="der">${t.deArchivo
+          ? '<span class="small muted">corpus.js</span>'
+          : `<button class="btn sec sm" data-borrar="${esc(t.id)}">Borrar</button>`}</td>
+      </tr>`;
+    }).join('') + '</table>';
+    cont.querySelectorAll('[data-borrar]').forEach(b => {
+      b.onclick = () => {
+        const t = textos.find(x => x.id === b.dataset.borrar);
+        if(t && confirm(`¿Borrar «${t.cuento}»?`)) borrarTexto(b.dataset.borrar);
+      };
+    });
+  }
+  $('librosSugeridos').innerHTML = librosDisponibles().map(l => `<option value="${esc(l)}">`).join('');
+  pintarChipsLibros();
+}
+
+function borrarTexto(id){
+  textos = textos.filter(t => t.id !== id);
+  cacheOraciones.delete(id);
+  persistirTextos();
+  pintarTextos();
+  if(ultimoCuento === id) ultimoCuento = null;
+  if(!textosEnJuego().length) pintarVacio(); else nuevaRonda();
+}
+
+function persistirTextos(){
+  guardar(CLAVE_TEXTOS, textos.filter(t => !t.deArchivo));
+}
+
+function agregarTexto(){
+  const libro  = $('inLibro').value.trim();
+  const cuento = $('inCuento').value.trim();
+  const texto  = $('inTexto').value.trim();
+  if(!libro || !cuento || !texto){ alert('Faltan el libro, el título o el texto.'); return; }
+
+  const oraciones = partirOraciones(texto);
+  if(oraciones.length < 3){ alert('El texto tiene menos de tres oraciones: el juego necesita al menos tres.'); return; }
+
+  const existente = textos.find(t => t.libro === libro && t.cuento === cuento);
+  if(existente && !confirm(`Ya hay un texto «${cuento}» en ${libro}. ¿Reemplazarlo?`)) return;
+  if(existente){ textos = textos.filter(t => t !== existente); cacheOraciones.delete(existente.id); }
+
+  const id = 'txt-' + Date.now() + '-' + azar(9999);
+  textos.push({id, libro, cuento, texto});
+  persistirTextos();
+  cacheOraciones.delete(id);
+
+  $('inCuento').value = '';
+  $('inTexto').value = '';
+  $('conteo').textContent = '—';
+  pintarTextos();
+  alert(`Listo: «${cuento}» quedó cargado con ${oraciones.length} oraciones.`);
+  if(!ronda) nuevaRonda();
+}
+
+function exportar(){
+  const datos = {v:1, exportado:new Date().toISOString(), textos: textos.map(({libro,cuento,texto}) => ({libro,cuento,texto}))};
+  const blob = new Blob([JSON.stringify(datos, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'corpus-borges.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function importar(archivo){
+  const lector = new FileReader();
+  lector.onload = () => {
+    let datos;
+    try{ datos = JSON.parse(lector.result); }
+    catch(e){ alert('El archivo no es un JSON válido.'); return; }
+    const entrantes = Array.isArray(datos) ? datos : (datos.textos || []);
+    let sumados = 0;
+    entrantes.forEach(t => {
+      if(!t || !t.libro || !t.cuento || !t.texto) return;
+      if(textos.some(x => x.libro === t.libro && x.cuento === t.cuento)) return;
+      textos.push({id:'txt-' + Date.now() + '-' + azar(9999), libro:t.libro, cuento:t.cuento, texto:t.texto});
+      sumados++;
+    });
+    persistirTextos();
+    pintarTextos();
+    alert(sumados ? `Se agregaron ${sumados} texto(s).` : 'No había textos nuevos para agregar.');
+    if(!ronda) nuevaRonda();
+  };
+  lector.readAsText(archivo);
+}
+
+/* ---------- preferencias ---------- */
+function pintarChipsLibros(){
+  const disp = librosDisponibles();
+  const elegidos = librosElegidos();
+  $('chipsLibros').innerHTML = disp.length
+    ? disp.map(l => `<div class="chip ${elegidos.includes(l)?'on':''}" data-libro="${esc(l)}">${esc(l)}</div>`).join('')
+    : '<span class="small muted">Cargá textos para elegir libros.</span>';
+  $('chipsLibros').querySelectorAll('.chip').forEach(c => {
+    c.onclick = () => {
+      const libro = c.dataset.libro;
+      let sel = librosElegidos().slice();
+      sel = sel.includes(libro) ? sel.filter(x => x !== libro) : sel.concat(libro);
+      if(!sel.length) return;                      // al menos uno
+      prefs.libros = sel;
+      guardar(CLAVE_PREFS, prefs);
+      pintarChipsLibros();
+      nuevaRonda();
+    };
+  });
+}
+
+function pintarChipsModo(){
+  $('chipsModo').querySelectorAll('.chip').forEach(c => {
+    c.classList.toggle('on', c.dataset.modo === prefs.modo);
+    c.onclick = () => {
+      prefs.modo = c.dataset.modo;
+      guardar(CLAVE_PREFS, prefs);
+      pintarChipsModo();
+      if(ronda && !ronda.respondido) pintarRespuesta();
+    };
+  });
+}
+
+/* ---------- vistas ---------- */
+function mostrarVista(v){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.vista === v));
+  $('vista-jugar').classList.toggle('hidden', v !== 'jugar');
+  $('vista-textos').classList.toggle('hidden', v !== 'textos');
+  window.scrollTo(0,0);
+}
+
+/* ---------- eventos ---------- */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => mostrarVista(t.dataset.vista));
+$('irATextos').onclick = () => mostrarVista('textos');
+
+$('btnMas').onclick = () => {
+  if(ronda.respondido || ronda.mostradas >= 3) return;
+  ronda.mostradas++;
+  pintarRonda();
+};
+$('btnRindo').onclick = rendirse;
+$('btnOtra').onclick = nuevaRonda;
+$('btnAdivinar').onclick = () => {
+  const id = $('selCuento').value;
+  if(!id){ alert('Elegí un texto de la lista.'); return; }
+  responder(textos.find(t => t.id === id));
+};
+$('btnReset').onclick = () => {
+  if(!confirm('¿Reiniciar puntos, racha y jugadas?')) return;
+  stats = {puntos:0, racha:0, mejorRacha:0, aciertos:0, jugadas:0};
+  guardar(CLAVE_STATS, stats);
+  pintarMarcador();
+};
+
+$('btnGuardarTexto').onclick = agregarTexto;
+$('inTexto').addEventListener('input', () => {
+  const n = partirOraciones($('inTexto').value).length;
+  $('conteo').textContent = n ? `${n} oraciones detectadas` : '—';
+});
+$('btnExportar').onclick = exportar;
+$('btnImportar').onclick = () => $('fileImportar').click();
+$('fileImportar').onchange = (e) => { if(e.target.files[0]) importar(e.target.files[0]); e.target.value=''; };
+
+/* ---------- arranque ---------- */
+pintarMarcador();
+pintarChipsModo();
+pintarTextos();
+if(textosEnJuego().length) nuevaRonda(); else pintarVacio();
+</script>
+</body>
+</html>
