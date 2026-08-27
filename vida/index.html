@@ -59,6 +59,9 @@
     background:rgba(8,14,26,.65);border:1px solid rgba(120,150,200,.18);border-radius:10px;padding:6px 10px;
     pointer-events:none;backdrop-filter:blur(6px);transition:opacity .5s}
   .hint.oculto{opacity:0}
+  .scan{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;
+    background:repeating-linear-gradient(to bottom, rgba(0,0,0,.30) 0 1px, transparent 1px 3px)}
+  .board.crt .scan{opacity:1}
   @media (max-width:640px){ .hint{display:none} }
 
   .panel{display:flex;flex-direction:column;gap:12px}
@@ -66,6 +69,8 @@
   .card h2{font-size:13px;margin:0 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
 
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .grid3 .btn{padding:10px 6px;font-size:13px}
   .btn{appearance:none;border:1px solid var(--line);background:var(--card2);color:var(--txt);
     border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;cursor:pointer;
     font-family:inherit;transition:transform .07s,filter .12s,background .12s}
@@ -90,11 +95,40 @@
 
   #spark{display:block;width:100%;height:52px;border-radius:9px;background:var(--card2);border:1px solid var(--line)}
 
+  .explica{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+  .explica .card p{margin:0 0 10px;font-size:13.5px;line-height:1.62;color:#c6d2e2}
+  .explica .card p:last-child{margin-bottom:0}
+  .explica .card p.note{margin:15px 0 0;font-size:12.5px;color:var(--muted)}
+  .explica b{color:var(--txt)}
+  .reglas{display:flex;flex-direction:column;gap:10px}
+  .regla{display:flex;align-items:center;gap:10px}
+  .regla .txt{font-size:12.5px;line-height:1.4;color:#c6d2e2}
+  .regla .txt b{display:block;font-size:12px;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+  .mini{display:grid;grid-template-columns:repeat(3,11px);grid-auto-rows:11px;gap:2px;flex:0 0 auto}
+  .mini i{border-radius:2px;background:rgba(140,170,210,.10)}
+  .mini i.v{background:var(--accent2);box-shadow:0 0 7px rgba(78,161,255,.55)}
+  .mini i.c{outline:1px dashed rgba(230,238,246,.45);outline-offset:1px}
+  .flecha{color:var(--muted);font-size:13px}
+  .uno{width:13px;height:13px;border-radius:3px;background:rgba(140,170,210,.10);flex:0 0 auto}
+  .uno.v{background:var(--accent2);box-shadow:0 0 8px rgba(78,161,255,.6)}
+  .glos{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .glos li{font-size:13px;line-height:1.5;color:#c6d2e2}
+  .glos b{color:var(--txt)}
+  .glos code{background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:11.5px;color:var(--accent2)}
+
   footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center;line-height:1.6}
   footer a{color:var(--accent2);text-decoration:none}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="goo" color-interpolation-filters="sRGB">
+    <feGaussianBlur id="gooBlur" stdDeviation="3" result="b" />
+    <feColorMatrix in="b" type="matrix"
+      values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" />
+  </filter>
+</svg>
+
 <div class="wrap">
   <header>
     <div class="logo">🧬</div>
@@ -107,6 +141,7 @@
   <div class="shell">
     <section class="board">
       <canvas id="board"></canvas>
+      <div class="scan"></div>
       <div class="vignette"></div>
       <div class="hud">
         <div class="chip">gen <b id="mGen">0</b></div>
@@ -143,13 +178,16 @@
 
       <div class="card">
         <h2>Estilo</h2>
-        <label>Paleta</label>
+        <label>Trazo</label>
+        <div class="pats" id="modos"></div>
+        <label style="margin-top:12px">Paleta</label>
         <select id="sPal"></select>
         <label>Brillo del halo <span id="lGlow">10</span></label>
         <input type="range" id="rGlow" min="0" max="20" value="10" />
-        <div class="grid2" style="margin-top:12px">
+        <div class="grid3">
           <button class="btn on" id="bTrail">Estelas</button>
-          <button class="btn on" id="bGrid">Cuadrícula</button>
+          <button class="btn on" id="bGrid">Grilla</button>
+          <button class="btn on" id="bSmooth">Suave</button>
         </div>
       </div>
 
@@ -160,6 +198,33 @@
       </div>
     </aside>
   </div>
+
+  <section class="explica">
+    <div class="card">
+      <h2>Qué es esto</h2>
+      <p>El Juego de la Vida es un <b>juego de cero jugadores</b>: acomodás unas células al principio y no volvés a intervenir. De ahí en más todo lo que pasa lo deciden cuatro reglas que sólo miran las ocho casillas vecinas de cada célula. No hay puntaje, no hay rival y no hay final previsto.</p>
+      <p>Lo inventó el matemático británico <b>John Conway</b> en 1970, y lo pensó justamente así: reglas mínimas, ninguna instrucción sobre qué debería formarse.</p>
+      <p>De esas reglas locales, sin plan central, salen estructuras que nadie programó: bloques que se quedan quietos, figuras que laten, naves que se desplazan y hasta cañones que fabrican naves para siempre. Es el ejemplo de manual de <b>emergencia</b>: comportamiento complejo que aparece solo, de piezas tontas que se miran entre vecinas.</p>
+    </div>
+
+    <div class="card">
+      <h2>Las cuatro reglas</h2>
+      <div class="reglas" id="reglas"></div>
+      <p class="note">Todas las células cambian <b>a la vez</b>: cada generación se calcula mirando la anterior, nunca a medio actualizar.</p>
+    </div>
+
+    <div class="card">
+      <h2>Qué mirar</h2>
+      <ul class="glos">
+        <li><b>Vidas quietas</b> — un bloque de 4 que se sostiene solo y no cambia nunca. El chip dice <code>quieta</code>.</li>
+        <li><b>Osciladores</b> — vuelven a su forma cada tantas generaciones: el pulsar cada 3, el pentadecatlón cada 15. El chip los cuenta: <code>oscila ×3</code>.</li>
+        <li><b>Naves</b> — el planeador se repite igual pero corrido una casilla en diagonal: se mueve. Por eso nunca figura como quieta.</li>
+        <li><b>Matusalenes</b> — la bellota son 7 células que en un tablero infinito tardan más de <b>5000</b> generaciones en asentarse. Acá, con el tablero dando la vuelta, choca consigo misma y la historia cambia.</li>
+        <li><b>Cañones</b> — el cañón de Gosper dispara un planeador cada 30 generaciones, sin agotarse: población que crece para siempre.</li>
+      </ul>
+      <p class="note">Con estas piezas se puede armar una computadora entera: todo lo que calcula una computadora lo calcula un tablero de la Vida lo bastante grande. Por eso no hay atajo para saber cómo termina un tablero — hay que dejarlo correr y mirar.</p>
+    </div>
+  </section>
 
   <footer>
     Reglas <b>B3/S23</b> — una celda muerta nace si tiene exactamente 3 vecinas vivas; una viva sobrevive con 2 o 3, y en cualquier otro caso muere.
@@ -233,13 +298,17 @@
   const glow = document.createElement("canvas"), gctx = glow.getContext("2d");
   const spark = $("spark"), sctx = spark.getContext("2d");
   const GLOW_SCALE = .3; // el halo se calcula en chico y se agranda: mucho más barato
+  const gooBlur = $("gooBlur");
+  lctx.filter = "url(#goo)";
+  const GOO = lctx.filter !== "none"; // no todos los navegadores aceptan filtros SVG en canvas
+  lctx.filter = "none";
 
   const S = {
     cols: 0, rows: 0, cell: 10, dpr: 1, dprCap: 2, w: 0, h: 0, offX: 0, offY: 0,
-    cur: null, next: null, age: null, heat: null,
+    cur: null, next: null, age: null, heat: null, born: null, dying: null,
     gen: 0, pop: 0, running: true, speed: 12, density: .32,
-    wrap: true, trails: true, showGrid: true, glow: 10,
-    pal: PALETAS["Neón"], ramp: rampFor(PALETAS["Neón"]),
+    wrap: true, trails: true, showGrid: true, glow: 10, modo: "pixel", suave: true,
+    pal: PALETAS["Neón"], ramp: rampFor(PALETAS["Neón"]), palNombre: "Neón",
     figura: null, history: [], hashes: [], estado: "viva"
   };
 
@@ -261,6 +330,8 @@
     S.cur = cur; S.age = age;
     S.next = new Uint8Array(cols * rows);
     S.heat = new Float32Array(cols * rows);
+    S.born = new Uint8Array(cols * rows);   // nacieron en el último paso
+    S.dying = new Uint8Array(cols * rows);  // murieron en el último paso
     S.pop = cur.reduce((a, v) => a + v, 0);
   }
 
@@ -277,6 +348,7 @@
     lctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
     glow.width = Math.max(1, Math.round(rect.width * GLOW_SCALE));
     glow.height = Math.max(1, Math.round(rect.height * GLOW_SCALE));
+    gooBlur.setAttribute("stdDeviation", (S.cell * .3 * S.dpr).toFixed(2));
 
     const cols = Math.max(8, Math.floor(rect.width / S.cell));
     const rows = Math.max(8, Math.floor(rect.height / S.cell));
@@ -289,7 +361,7 @@
 
   /* ---------- simulación ---------- */
   function step() {
-    const { cols, rows, cur, next, age, heat, wrap } = S;
+    const { cols, rows, cur, next, age, heat, wrap, born, dying } = S;
     let pop = 0;
     for (let y = 0; y < rows; y++) {
       const yUp = y === 0 ? rows - 1 : y - 1, yDn = y === rows - 1 ? 0 : y + 1;
@@ -314,6 +386,8 @@
         const i = y * cols + x, viva = cur[i];
         const nace = viva ? (n === 2 || n === 3) : n === 3;
         next[i] = nace ? 1 : 0;
+        born[i] = nace && !viva ? 1 : 0;
+        dying[i] = !nace && viva ? 1 : 0;
         if (nace) { age[i] = viva ? Math.min(255, age[i] + 1) : 1; heat[i] = 1; pop++; }
         else age[i] = 0;
       }
@@ -360,11 +434,12 @@
       const v = Math.random() < S.density * (.45 + centro) ? 1 : 0;
       cur[y * cols + x] = v; age[y * cols + x] = v; pop += v;
     }
+    S.born.fill(0); S.dying.fill(0);
     S.pop = pop; S.gen = 0; S.history = []; S.hashes = []; S.estado = "viva";
   }
 
   function limpiar() {
-    S.cur.fill(0); S.age.fill(0); S.heat.fill(0);
+    S.cur.fill(0); S.age.fill(0); S.heat.fill(0); S.born.fill(0); S.dying.fill(0);
     S.pop = 0; S.gen = 0; S.history = []; S.hashes = []; S.estado = "extinta";
   }
 
@@ -382,9 +457,50 @@
   }
 
   /* ---------- dibujo ---------- */
+
+  // gotas pre-dibujadas para el modo orgánico: una por tramo de la rampa,
+  // así no hay que crear un degradado por celda y por cuadro
+  let _spr = null, _sprClave = "";
+  function gotas() {
+    const clave = S.cell + "|" + S.dpr + "|" + S.palNombre;
+    if (_sprClave === clave) return _spr;
+    const dCss = S.cell * 2.1, px = Math.max(8, Math.round(dCss * S.dpr)), img = [];
+    for (let k = 0; k < 12; k++) {
+      const col = S.ramp[Math.min(RAMPA - 1, k * 4)];
+      const c = document.createElement("canvas"); c.width = c.height = px;
+      const g = c.getContext("2d");
+      const grad = g.createRadialGradient(px / 2, px / 2, 0, px / 2, px / 2, px / 2);
+      grad.addColorStop(0, col);
+      grad.addColorStop(.38, col);
+      grad.addColorStop(1, col.replace("rgb(", "rgba(").replace(")", ",0)"));
+      g.fillStyle = grad; g.fillRect(0, 0, px, px);
+      img.push(c);
+    }
+    _spr = { img, d: dCss }; _sprClave = clave;
+    return _spr;
+  }
+
+  // en modo contorno sólo se dibujan los lados que dan al vacío: el borde de la isla
+  function bordes(p, x, y, px, py) {
+    const { cols, rows, cur, wrap, cell } = S;
+    const arr = y > 0 ? cur[(y - 1) * cols + x] : (wrap ? cur[(rows - 1) * cols + x] : 0);
+    const aba = y < rows - 1 ? cur[(y + 1) * cols + x] : (wrap ? cur[x] : 0);
+    const izq = x > 0 ? cur[y * cols + x - 1] : (wrap ? cur[y * cols + cols - 1] : 0);
+    const der = x < cols - 1 ? cur[y * cols + x + 1] : (wrap ? cur[y * cols] : 0);
+    if (!arr) { p.moveTo(px, py); p.lineTo(px + cell, py); }
+    if (!aba) { p.moveTo(px, py + cell); p.lineTo(px + cell, py + cell); }
+    if (!izq) { p.moveTo(px, py); p.lineTo(px, py + cell); }
+    if (!der) { p.moveTo(px + cell, py); p.lineTo(px + cell, py + cell); }
+  }
+
   function render(dt) {
-    const { cols, rows, cell, cur, age, heat, ramp } = S;
-    const decay = Math.pow(.90, dt * 60);
+    const { cols, rows, cell, cur, age, heat, ramp, born, dying } = S;
+    const modo = S.modo, organico = modo === "organico", contorno = modo === "contorno";
+    const decay = Math.pow(modo === "fosforo" ? .972 : .90, dt * 60);
+
+    // avance hacia la próxima generación: nacer y morir dejan de ser un salto
+    const f = S.suave && S.running ? Math.min(1, acc * S.speed) : 1;
+    const e = f * f * (3 - 2 * f);
 
     ctx.fillStyle = S.pal.bg;
     ctx.fillRect(0, 0, S.w, S.h);
@@ -410,30 +526,61 @@
     const redondo = typeof Path2D.prototype.roundRect === "function" && cell >= 6;
 
     // se agrupan las celdas por color (y las estelas por opacidad) para pintar
-    // un puñado de trazados en vez de miles de rectángulos sueltos
-    const vivas = new Array(RAMPA), estelas = new Array(NIVELES);
+    // un puñado de trazados en vez de miles de rectángulos sueltos. Las que
+    // nacen y las que mueren van aparte porque comparten una misma opacidad.
+    const vivas = new Array(RAMPA), nacen = new Array(RAMPA), estelas = new Array(NIVELES);
+    let mueren = null, relleno = null;
+    const spr = organico ? gotas() : null;
+
     for (let y = 0; y < rows; y++) {
-      const py = S.offY + y * cell + pad;
+      const fy = S.offY + y * cell, py = fy + pad;
       for (let x = 0; x < cols; x++) {
-        const i = y * cols + x;
+        const i = y * cols + x, fx = S.offX + x * cell, px = fx + pad;
         if (cur[i]) {
           const c = Math.min(RAMPA - 1, ((age[i] - 1) * (RAMPA - 1) / 22) | 0);
-          const p = vivas[c] || (vivas[c] = new Path2D());
-          const px = S.offX + x * cell + pad;
-          if (redondo) p.roundRect(px, py, size, size, radio); else p.rect(px, py, size, size);
+          const nueva = S.suave && born[i];
+          const k = nueva ? .45 + .55 * e : 1;
+          if (organico) {
+            const d = spr.d * k;
+            lctx.globalAlpha = nueva ? e : 1;
+            lctx.drawImage(spr.img[(c / 4) | 0], fx + cell / 2 - d / 2, fy + cell / 2 - d / 2, d, d);
+          } else if (contorno) {
+            const b = nueva ? nacen : vivas;
+            bordes(b[c] || (b[c] = new Path2D()), x, y, fx, fy);
+            (relleno || (relleno = new Path2D())).rect(fx, fy, cell, cell);
+          } else {
+            const b = nueva ? nacen : vivas;
+            const s = size * k, o = pad + (size - s) / 2;
+            const p = b[c] || (b[c] = new Path2D());
+            if (redondo) p.roundRect(fx + o, fy + o, s, s, radio * k); else p.rect(fx + o, fy + o, s, s);
+          }
           heat[i] = 1;
-        } else if (heat[i]) {
-          const h = heat[i] * decay;
-          heat[i] = h > .02 ? h : 0;
-          if (S.trails && h > .02) {
-            const n = Math.min(NIVELES - 1, (h * NIVELES) | 0);
-            const p = estelas[n] || (estelas[n] = new Path2D());
-            p.rect(S.offX + x * cell + pad, py, size, size);
+        } else {
+          if (S.suave && dying[i] && e < 1) {
+            if (organico) {
+              const d = spr.d * (1 - .45 * e);
+              lctx.globalAlpha = (1 - e) * .8;
+              lctx.drawImage(spr.img[1], fx + cell / 2 - d / 2, fy + cell / 2 - d / 2, d, d);
+            } else if (!contorno) {
+              const s = size * (1 - .5 * e), o = pad + (size - s) / 2;
+              const p = mueren || (mueren = new Path2D());
+              if (redondo) p.roundRect(fx + o, fy + o, s, s, radio); else p.rect(fx + o, fy + o, s, s);
+            }
+          }
+          if (heat[i]) {
+            const h = heat[i] * decay;
+            heat[i] = h > .02 ? h : 0;
+            if (S.trails && h > .02) {
+              const n = Math.min(NIVELES - 1, (h * NIVELES) | 0);
+              (estelas[n] || (estelas[n] = new Path2D())).rect(px, py, size, size);
+            }
           }
         }
       }
     }
-    if (S.trails) {
+    lctx.globalAlpha = 1;
+
+    if (S.trails && !organico) {
       lctx.fillStyle = S.pal.trail;
       for (let n = 0; n < NIVELES; n++) if (estelas[n]) {
         lctx.globalAlpha = ((n + 1) / NIVELES) * .5;
@@ -441,21 +588,41 @@
       }
       lctx.globalAlpha = 1;
     }
-    for (let c = 0; c < RAMPA; c++) if (vivas[c]) { lctx.fillStyle = ramp[c]; lctx.fill(vivas[c]); }
+    if (mueren) { lctx.fillStyle = ramp[1]; lctx.globalAlpha = (1 - e) * .85; lctx.fill(mueren); lctx.globalAlpha = 1; }
+    if (relleno) { lctx.fillStyle = ramp[24]; lctx.globalAlpha = .1; lctx.fill(relleno); lctx.globalAlpha = 1; }
+
+    if (contorno) {
+      lctx.lineWidth = Math.max(1, cell * .16); lctx.lineCap = "round"; lctx.lineJoin = "round";
+      for (let c = 0; c < RAMPA; c++) if (vivas[c]) { lctx.strokeStyle = ramp[c]; lctx.stroke(vivas[c]); }
+      lctx.globalAlpha = e;
+      for (let c = 0; c < RAMPA; c++) if (nacen[c]) { lctx.strokeStyle = ramp[c]; lctx.stroke(nacen[c]); }
+      lctx.globalAlpha = 1;
+    } else if (!organico) {
+      for (let c = 0; c < RAMPA; c++) if (vivas[c]) { lctx.fillStyle = ramp[c]; lctx.fill(vivas[c]); }
+      lctx.globalAlpha = e;
+      for (let c = 0; c < RAMPA; c++) if (nacen[c]) { lctx.fillStyle = ramp[c]; lctx.fill(nacen[c]); }
+      lctx.globalAlpha = 1;
+    }
 
     // halo: la capa desenfocada en miniatura y sumada por debajo del dibujo nítido
-    if (S.glow > 0) {
+    const halo = modo === "fosforo" ? S.glow * 1.5 : S.glow;
+    if (halo > 0) {
       gctx.clearRect(0, 0, glow.width, glow.height);
-      gctx.filter = `blur(${(S.glow * .28).toFixed(1)}px)`;
+      gctx.filter = `blur(${(halo * .28).toFixed(1)}px)`;
       gctx.drawImage(layer, 0, 0, glow.width, glow.height);
       gctx.filter = "none";
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = Math.min(1, S.glow / 13);
+      ctx.globalAlpha = Math.min(1, halo / 13);
       ctx.drawImage(glow, 0, 0, S.w, S.h);
       ctx.restore();
     }
-    ctx.drawImage(layer, 0, 0, S.w, S.h);
+    if (organico && GOO) {
+      // el filtro funde las gotas vecinas en una sola mancha: tejido, no cuadraditos
+      ctx.save(); ctx.filter = "url(#goo)"; ctx.drawImage(layer, 0, 0, S.w, S.h); ctx.restore();
+    } else {
+      ctx.drawImage(layer, 0, 0, S.w, S.h);
+    }
 
     // figura elegida: previsualización bajo el cursor
     if (S.figura && puntero.x >= 0) {
@@ -599,13 +766,30 @@
   rGlow.oninput = () => { S.glow = +rGlow.value; $("lGlow").textContent = rGlow.value; };
   rCell.oninput = () => { S.cell = +rCell.value; $("lCell").textContent = rCell.value; resize(); };
 
-  const bTrail = $("bTrail"), bGrid = $("bGrid");
+  const bTrail = $("bTrail"), bGrid = $("bGrid"), bSmooth = $("bSmooth");
   bTrail.onclick = () => { S.trails = !S.trails; bTrail.classList.toggle("on", S.trails); if (!S.trails) S.heat.fill(0); };
   bGrid.onclick = () => { S.showGrid = !S.showGrid; bGrid.classList.toggle("on", S.showGrid); };
+  bSmooth.onclick = () => { S.suave = !S.suave; bSmooth.classList.toggle("on", S.suave); };
 
   const sPal = $("sPal");
   for (const nombre of Object.keys(PALETAS)) sPal.add(new Option(nombre, nombre));
-  sPal.onchange = () => { S.pal = PALETAS[sPal.value]; S.ramp = rampFor(S.pal); renderSpark(); };
+  sPal.onchange = () => {
+    S.palNombre = sPal.value; S.pal = PALETAS[sPal.value]; S.ramp = rampFor(S.pal); renderSpark();
+  };
+
+  const MODOS = { pixel: "Píxel", organico: "Orgánico", contorno: "Contorno", fosforo: "Fósforo" };
+  const modos = $("modos"), tablero = document.querySelector(".board");
+  for (const [id, nombre] of Object.entries(MODOS)) {
+    const b = document.createElement("button");
+    b.className = "pat" + (id === S.modo ? " sel" : ""); b.textContent = nombre; b.dataset.modo = id;
+    b.onclick = () => {
+      S.modo = id;
+      [...modos.children].forEach(c => c.classList.toggle("sel", c.dataset.modo === id));
+      tablero.classList.toggle("crt", id === "fosforo");
+      if (id !== "fosforo") S.heat.fill(0); // que no quede la persistencia larga del fósforo
+    };
+    modos.appendChild(b);
+  }
 
   const pats = $("pats");
   for (const nombre of Object.keys(FIGURAS)) {
@@ -616,6 +800,32 @@
       [...pats.children].forEach(c => c.classList.toggle("sel", c.textContent === S.figura));
     };
     pats.appendChild(b);
+  }
+
+  // diagramas de las reglas: vecindario de 3×3 (la casilla en cuestión, punteada)
+  // y a la derecha en qué queda esa casilla en la generación siguiente
+  const REGLAS = [
+    ["Soledad", "Viva con menos de 2 vecinas: muere de aislamiento.", [".#.", ".#.", "..."], 0],
+    ["Supervivencia", "Viva con 2 o 3 vecinas: sigue viva.", ["#.#", ".#.", "..."], 1],
+    ["Superpoblación", "Viva con 4 o más vecinas: muere ahogada.", ["###", ".#.", ".#."], 0],
+    ["Nacimiento", "Vacía con exactamente 3 vecinas: nace una célula.", ["#.#", "...", ".#."], 1]
+  ];
+  for (const [nombre, texto, filas, sale] of REGLAS) {
+    const fila = document.createElement("div"); fila.className = "regla";
+    const mini = document.createElement("div"); mini.className = "mini";
+    filas.forEach((f, y) => [...f].forEach((ch, x) => {
+      const c = document.createElement("i");
+      if (ch === "#") c.classList.add("v");
+      if (x === 1 && y === 1) c.classList.add("c");
+      mini.appendChild(c);
+    }));
+    const flecha = document.createElement("span"); flecha.className = "flecha"; flecha.textContent = "→";
+    const uno = document.createElement("i"); uno.className = sale ? "uno v" : "uno";
+    const txt = document.createElement("div"); txt.className = "txt";
+    const b = document.createElement("b"); b.textContent = nombre;
+    txt.append(b, document.createTextNode(texto));
+    fila.append(mini, flecha, uno, txt);
+    $("reglas").appendChild(fila);
   }
 
   addEventListener("keydown", ev => {
