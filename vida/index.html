@@ -989,10 +989,23 @@
     catch { aviso("Enlace listo en la barra de direcciones"); }
   };
 
-  $("bPng").onclick = () => canvas.toBlob(b => {
+  // publicada dentro de un visor que no deja descargar sola, la página pide permiso;
+  // abierta como archivo o desde el sitio, baja directo
+  let guardador = null;
+  if (window.claude && window.claude.use) {
+    window.claude.use("downloads").then(d => { guardador = d; }).catch(() => {});
+  }
+
+  $("bPng").onclick = () => canvas.toBlob(async blob => {
+    const nombre = `vida-gen${S.gen}.png`;
+    if (guardador) {
+      try { await guardador.save({ filename: nombre, data: blob }); aviso("PNG guardado"); }
+      catch (err) { aviso(err && err.code === "declined" ? "Descarga cancelada" : "No se pudo guardar el PNG"); }
+      return;
+    }
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(b);
-    a.download = `vida-gen${S.gen}.png`;
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     aviso("PNG guardado");
@@ -1064,7 +1077,8 @@
   }
 
   addEventListener("keydown", ev => {
-    if (ev.target.matches("input,select,button")) return;
+    const foco = ev.target;
+    if (foco && foco.matches && foco.matches("input,select,button")) return;
     const k = ev.key.toLowerCase();
     if (k === " ") { ev.preventDefault(); S.running = !S.running; pintarPlay(); }
     else if (k === "p") { S.running = false; pintarPlay(); step(); }
