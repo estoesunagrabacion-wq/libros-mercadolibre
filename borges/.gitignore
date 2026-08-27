@@ -2,3 +2,6 @@
 # Dejá tu copia local en corpus.js: el juego la levanta sola.
 corpus.js
 corpus.local.js
+
+# el .html armado lleva los textos adentro: tampoco se publica
+de-que-texto-es.html

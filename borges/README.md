@@ -28,6 +28,20 @@ el repositorio. Hay dos maneras:
 2. **Desde un archivo** — copiá `corpus.ejemplo.js` como `corpus.js` y cargá ahí
    los cuentos. El juego lo levanta solo al abrir la página.
 
+## Un solo archivo
+
+Con `corpus.js` en su lugar:
+
+    python3 armar-html.py
+
+deja un `de-que-texto-es.html` con el juego y los textos adentro. Anda con
+doble clic, sin servidor y sin conexión, y se pasa al celular por Drive o
+por mail sin tener que importar nada. Como lleva los textos, tampoco se
+versiona.
+
+Volvé a correrlo cada vez que cambie el juego: el archivo armado es una
+copia, no se actualiza solo.
+
 ## Por qué `corpus.js` no se sube
 
 Este repositorio se publica entero en GitHub Pages. *Ficciones* y *El Aleph*
