@@ -25,8 +25,18 @@ el repositorio. Hay dos maneras:
    Todo se guarda en el navegador de ese dispositivo. Con *Exportar / Importar
    JSON* lo pasás al celular o a otra máquina.
 
-2. **Desde un archivo** — copiá `corpus.ejemplo.js` como `corpus.js` y cargá ahí
-   los cuentos. El juego lo levanta solo al abrir la página.
+2. **Desde un epub** — si el libro trae un archivo por cuento (como los de
+   epublibre), `extraer-epub.py` lo corta solo usando el índice del propio epub:
+
+       python3 extraer-epub.py Ficciones.epub El_Aleph.epub
+
+   Deja un `corpus.js` listo. Descarta tapa, sinopsis, notas, dedicatorias,
+   epígrafes de otros autores y la firma con lugar y fecha del final. También
+   los prólogos y epílogos: no son cuentos y varios comparten nombre, así que
+   como ítem del juego no se pueden decidir. Con `--con-paratextos` se incluyen.
+
+3. **A mano** — copiá `corpus.ejemplo.js` como `corpus.js` y cargá ahí los
+   cuentos. El juego lo levanta solo al abrir la página.
 
 ## Un solo archivo
 
