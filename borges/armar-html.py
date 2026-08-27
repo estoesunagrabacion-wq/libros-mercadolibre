@@ -39,7 +39,10 @@ viejo = '<script src="corpus.js" onerror="window.__sinCorpusJs=true"></script>'
 if viejo not in html:
     sys.exit('index.html cambió: no encontré la etiqueta que carga corpus.js.')
 
-salida.write_text(html.replace(viejo, adentro), encoding='utf-8')
+armado = html.replace(viejo, adentro)
+# el archivo suelto no tiene manifest ni iconos al lado: los enlaces sobran
+armado = re.sub(r'\s*<(?:link|meta)[^>]*(?:manifest\.json|icono-\d+\.png|apple-mobile-web-app|apple-touch-icon)[^>]*>', '', armado)
+salida.write_text(armado, encoding='utf-8')
 libros = {}
 for t in textos:
     libros[t['libro']] = libros.get(t['libro'], 0) + 1

@@ -28,6 +28,21 @@ fragmentos: cada texto recuerda qué arranques ya salieron, que es lo que hace
 falta con los más cortos —*Los dos reyes y los dos laberintos* tiene ocho
 arranques posibles y *Tlön* doscientos cincuenta y ocho.
 
+Al terminar la ronda se puede **ver el pasaje completo**: el fragmento queda en
+tinta plena, numerado, y alrededor aparecen unas oraciones de contexto en tono
+suave. Cuando errás, sirve para ver por qué.
+
+La pestaña **Marcador** lleva la cuenta texto por texto, con los que se te
+resisten primero. Se guarda por libro y título, así que sobrevive a que vuelvas
+a generar el corpus.
+
+## En el celular
+
+Servido desde GitHub Pages, el juego trae `manifest.json` y un service worker,
+así que se agrega a la pantalla de inicio y anda sin conexión. El archivo único
+armado con `armar-html.py` no los necesita —ya es autónomo— y el propio armador
+les saca los enlaces.
+
 ## Cargar los textos
 
 El juego no trae textos: se los cargás vos, y quedan **en tu navegador**, no en

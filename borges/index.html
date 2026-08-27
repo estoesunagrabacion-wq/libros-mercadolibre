@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#f4f0e6" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#15120e" media="(prefers-color-scheme: dark)" />
 <title>¿De qué texto es? — juego de oraciones de Borges</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icono-192.png" />
+<link rel="apple-touch-icon" href="icono-192.png" />
+<meta name="apple-mobile-web-app-title" content="¿De qué texto?" />
+<meta name="mobile-web-app-capable" content="yes" />
 <style>
   /* ── papel y tinta ───────────────────────────────────────── */
   :root{
@@ -66,6 +71,15 @@
     padding-left:1.7em;text-indent:-1.7em;hyphens:auto}
   .frag p:last-child{margin-bottom:0}
   .frag p.nueva{animation:aparecer .55s ease both}
+  .frag p.ctx{color:var(--tinta2);font-size:18px;padding-left:1.7em;text-indent:0}
+  .cuenta{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+    padding:11px 0;border-bottom:1px solid var(--linea)}
+  .cuenta:last-child{border-bottom:none}
+  .cuenta .q{font-size:19px}
+  .cuenta .r{font-family:var(--sans);font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--tinta2);white-space:nowrap}
+  .cuenta.mal .r{color:var(--err)}
+  .cuenta.bien .r{color:var(--ok)}
   @keyframes aparecer{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
   .nro{display:inline-block;width:1.7em;font-family:var(--sans);font-size:11px;
     color:var(--acento);vertical-align:2px;text-indent:0}
@@ -194,6 +208,7 @@
     <div class="regla"></div>
     <nav>
       <button class="tab on" data-vista="jugar">Jugar</button>
+      <button class="tab" data-vista="marcador">Marcador</button>
       <button class="tab" data-vista="textos">Textos</button>
     </nav>
   </header>
@@ -237,7 +252,8 @@
 
       <div id="resultado"></div>
 
-      <button class="btn fuerte full hidden" id="btnOtra" style="margin-top:26px">Otra oración</button>
+      <button class="btn hidden" id="btnPasaje" style="margin-top:20px">Ver el pasaje completo</button>
+      <button class="btn fuerte full hidden" id="btnOtra" style="margin-top:14px">Otra oración</button>
     </div>
 
     <div class="card">
@@ -250,7 +266,20 @@
       <p class="vs" style="margin:10px 0 0">En difícil los aciertos valen el doble</p>
       <label style="margin-top:18px">Libros en juego</label>
       <div class="chips" id="chipsLibros"></div>
-      <button class="btn" id="btnReset" style="margin-top:24px">Reiniciar marcador</button>
+    </div>
+  </section>
+
+  <!-- ══════════ MARCADOR ══════════ -->
+  <section id="vista-marcador" class="hidden">
+    <div class="card" style="border-top:none;margin-top:26px;padding-top:0">
+      <h2>La cuenta</h2>
+      <table id="resumen"></table>
+    </div>
+    <div class="card">
+      <h2>Texto por texto</h2>
+      <p class="vs" style="margin:-8px 0 16px">Primero los que se te resisten</p>
+      <div id="porTexto"></div>
+      <button class="btn" id="btnResetTodo" style="margin-top:22px">Reiniciar el marcador</button>
     </div>
   </section>
 
@@ -331,6 +360,7 @@
 const CLAVE_TEXTOS = 'borges-textos-v1';
 const CLAVE_STATS  = 'borges-stats-v1';
 const CLAVE_PREFS  = 'borges-prefs-v1';
+const CLAVE_TEXTO  = 'borges-portexto-v1';
 
 /* ---------- almacenamiento ---------- */
 function leer(clave, porDefecto){
@@ -344,6 +374,10 @@ function guardar(clave, valor){
 let textos = leer(CLAVE_TEXTOS, []);
 let stats  = leer(CLAVE_STATS, {puntos:0, racha:0, mejorRacha:0, aciertos:0, jugadas:0});
 let prefs  = leer(CLAVE_PREFS, {modo:'facil', libros:null});
+/* la cuenta de cada texto va por libro y título, no por id: así sobrevive
+   a que se vuelva a generar el corpus */
+let porTexto = leer(CLAVE_TEXTO, {});
+const claveTexto = (t) => t.libro + '|' + t.cuento;
 
 /* textos que vengan de corpus.js (archivo local, no versionado) */
 if (window.CORPUS_BORGES && Array.isArray(window.CORPUS_BORGES.textos)) {
@@ -767,15 +801,33 @@ function pintarVacio(){
     : 'Todavía no hay textos cargados.<br>Andá a <b>Textos</b> y cargá un libro para empezar a jugar.';
 }
 
+/* el fragmento, y al terminar la ronda el pasaje alrededor */
+const VECINAS = 6;
+function pintarFragmento(){
+  const frag = $('frag');
+  if(!ronda.pasaje){
+    frag.innerHTML = ronda.oraciones.slice(0, ronda.mostradas).map((o,i) =>
+      `<p class="${i===ronda.mostradas-1?'nueva':''} n${i+1}"><span class="nro">${i+1}</span>${esc(o)}</p>`
+    ).join('');
+    return;
+  }
+  const todas = oracionesDe(ronda.texto);
+  const desde = Math.max(0, ronda.inicio - VECINAS);
+  const hasta = Math.min(todas.length, ronda.inicio + 3 + VECINAS);
+  frag.innerHTML = todas.slice(desde, hasta).map((o, k) => {
+    const i = desde + k - ronda.inicio;          // 0,1,2 son las del fragmento
+    return (i >= 0 && i < 3)
+      ? `<p class="n${i+1}"><span class="nro">${i+1}</span>${esc(o)}</p>`
+      : `<p class="ctx">${esc(o)}</p>`;
+  }).join('');
+}
+
 function pintarRonda(){
   $('cardVacio').classList.add('hidden');
   $('cardJuego').classList.remove('hidden');
+  pintarFragmento();
 
-  const frag = $('frag');
-  frag.innerHTML = ronda.oraciones.slice(0, ronda.mostradas).map((o,i) =>
-    `<p class="${i===ronda.mostradas-1?'nueva':''} n${i+1}"><span class="nro">${i+1}</span>${esc(o)}</p>`
-  ).join('');
-
+  $('btnPasaje').classList.add('hidden');
   const quedan = 3 - ronda.mostradas;
   $('btnMas').textContent = quedan ? `Oración siguiente (${quedan} más)` : 'No hay más oraciones';
   $('btnMas').disabled = quedan === 0 || ronda.respondido;
@@ -921,6 +973,7 @@ function responder(elegido){
     stats.racha = 0;
   }
   guardar(CLAVE_STATS, stats);
+  anotarTexto(acierto);
   pintarMarcador();
   mostrarResultado(acierto, puntos, elegido);
 }
@@ -931,6 +984,7 @@ function rendirse(){
   stats.jugadas++;
   stats.racha = 0;
   guardar(CLAVE_STATS, stats);
+  anotarTexto(false);
   pintarMarcador();
   mostrarResultado(false, 0, null);
 }
@@ -966,6 +1020,9 @@ function mostrarResultado(acierto, puntos, elegido){
 
   $('zonaRespuesta').classList.add('hidden');
   $('btnOtra').classList.remove('hidden');
+  $('btnPasaje').classList.remove('hidden');
+  $('btnPasaje').textContent = 'Ver el pasaje completo';
+  pintarMarcadorLargo();
 }
 
 function ubicacion(r){
@@ -983,6 +1040,39 @@ function pintarMarcador(){
   $('mRacha').textContent = stats.racha;
   $('mAciertos').textContent = stats.aciertos;
   $('mJugadas').textContent = stats.jugadas;
+}
+
+function anotarTexto(acierto){
+  const k = claveTexto(ronda.texto);
+  const c = porTexto[k] || {j:0, a:0};
+  c.j++; if(acierto) c.a++;
+  porTexto[k] = c;
+  guardar(CLAVE_TEXTO, porTexto);
+}
+
+function pintarMarcadorLargo(){
+  const pct = stats.jugadas ? Math.round(100 * stats.aciertos / stats.jugadas) : 0;
+  $('resumen').innerHTML = [
+    ['Puntos', stats.puntos],
+    ['Aciertos', stats.jugadas ? `${stats.aciertos} de ${stats.jugadas} · ${pct}%` : '—'],
+    ['Racha', stats.racha],
+    ['Mejor racha', stats.mejorRacha || 0]
+  ].map(([q, v]) => `<tr><td>${q}</td><td class="der">${esc(String(v))}</td></tr>`).join('');
+
+  const filas = Object.entries(porTexto)
+    .map(([k, c]) => {
+      const [libro, cuento] = k.split('|');
+      return {libro, cuento, ...c, tasa: c.a / c.j};
+    })
+    .sort((x, y) => x.tasa - y.tasa || y.j - x.j || x.cuento.localeCompare(y.cuento, 'es'));
+
+  $('porTexto').innerHTML = filas.length
+    ? filas.map(f => `
+        <div class="cuenta ${f.tasa === 1 ? 'bien' : (f.tasa === 0 ? 'mal' : '')}">
+          <span class="q">${esc(f.cuento)}<br><span class="vs">${esc(f.libro)}</span></span>
+          <span class="r">${f.a} de ${f.j}</span>
+        </div>`).join('')
+    : '<div class="vacio">Todavía no jugaste ninguna ronda.</div>';
 }
 
 /* ---------- textos ---------- */
@@ -1121,8 +1211,8 @@ function pintarChipsModo(){
 /* ---------- vistas ---------- */
 function mostrarVista(v){
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.vista === v));
-  $('vista-jugar').classList.toggle('hidden', v !== 'jugar');
-  $('vista-textos').classList.toggle('hidden', v !== 'textos');
+  ['jugar','marcador','textos'].forEach(x => $('vista-'+x).classList.toggle('hidden', x !== v));
+  if(v === 'marcador') pintarMarcadorLargo();
   window.scrollTo(0,0);
 }
 
@@ -1163,11 +1253,20 @@ $('inAdivinar').addEventListener('keydown', (e) => {
     if(t) responder(t);
   }
 });
-$('btnReset').onclick = () => {
-  if(!confirm('¿Reiniciar puntos, racha y jugadas?')) return;
+$('btnResetTodo').onclick = () => {
+  if(!confirm('¿Reiniciar puntos, racha y la cuenta de cada texto?')) return;
   stats = {puntos:0, racha:0, mejorRacha:0, aciertos:0, jugadas:0};
+  porTexto = {};
   guardar(CLAVE_STATS, stats);
+  guardar(CLAVE_TEXTO, porTexto);
   pintarMarcador();
+  pintarMarcadorLargo();
+};
+
+$('btnPasaje').onclick = () => {
+  ronda.pasaje = !ronda.pasaje;
+  pintarFragmento();
+  $('btnPasaje').textContent = ronda.pasaje ? 'Ver sólo el fragmento' : 'Ver el pasaje completo';
 };
 
 $('btnGuardarTexto').onclick = agregarTexto;
@@ -1232,6 +1331,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------- arranque ---------- */
+/* sin conexión, servido desde Pages; en file:// no hay nada que registrar */
+if(location.protocol.startsWith('http') && 'serviceWorker' in navigator){
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
 pintarMarcador();
 pintarChipsModo();
 pintarTextos();
