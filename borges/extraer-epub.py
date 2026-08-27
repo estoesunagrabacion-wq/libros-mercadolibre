@@ -24,9 +24,16 @@ FUERA = {'cubierta', 'titulo', 'sinopsis', 'info', 'autor', 'notas', 'toc',
          'dedicatoria', 'portada', 'cover', 'nav'}
 # párrafos que no son narración, por clase
 CLASES_FUERA = {'dedicatoria', 'derecha', 'fragmento', 'fragmento_corto', 'firma_inicio',
-                'tautor', 'trevision', 'trevisiones', 'tfirma', 'vineta'}
+                'tautor', 'trevision', 'trevisiones', 'tfirma', 'vineta', 'fecha'}
+# firma del final: "1932", "Buenos Aires, 1932", "Buenos Aires, 10 de noviembre de 1941"
+FIRMA = re.compile(r'^(?:1[5-9]\d\d|20\d\d)$|^[A-ZÁÉÍÓÚ][^.!?]{0,34},\s*(?:1[5-9]\d\d|20\d\d)$')
 PARATEXTOS = {'prologo', 'epilogo', 'posdata', 'prefacio', 'nota preliminar',
               'introduccion', 'indice', 'sobre el autor'}
+# aparatos del libro, por título exacto (el archivo no siempre se llama así)
+TITULOS_FUERA = {'notas', 'nota', 'sobre el autor', 'indice', 'creditos',
+                 'tabla de contenido', 'nota del editor'}
+# secciones de un mismo texto: "A", "B", "II" — se pegan a lo anterior
+CONTINUACION = re.compile(r'^(?:[A-Za-z]|[IVXLCDM]+|\d+)$')
 MINIMO = 400          # menos que esto es una portadilla, no un texto
 
 
@@ -60,8 +67,9 @@ def texto_de(xhtml):
         t = re.sub(r'[ \t\n]+', ' ', t).strip()
         if t:
             lineas.append(t)
-    # dedicatoria suelta al final ("A Estela Canto")
-    while lineas and len(lineas[-1]) < 45 and re.match(r'^A [A-ZÁÉÍÓÚÑ]', lineas[-1]):
+    # al final: dedicatoria suelta ("A Estela Canto") y firma con lugar y fecha
+    while lineas and ((len(lineas[-1]) < 45 and re.match(r'^A [A-ZÁÉÍÓÚÑ]', lineas[-1]))
+                      or FIRMA.match(lineas[-1])):
         lineas.pop()
     return '\n\n'.join(lineas)
 
@@ -117,6 +125,11 @@ def leer_libro(ruta, titulo=None, con_paratextos=False):
             # divisiones de parte: "Artificios 1944"
             if re.search(r'\b(1[5-9]\d\d|20\d\d)$', tit):
                 parte = re.sub(r'\s*(1[5-9]\d\d|20\d\d)$', '', tit).strip()
+            continue
+        if pelado(tit) in TITULOS_FUERA:
+            continue
+        if CONTINUACION.match(tit.strip()) and textos:
+            textos[-1]['texto'] += '\n\n' + cuerpo   # "Nueva refutación del tiempo" y su A y B
             continue
         if not con_paratextos and pelado(tit) in PARATEXTOS:
             continue

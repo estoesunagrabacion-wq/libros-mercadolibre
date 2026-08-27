@@ -1,13 +1,19 @@
 # ¿De qué texto es?
 
-Juego personal: aparece **una oración al azar** de un cuento y hay que adivinar a
-qué texto pertenece. Si no sale, se puede pedir la **oración siguiente**, y una
+Juego personal: aparece **una oración al azar** de un texto y hay que adivinar de
+cuál es. Si no sale, se puede pedir la **oración siguiente**, y una
 **tercera vez** — ahí se corta.
 
 Puntaje: **3** puntos si acertás con una sola oración, **2** con dos, **1** con tres.
 
 Dos dificultades: *fácil* (cuatro opciones) y *difícil* (la lista completa de
-cuentos cargados). Se puede elegir con qué libros jugar.
+textos cargados). Se puede elegir con qué libros jugar.
+
+El sorteo trata de que la partida sea justa: los cuatro títulos de la versión
+fácil salen del mismo libro que la respuesta —si no, el rótulo del libro
+descartaría media lista sin leer nada—, la primera oración evita nombrar el
+título del texto al que pertenece, y los textos salen sin reposición, así que
+no se repite ninguno hasta haber pasado por todos.
 
 ## Cargar los textos
 

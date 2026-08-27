@@ -170,7 +170,7 @@
   <header>
     <p class="kicker">Un juego de lectura</p>
     <h1>¿De qué texto es?</h1>
-    <p class="sub">Una oración al azar. Adiviná a qué cuento pertenece.</p>
+    <p class="sub">Una oración al azar. Adiviná a qué texto pertenece.</p>
     <div class="regla"></div>
     <nav>
       <button class="tab on" data-vista="jugar">Jugar</button>
@@ -190,7 +190,7 @@
     <div class="hidden" id="cardVacio">
       <div class="vacio">
         Todavía no hay textos cargados.<br>
-        Andá a <b>Textos</b> y pegá un cuento para empezar a jugar.
+        Andá a <b>Textos</b> y cargá un libro para empezar a jugar.
       </div>
       <button class="btn fuerte" id="irATextos">Cargar textos</button>
     </div>
@@ -637,6 +637,59 @@ function textosEnJuego(){
   return textos.filter(t => libros.includes(t.libro) && oracionesDe(t).length >= 3);
 }
 
+/* ---------- el sorteo ---------- */
+const VACIAS = new Set(['el','la','los','las','un','una','unos','unas','de','del','al','y','o',
+  'en','con','por','para','sin','sobre','entre','que','como','su','sus','lo','se','otro','otra']);
+
+let bolsa = [], bolsaClave = '';
+
+/* saca textos sin reponer: no repite ninguno hasta haber pasado por todos */
+function proximoTexto(posibles){
+  const clave = posibles.map(t => t.id).sort().join('|');
+  if(clave !== bolsaClave){ bolsaClave = clave; bolsa = []; }
+  if(!bolsa.length){
+    bolsa = mezclar(posibles.map(t => t.id));
+    if(bolsa.length > 1 && bolsa[0] === ultimoCuento) bolsa.push(bolsa.shift());
+  }
+  const id = bolsa.shift();
+  return posibles.find(t => t.id === id) || posibles[azar(posibles.length)];
+}
+
+/* palabras del título que delatarían la respuesta */
+function clavesDelTitulo(cuento){
+  return normalizar(cuento).split(' ').filter(p => p.length > 3 && !VACIAS.has(p));
+}
+function regala(oracion, claves){
+  if(!claves.length) return false;
+  const palabras = normalizar(oracion).split(' ');
+  return claves.some(c => palabras.some(p => p.startsWith(c.slice(0, 5))));
+}
+
+/* dónde empezar: una oración con cuerpo que no nombre el título.
+   Si nombrarlo es inevitable, que aparezca igual: mejor eso que no jugar. */
+function arranque(oraciones, cuento){
+  const tope = oraciones.length - 3;
+  const conCuerpo = [];
+  for(let i = 0; i <= tope; i++) if(oraciones[i].length >= 45) conCuerpo.push(i);
+  const base = conCuerpo.length ? conCuerpo : Array.from({length: tope + 1}, (_, i) => i);
+  const claves = clavesDelTitulo(cuento);
+  const limpios = base.filter(i => !regala(oraciones[i], claves));
+  const pozo = limpios.length ? limpios : base;
+  return pozo[azar(pozo.length)];
+}
+
+/* los distractores salen del mismo libro: si no, el rótulo de abajo
+   descarta media lista sin haber leído nada */
+function distractores(posibles, correcto){
+  const hermanos = posibles.filter(t => t.id !== correcto.id && t.libro === correcto.libro);
+  const elegidos = mezclar(hermanos).slice(0, 3);
+  if(elegidos.length < 3){
+    const resto = posibles.filter(t => t.id !== correcto.id && !elegidos.includes(t));
+    elegidos.push(...mezclar(resto).slice(0, 3 - elegidos.length));
+  }
+  return elegidos;
+}
+
 /* ---------- estado de la ronda ---------- */
 let ronda = null;   // {texto, oraciones:[3], mostradas:1, respondido:bool}
 let ultimoCuento = null;
@@ -645,21 +698,15 @@ function nuevaRonda(){
   const posibles = textosEnJuego();
   if(!posibles.length){ pintarVacio(); return; }
 
-  let candidatos = posibles.length > 1 ? posibles.filter(t => t.id !== ultimoCuento) : posibles;
-  if(!candidatos.length) candidatos = posibles;
-  const texto = candidatos[azar(candidatos.length)];
+  const texto = proximoTexto(posibles);
   ultimoCuento = texto.id;
 
   const oraciones = oracionesDe(texto);
-  const topes = oraciones.length - 3;                  // que siempre haya dos más
-  // preferimos empezar en una oración con algo de sustancia
-  const buenos = [];
-  for(let i=0;i<=topes;i++) if(oraciones[i].length >= 45) buenos.push(i);
-  const inicio = buenos.length ? buenos[azar(buenos.length)] : azar(topes+1);
+  const inicio = arranque(oraciones, texto.cuento);
 
   ronda = {
     texto,
-    oraciones: oraciones.slice(inicio, inicio+3),
+    oraciones: oraciones.slice(inicio, inicio + 3),
     inicio,
     total: oraciones.length,
     mostradas: 1,
@@ -674,7 +721,7 @@ function pintarVacio(){
   ronda = null;
   $('cardVacio').querySelector('.vacio').innerHTML = textos.length
     ? 'No hay textos jugables con los libros elegidos.<br>Cada texto necesita al menos tres oraciones.'
-    : 'Todavía no hay textos cargados.<br>Andá a <b>Textos</b> y pegá un cuento para empezar a jugar.';
+    : 'Todavía no hay textos cargados.<br>Andá a <b>Textos</b> y cargá un libro para empezar a jugar.';
 }
 
 function pintarRonda(){
@@ -708,14 +755,15 @@ function pintarRespuesta(){
 
 function pintarOpciones(){
   if(!ronda.opciones){
-    const pool = textosEnJuego();
     const correcto = ronda.texto;
-    const otros = mezclar(pool.filter(t => t.id !== correcto.id)).slice(0, 3);
-    ronda.opciones = mezclar([correcto, ...otros]);
+    ronda.opciones = mezclar([correcto, ...distractores(textosEnJuego(), correcto)]);
   }
 
+  // si las cuatro son del mismo libro, el rótulo no distingue nada: sobra
+  const variosLibros = new Set(ronda.opciones.map(t => t.libro)).size > 1;
   $('opciones').innerHTML = ronda.opciones.map((t,i) =>
-    `<button class="op" data-i="${i}">${esc(t.cuento)}<span class="lib">${esc(t.libro)}</span></button>`
+    `<button class="op" data-i="${i}">${esc(t.cuento)}` +
+    (variosLibros ? `<span class="lib">${esc(t.libro)}</span>` : '') + `</button>`
   ).join('');
   $('opciones').querySelectorAll('.op').forEach(b => {
     b.onclick = () => responder(ronda.opciones[+b.dataset.i]);
