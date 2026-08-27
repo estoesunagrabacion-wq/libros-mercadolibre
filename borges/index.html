@@ -3,149 +3,204 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0b1220" />
+<meta name="theme-color" content="#f4f0e6" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#15120e" media="(prefers-color-scheme: dark)" />
 <title>¿De qué texto es? — juego de oraciones de Borges</title>
 <style>
+  /* ── papel y tinta ───────────────────────────────────────── */
   :root{
-    --bg:#0b1220; --card:#111a2b; --card2:#0e1626; --line:#22314d;
-    --txt:#e6eef6; --muted:#9aa6b2; --accent:#ffd166; --accent2:#4ea1ff;
-    --ok:#37d67a; --err:#ff6b6b; --radius:14px;
+    --papel:#f4f0e6; --papel2:#fffdf7; --tinta:#1c1814; --tinta2:#6d6355;
+    --linea:#ddd2bf; --linea2:#ebe3d3; --acento:#8f2f22;
+    --ok:#3f6b45; --err:#9b3226;
+    --serif:Georgia,"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --papel:#15120e; --papel2:#1d1915; --tinta:#e9e0d1; --tinta2:#968c7c;
+      --linea:#342d24; --linea2:#241f19; --acento:#cf7d64;
+      --ok:#83b287; --err:#d8806f;
+    }
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--txt);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
-  .wrap{max-width:760px;margin:0 auto;padding:16px 14px 60px}
-  header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#13233a,#0a1626);
-    display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--line)}
-  h1{font-size:19px;margin:0}
-  .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
-  .card h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  html,body{margin:0;background:var(--papel);color:var(--tinta);
+    font-family:var(--serif);-webkit-text-size-adjust:100%;
+    font-feature-settings:"liga" 1,"kern" 1}
+  body{padding-bottom:64px}
+  .wrap{max-width:640px;margin:0 auto;padding:0 22px}
   .hidden{display:none!important}
-  .muted{color:var(--muted)}
-  .small{font-size:12px}
 
-  /* tabs */
-  .tabs{display:flex;gap:8px;margin-bottom:14px}
-  .tab{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card2);
-    color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;text-align:center}
-  .tab.on{background:var(--card);color:var(--accent);border-color:rgba(255,209,102,.35)}
+  /* ── tipografía de servicio ──────────────────────────────── */
+  .vs{font-family:var(--sans);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--tinta2)}
+  .muted{color:var(--tinta2)}
+  .small{font-size:13px}
 
-  /* marcador */
-  .marcador{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-  .m{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}
-  .m b{display:block;font-size:18px;color:var(--accent)}
-  .m span{font-size:11px;color:var(--muted)}
+  /* ── cabecera ────────────────────────────────────────────── */
+  header{padding:38px 0 0}
+  .kicker{margin:0 0 14px;font-family:var(--sans);font-size:11px;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--acento)}
+  h1{margin:0;font-size:34px;font-weight:400;letter-spacing:-.01em;line-height:1.15}
+  .sub{margin:8px 0 0;color:var(--tinta2);font-size:15px;font-style:italic}
+  header .regla{margin:22px 0 0;border-top:1px solid var(--tinta);
+    border-bottom:1px solid var(--linea);height:3px}
 
-  /* fragmento */
-  .frag{background:var(--card2);border:1px solid var(--line);border-left:4px solid var(--accent);
-    border-radius:10px;padding:16px 16px 6px}
-  .frag p{font-family:Georgia,"Times New Roman",serif;font-size:18px;line-height:1.6;margin:0 0 12px}
-  .frag p.nueva{animation:aparecer .5s ease both}
-  @keyframes aparecer{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .frag p.n2,.frag p.n3{color:#cfdae6}
-  .nro{display:inline-block;min-width:20px;color:var(--accent);font-family:system-ui,sans-serif;
-    font-size:11px;vertical-align:super;margin-right:2px;opacity:.7}
+  /* ── navegación ──────────────────────────────────────────── */
+  nav{display:flex;gap:26px;margin:14px 0 0}
+  .tab{background:none;border:none;padding:6px 0;cursor:pointer;
+    font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--tinta2);border-bottom:2px solid transparent}
+  .tab.on{color:var(--tinta);border-bottom-color:var(--acento)}
 
-  .acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-  .btn{appearance:none;border:none;border-radius:10px;padding:12px 14px;font-size:15px;font-weight:700;
-    cursor:pointer;background:var(--accent);color:#1b1b1b;transition:transform .08s,filter .12s;
-    text-align:center;font-family:inherit}
-  .btn:active{transform:translateY(1px)}
-  .btn:disabled{opacity:.45;cursor:default}
-  .btn.sec{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
-  .btn.blue{background:var(--accent2);color:#04121f}
+  /* ── marcador ────────────────────────────────────────────── */
+  .marcador{display:flex;flex-wrap:wrap;gap:20px;margin:26px 0 0;
+    padding-bottom:20px;border-bottom:1px solid var(--linea)}
+  .marcador span{font-family:var(--sans);font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--tinta2);display:flex;align-items:baseline;gap:6px}
+  .marcador b{font-family:var(--serif);font-size:22px;font-weight:400;
+    letter-spacing:0;text-transform:none;color:var(--tinta)}
+
+  /* ── el fragmento ────────────────────────────────────────── */
+  .frag{margin:44px 0 0}
+  .frag p{font-size:21px;line-height:1.62;margin:0 0 20px;
+    padding-left:1.7em;text-indent:-1.7em;hyphens:auto}
+  .frag p:last-child{margin-bottom:0}
+  .frag p.nueva{animation:aparecer .55s ease both}
+  @keyframes aparecer{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .nro{display:inline-block;width:1.7em;font-family:var(--sans);font-size:11px;
+    color:var(--acento);vertical-align:2px;text-indent:0}
+  @media (max-width:480px){ .frag p{font-size:19px} }
+
+  /* ── botones ─────────────────────────────────────────────── */
+  .btn{appearance:none;cursor:pointer;font-family:var(--sans);font-size:11.5px;
+    letter-spacing:.12em;text-transform:uppercase;padding:12px 18px;
+    background:none;color:var(--tinta);border:1px solid var(--linea);border-radius:2px;
+    transition:background .15s,border-color .15s,opacity .15s}
+  .btn:hover:not(:disabled){border-color:var(--tinta2);background:var(--papel2)}
+  .btn:active:not(:disabled){transform:translateY(1px)}
+  .btn:disabled{opacity:.38;cursor:default}
+  .btn.fuerte{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
+  .btn.fuerte:hover:not(:disabled){background:var(--tinta2);border-color:var(--tinta2)}
   .btn.full{width:100%}
-  .btn.sm{padding:8px 12px;font-size:13px}
+  .acciones{display:flex;gap:10px;flex-wrap:wrap;margin:30px 0 0;
+    padding-top:22px;border-top:1px solid var(--linea)}
 
-  /* opciones */
-  .opciones{display:grid;gap:8px;margin-top:14px}
-  .op{width:100%;text-align:left;padding:13px 14px;border-radius:10px;border:1px solid var(--line);
-    background:var(--card2);color:var(--txt);font-size:15px;font-family:inherit;cursor:pointer;line-height:1.35}
-  .op:hover:not(:disabled){border-color:rgba(255,209,102,.4)}
+  /* ── opciones ────────────────────────────────────────────── */
+  .opciones{counter-reset:op;margin:26px 0 0;border-top:1px solid var(--linea)}
+  .op{counter-increment:op;position:relative;display:block;width:100%;text-align:left;
+    background:none;border:none;border-bottom:1px solid var(--linea);
+    padding:15px 12px 15px 34px;font-family:var(--serif);font-size:18px;color:var(--tinta);
+    cursor:pointer;line-height:1.35;transition:background .15s}
+  .op::before{content:counter(op,lower-alpha) ".";position:absolute;left:6px;top:17px;
+    font-family:var(--sans);font-size:12px;color:var(--acento)}
+  .op:hover:not(:disabled){background:var(--papel2)}
   .op:disabled{cursor:default}
-  .op .lib{display:block;font-size:11px;color:var(--muted);margin-top:2px}
-  .op.bien{border-color:var(--ok);background:rgba(55,214,122,.12)}
-  .op.mal{border-color:var(--err);background:rgba(255,107,107,.10)}
+  .op .lib{display:block;margin-top:3px;font-family:var(--sans);font-size:10.5px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--tinta2)}
+  .op:last-child{border-bottom:none}
+  .op.bien{background:var(--papel2);box-shadow:inset 3px 0 0 var(--ok)}
+  .op.mal{opacity:.55;box-shadow:inset 3px 0 0 var(--err)}
 
-  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
-  input,select,textarea{width:100%;background:var(--card2);color:var(--txt);border:1px solid var(--line);
-    border-radius:10px;padding:11px;font-size:15px;font-family:inherit}
-  textarea{min-height:160px;resize:vertical;line-height:1.5}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  .row>*{flex:1;min-width:140px}
+  /* ── resultado ───────────────────────────────────────────── */
+  .resultado{margin:28px 0 0;padding:20px 0 0;border-top:1px solid var(--tinta)}
+  .resultado h3{margin:0 0 12px;font-family:var(--sans);font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  .resultado.bien h3{color:var(--ok)}
+  .resultado.mal h3{color:var(--err)}
+  .resultado .dato{font-size:24px;font-style:italic;line-height:1.25}
+  .resultado .donde{margin-top:8px;font-family:var(--sans);font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--tinta2)}
 
-  .resultado{margin-top:14px;padding:14px;border-radius:10px;border:1px solid var(--line);background:var(--card2)}
-  .resultado.bien{border-left:4px solid var(--ok)}
-  .resultado.mal{border-left:4px solid var(--err)}
-  .resultado h3{margin:0 0 6px;font-size:16px}
-  .resultado .dato{font-family:Georgia,serif;font-size:17px}
-  .resultado .dato em{color:var(--accent);font-style:italic}
+  /* ── secciones ───────────────────────────────────────────── */
+  .card{margin:44px 0 0;padding-top:22px;border-top:1px solid var(--linea)}
+  .card h2{margin:0 0 18px;font-family:var(--sans);font-size:11px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--tinta2);font-weight:600}
 
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-  .chip{display:flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);
-    border-radius:999px;padding:6px 10px;font-size:13px;cursor:pointer;user-select:none}
-  .chip.on{border-color:rgba(255,209,102,.5);color:var(--accent)}
+  /* ── fichas ──────────────────────────────────────────────── */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .chip{font-family:var(--sans);font-size:11.5px;letter-spacing:.06em;
+    padding:8px 13px;border:1px solid var(--linea);border-radius:2px;
+    color:var(--tinta2);cursor:pointer;user-select:none;transition:all .15s}
+  .chip:hover{border-color:var(--tinta2)}
+  .chip.on{border-color:var(--tinta);color:var(--tinta);background:var(--papel2)}
+  .chip.on::before{content:"✓ ";color:var(--acento)}
 
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  td{padding:9px 4px;border-bottom:1px solid var(--line);vertical-align:top}
-  td.der{text-align:right;white-space:nowrap}
-  .vacio{text-align:center;color:var(--muted);padding:18px 8px;font-size:14px;line-height:1.5}
-  .aviso{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
-  .prev{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .prev-fila{display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:flex-start;cursor:pointer}
+  /* ── formularios ─────────────────────────────────────────── */
+  label:not(.prev-fila){display:block;margin:18px 0 6px;font-family:var(--sans);font-size:10.5px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--tinta2)}
+  input,select,textarea{width:100%;background:var(--papel2);color:var(--tinta);
+    border:1px solid var(--linea);border-radius:2px;padding:11px 12px;
+    font-size:16px;font-family:var(--serif)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--tinta2)}
+  textarea{min-height:150px;resize:vertical;line-height:1.55;font-size:15px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:150px}
+  .row>.btn{flex:0 0 auto}
+
+  /* ── listas y tablas ─────────────────────────────────────── */
+  table{width:100%;border-collapse:collapse}
+  td{padding:13px 0;border-bottom:1px solid var(--linea);vertical-align:top;font-size:16px}
+  td.der{text-align:right;white-space:nowrap;width:1%;padding-left:12px}
+  .vacio{padding:34px 0;color:var(--tinta2);font-style:italic;line-height:1.6;font-size:17px}
+  .aviso{margin-top:16px;font-family:var(--sans);font-size:12px;line-height:1.65;color:var(--tinta2)}
+  code{font-size:12px;background:var(--linea2);padding:1px 5px;border-radius:2px}
+
+  /* ── previsualización del libro ──────────────────────────── */
+  .prev{margin-top:22px;border-top:1px solid var(--tinta)}
+  .prev-cab{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:12px 0;border-bottom:1px solid var(--linea);
+    font-family:var(--sans);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--tinta2)}
+  .prev-cab a{color:var(--acento);cursor:pointer;text-decoration:none;border-bottom:1px solid currentColor}
+  .prev-fila{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--linea);
+    align-items:flex-start;cursor:pointer;margin:0;font-family:var(--serif);
+    font-size:16px;letter-spacing:0;text-transform:none;color:var(--tinta)}
   .prev-fila:last-child{border-bottom:none}
-  .prev-fila input{width:auto;flex:0 0 auto;margin-top:3px}
+  .prev-fila input{width:16px;height:16px;flex:0 0 auto;margin:4px 0 0;accent-color:var(--acento)}
   .prev-fila .t{flex:1;min-width:0}
-  .prev-fila b{font-size:14px}
-  .prev-fila .frase{display:block;color:var(--muted);font-size:12px;margin-top:3px;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .prev-fila.duda b::after{content:' · revisar';color:var(--accent);font-size:11px;font-weight:400}
-  .prev-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding:10px 12px;background:var(--card2);border-bottom:1px solid var(--line);font-size:13px}
-  .prev-cab a{color:var(--accent2);cursor:pointer;text-decoration:underline}
-  code{background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+  .prev-fila b{font-weight:400;font-size:17px}
+  .prev-fila .frase{display:block;color:var(--tinta2);font-size:14px;font-style:italic;
+    margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .prev-fila.duda b::after{content:" · revisar";font-family:var(--sans);font-size:10px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--acento)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="logo">📖</div>
-    <div>
-      <h1>¿De qué texto es?</h1>
-      <p class="sub">Una oración al azar. Adiviná a qué cuento pertenece.</p>
-    </div>
+    <p class="kicker">Un juego de lectura</p>
+    <h1>¿De qué texto es?</h1>
+    <p class="sub">Una oración al azar. Adiviná a qué cuento pertenece.</p>
+    <div class="regla"></div>
+    <nav>
+      <button class="tab on" data-vista="jugar">Jugar</button>
+      <button class="tab" data-vista="textos">Textos</button>
+    </nav>
   </header>
-
-  <div class="tabs">
-    <button class="tab on" data-vista="jugar">Jugar</button>
-    <button class="tab" data-vista="textos">Textos</button>
-  </div>
 
   <!-- ══════════ JUGAR ══════════ -->
   <section id="vista-jugar">
     <div class="marcador">
-      <div class="m"><b id="mPuntos">0</b><span>puntos</span></div>
-      <div class="m"><b id="mRacha">0</b><span>racha</span></div>
-      <div class="m"><b id="mAciertos">0</b><span>aciertos</span></div>
-      <div class="m"><b id="mJugadas">0</b><span>jugadas</span></div>
+      <span><b id="mPuntos">0</b> puntos</span>
+      <span><b id="mRacha">0</b> racha</span>
+      <span><b id="mAciertos">0</b> aciertos</span>
+      <span><b id="mJugadas">0</b> jugadas</span>
     </div>
 
-    <div class="card hidden" id="cardVacio">
+    <div class="hidden" id="cardVacio">
       <div class="vacio">
         Todavía no hay textos cargados.<br>
         Andá a <b>Textos</b> y pegá un cuento para empezar a jugar.
       </div>
-      <button class="btn full sec" id="irATextos">Cargar textos</button>
+      <button class="btn fuerte" id="irATextos">Cargar textos</button>
     </div>
 
-    <div class="card hidden" id="cardJuego">
+    <div class="hidden" id="cardJuego">
       <div class="frag" id="frag"></div>
 
-      <div class="acciones">
-        <button class="btn sec" id="btnMas">Oración siguiente</button>
-        <button class="btn sec" id="btnRindo">Me rindo</button>
+      <div class="acciones" id="acciones">
+        <button class="btn" id="btnMas">Oración siguiente</button>
+        <button class="btn" id="btnRindo">Me rindo</button>
       </div>
 
       <div id="zonaRespuesta">
@@ -153,17 +208,17 @@
         <div id="zonaDificil" class="hidden">
           <label for="selCuento">Elegí el texto</label>
           <select id="selCuento"></select>
-          <button class="btn full blue" id="btnAdivinar" style="margin-top:10px">Adivinar</button>
+          <button class="btn fuerte full" id="btnAdivinar" style="margin-top:14px">Adivinar</button>
         </div>
       </div>
 
       <div id="resultado"></div>
 
-      <button class="btn full hidden" id="btnOtra" style="margin-top:14px">Otra oración →</button>
+      <button class="btn fuerte full hidden" id="btnOtra" style="margin-top:26px">Otra oración</button>
     </div>
 
     <div class="card">
-      <h2>⚙️ Partida</h2>
+      <h2>La partida</h2>
       <label>Dificultad</label>
       <div class="chips" id="chipsModo">
         <div class="chip on" data-modo="facil">Fácil · 4 opciones</div>
@@ -171,14 +226,14 @@
       </div>
       <label style="margin-top:14px">Libros en juego</label>
       <div class="chips" id="chipsLibros"></div>
-      <button class="btn full sec sm" id="btnReset" style="margin-top:16px">Reiniciar marcador</button>
+      <button class="btn" id="btnReset" style="margin-top:24px">Reiniciar marcador</button>
     </div>
   </section>
 
   <!-- ══════════ TEXTOS ══════════ -->
   <section id="vista-textos" class="hidden">
     <div class="card">
-      <h2>➕ Agregar</h2>
+      <h2>Agregar textos</h2>
       <div class="chips" id="chipsAlta">
         <div class="chip on" data-alta="libro">Un libro entero</div>
         <div class="chip" data-alta="cuento">Un cuento suelto</div>
@@ -190,11 +245,11 @@
         <input id="inLibroTodo" list="librosSugeridos" placeholder="Ficciones" autocomplete="off">
         <label for="inTextoLibro">Texto del libro completo</label>
         <textarea id="inTextoLibro" placeholder="Pegá acá el libro entero, con los títulos de los cuentos tal como aparecen…"></textarea>
-        <div class="small muted" id="conteoLibro" style="margin:6px 0 10px">—</div>
-        <button class="btn full" id="btnDetectar">Detectar cuentos</button>
+        <div class="vs" id="conteoLibro" style="margin:12px 0 16px"></div>
+        <button class="btn fuerte full" id="btnDetectar">Detectar cuentos</button>
 
         <div id="preview"></div>
-        <button class="btn full blue hidden" id="btnImportarLibro" style="margin-top:10px">Importar los seleccionados</button>
+        <button class="btn fuerte full hidden" id="btnImportarLibro" style="margin-top:14px">Importar los seleccionados</button>
 
         <p class="aviso">
           De <b>Ficciones</b> y <b>El Aleph</b> conoce el índice, así que corta por los títulos.
@@ -217,8 +272,8 @@
         </div>
         <label for="inTexto">Texto completo (se parte solo en oraciones)</label>
         <textarea id="inTexto" placeholder="Pegá acá el cuento entero…"></textarea>
-        <div class="small muted" id="conteo" style="margin:6px 0 10px">—</div>
-        <button class="btn full" id="btnGuardarTexto">Guardar texto</button>
+        <div class="vs" id="conteo" style="margin:12px 0 16px"></div>
+        <button class="btn fuerte full" id="btnGuardarTexto">Guardar texto</button>
       </div>
 
       <datalist id="librosSugeridos"></datalist>
@@ -230,11 +285,11 @@
     </div>
 
     <div class="card">
-      <h2>📚 Textos cargados</h2>
+      <h2>Textos cargados</h2>
       <div id="listaTextos"></div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn sec sm" id="btnExportar">Exportar JSON</button>
-        <button class="btn sec sm" id="btnImportar">Importar JSON</button>
+      <div class="row" style="margin-top:22px">
+        <button class="btn" id="btnExportar">Exportar JSON</button>
+        <button class="btn" id="btnImportar">Importar JSON</button>
       </div>
       <input type="file" id="fileImportar" accept=".json,application/json" class="hidden">
     </div>
@@ -557,7 +612,7 @@ function importarLibro(){
   $('preview').innerHTML = '';
   $('btnImportarLibro').classList.add('hidden');
   $('inTextoLibro').value = '';
-  $('conteoLibro').textContent = '—';
+  $('conteoLibro').textContent = '';
   alert(`Listo: se cargaron ${sumados} cuentos de ${libro}.`);
   if(!ronda) nuevaRonda();
 }
@@ -637,6 +692,7 @@ function pintarRonda(){
   $('btnRindo').disabled = ronda.respondido;
 
   $('resultado').innerHTML = '';
+  $('acciones').classList.remove('hidden');
   $('btnOtra').classList.add('hidden');
   $('zonaRespuesta').classList.remove('hidden');
   pintarRespuesta();
@@ -715,8 +771,7 @@ function rendirse(){
 }
 
 function mostrarResultado(acierto, puntos, elegido){
-  $('btnMas').disabled = true;
-  $('btnRindo').disabled = true;
+  $('acciones').classList.add('hidden');
 
   if(prefs.modo === 'facil'){
     $('opciones').querySelectorAll('.op').forEach((b,i) => {
@@ -739,7 +794,7 @@ function mostrarResultado(acierto, puntos, elegido){
     `<div class="resultado ${acierto?'bien':'mal'}">
        <h3>${titulo}</h3>
        <div class="dato"><em>${esc(ronda.texto.cuento)}</em></div>
-       <div class="small muted" style="margin-top:4px">${esc(ronda.texto.libro)} · ${donde}</div>
+       <div class="donde">${esc(ronda.texto.libro)} · ${donde}</div>
      </div>`;
 
   $('zonaRespuesta').classList.add('hidden');
@@ -775,10 +830,10 @@ function pintarTextos(){
       const n = oracionesDe(t).length;
       const flojo = n < 3 ? ' · <span style="color:var(--err)">muy corto</span>' : '';
       return `<tr>
-        <td><b>${esc(t.cuento)}</b><br><span class="small muted">${esc(t.libro)} · ${n} oraciones${flojo}</span></td>
+        <td><b style="font-weight:400">${esc(t.cuento)}</b><br><span class="vs">${esc(t.libro)} · ${n} oraciones${flojo}</span></td>
         <td class="der">${t.deArchivo
           ? '<span class="small muted">corpus.js</span>'
-          : `<button class="btn sec sm" data-borrar="${esc(t.id)}">Borrar</button>`}</td>
+          : `<button class="btn" data-borrar="${esc(t.id)}">Borrar</button>`}</td>
       </tr>`;
     }).join('') + '</table>';
     cont.querySelectorAll('[data-borrar]').forEach(b => {
@@ -825,7 +880,7 @@ function agregarTexto(){
 
   $('inCuento').value = '';
   $('inTexto').value = '';
-  $('conteo').textContent = '—';
+  $('conteo').textContent = '';
   pintarTextos();
   alert(`Listo: «${cuento}» quedó cargado con ${oraciones.length} oraciones.`);
   if(!ronda) nuevaRonda();
@@ -944,12 +999,12 @@ $('inTexto').addEventListener('input', () => {
   clearTimeout(tardanza);
   tardanza = setTimeout(() => {
     const n = partirOraciones($('inTexto').value).length;
-    $('conteo').textContent = n ? `${n} oraciones detectadas` : '—';
+    $('conteo').textContent = n ? `${n} oraciones detectadas` : '';
   }, 200);
 });
 $('inTextoLibro').addEventListener('input', () => {
   const n = $('inTextoLibro').value.length;
-  $('conteoLibro').textContent = n ? `${n.toLocaleString('es-AR')} caracteres pegados` : '—';
+  $('conteoLibro').textContent = n ? `${n.toLocaleString('es-AR')} caracteres pegados` : '';
 });
 $('btnExportar').onclick = exportar;
 $('btnImportar').onclick = () => $('fileImportar').click();
