@@ -81,6 +81,7 @@
   .btn:disabled{opacity:.38;cursor:default}
   .btn.fuerte{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
   .btn.fuerte:hover:not(:disabled){background:var(--tinta2);border-color:var(--tinta2)}
+  .btn.fuerte:disabled{background:none;color:var(--tinta2);border-color:var(--linea);opacity:1}
   .btn.full{width:100%}
   .acciones{display:flex;gap:10px;flex-wrap:wrap;margin:30px 0 0;
     padding-top:22px;border-top:1px solid var(--linea)}
@@ -145,6 +146,19 @@
   .aviso{margin-top:16px;font-family:var(--sans);font-size:12px;line-height:1.65;color:var(--tinta2)}
   code{font-size:12px;background:var(--linea2);padding:1px 5px;border-radius:2px}
 
+  /* ── buscador de títulos ─────────────────────────────────── */
+  .sug{margin-top:10px}
+  .sug button{display:flex;justify-content:space-between;gap:14px;align-items:baseline;
+    width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--linea);
+    padding:12px 2px;font-family:var(--serif);font-size:17px;color:var(--tinta);
+    cursor:pointer;line-height:1.3}
+  .sug button:last-child{border-bottom:none}
+  .sug button:hover,.sug button.on{background:var(--papel2)}
+  .sug button b{font-weight:400;color:var(--acento)}
+  .sug .lib{font-family:var(--sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--tinta2);flex:0 0 auto}
+  .sug .nada{padding:12px 2px;color:var(--tinta2);font-style:italic}
+
   /* ── previsualización del libro ──────────────────────────── */
   .prev{margin-top:22px;border-top:1px solid var(--tinta)}
   .prev-cab{display:flex;justify-content:space-between;align-items:center;gap:12px;
@@ -206,9 +220,11 @@
       <div id="zonaRespuesta">
         <div class="opciones" id="opciones"></div>
         <div id="zonaDificil" class="hidden">
-          <label for="selCuento">Elegí el texto</label>
-          <select id="selCuento"></select>
-          <button class="btn fuerte full" id="btnAdivinar" style="margin-top:14px">Adivinar</button>
+          <label for="inAdivinar">Escribí el título</label>
+          <input id="inAdivinar" autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="con unas letras alcanza…">
+          <div class="sug" id="sugerencias"></div>
+          <button class="btn fuerte full" id="btnAdivinar" style="margin-top:14px" disabled>Adivinar</button>
         </div>
       </div>
 
@@ -221,8 +237,8 @@
       <h2>La partida</h2>
       <label>Dificultad</label>
       <div class="chips" id="chipsModo">
-        <div class="chip on" data-modo="facil">Fácil · 4 opciones</div>
-        <div class="chip" data-modo="dificil">Difícil · lista completa</div>
+        <div class="chip on" data-modo="facil">Fácil · 6 opciones</div>
+        <div class="chip" data-modo="dificil">Difícil · escribir el título</div>
       </div>
       <label style="margin-top:14px">Libros en juego</label>
       <div class="chips" id="chipsLibros"></div>
@@ -626,9 +642,14 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
 function librosDisponibles(){
   return [...new Set(textos.map(t => t.libro))].sort((a,b)=>a.localeCompare(b,'es'));
 }
+/* de arranque se juega con los dos libros de cuentos; el resto se suma a mano */
+const LIBROS_POR_DEFECTO = ['Ficciones', 'El Aleph'];
 function librosElegidos(){
   const disp = librosDisponibles();
-  if(!prefs.libros) return disp;
+  if(!prefs.libros){
+    const preferidos = disp.filter(l => LIBROS_POR_DEFECTO.includes(l));
+    return preferidos.length ? preferidos : disp;
+  }
   const elegidos = prefs.libros.filter(l => disp.includes(l));
   return elegidos.length ? elegidos : disp;
 }
@@ -680,12 +701,14 @@ function arranque(oraciones, cuento){
 
 /* los distractores salen del mismo libro: si no, el rótulo de abajo
    descarta media lista sin haber leído nada */
+const OPCIONES = 6;
 function distractores(posibles, correcto){
+  const faltan = OPCIONES - 1;
   const hermanos = posibles.filter(t => t.id !== correcto.id && t.libro === correcto.libro);
-  const elegidos = mezclar(hermanos).slice(0, 3);
-  if(elegidos.length < 3){
+  const elegidos = mezclar(hermanos).slice(0, faltan);
+  if(elegidos.length < faltan){
     const resto = posibles.filter(t => t.id !== correcto.id && !elegidos.includes(t));
-    elegidos.push(...mezclar(resto).slice(0, 3 - elegidos.length));
+    elegidos.push(...mezclar(resto).slice(0, faltan - elegidos.length));
   }
   return elegidos;
 }
@@ -750,7 +773,7 @@ function pintarRespuesta(){
   const facil = prefs.modo === 'facil';
   $('opciones').classList.toggle('hidden', !facil);
   $('zonaDificil').classList.toggle('hidden', facil);
-  facil ? pintarOpciones() : pintarSelect();
+  facil ? pintarOpciones() : pintarBuscador();
 }
 
 function pintarOpciones(){
@@ -770,21 +793,92 @@ function pintarOpciones(){
   });
 }
 
-function pintarSelect(){
-  const pool = textosEnJuego();
-  const porLibro = {};
-  pool.forEach(t => (porLibro[t.libro] = porLibro[t.libro] || []).push(t));
-  const sel = $('selCuento');
-  sel.innerHTML = '<option value="">— elegí un texto —</option>' +
-    Object.keys(porLibro).sort((a,b)=>a.localeCompare(b,'es')).map(libro =>
-      `<optgroup label="${esc(libro)}">` +
-      porLibro[libro].sort((a,b)=>a.cuento.localeCompare(b.cuento,'es'))
-        .map(t => `<option value="${esc(t.id)}">${esc(t.cuento)}</option>`).join('') +
-      '</optgroup>'
-    ).join('');
-  sel.value = '';
-  sel.disabled = false;
+/* ---------- modo difícil: escribir el título ---------- */
+/* plano() conserva la posición de cada letra, así se puede resaltar
+   la parte que coincide sobre el título original */
+function plano(s){
+  return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+
+let elegido = null, sugeridos = [], resaltado = -1;
+
+function buscarTitulos(consulta){
+  const q = plano(consulta).trim();
+  if(!q) return [];
+  const puntaje = (t) => {
+    const titulo = plano(t.cuento);
+    if(titulo.startsWith(q)) return 0;
+    if(titulo.split(/[^a-z0-9]+/).some(p => p.startsWith(q))) return 1;
+    return titulo.includes(q) ? 2 : -1;
+  };
+  return textosEnJuego().map(t => ({t, p: puntaje(t)}))
+    .filter(x => x.p >= 0)
+    .sort((a,b) => a.p - b.p || a.t.cuento.localeCompare(b.t.cuento, 'es'))
+    .slice(0, 8)
+    .map(x => x.t);
+}
+
+function pintarBuscador(){
+  $('inAdivinar').value = '';
+  $('inAdivinar').disabled = false;
+  $('btnAdivinar').disabled = true;
+  $('btnAdivinar').textContent = 'Adivinar';
+  elegido = null; sugeridos = []; resaltado = -1;
+  $('sugerencias').innerHTML = '';
+}
+
+function pintarSugerencias(){
+  const consulta = $('inAdivinar').value;
+  sugeridos = buscarTitulos(consulta);
+  resaltado = sugeridos.length ? 0 : -1;
+
+  if(!consulta.trim()){ $('sugerencias').innerHTML = ''; return; }
+  if(!sugeridos.length){
+    $('sugerencias').innerHTML = '<div class="nada">Ningún título con esas letras.</div>';
+    return;
+  }
+
+  const q = plano(consulta).trim();
+  const variosLibros = new Set(textosEnJuego().map(t => t.libro)).size > 1;
+  $('sugerencias').innerHTML = sugeridos.map((t,i) => {
+    const desde = plano(t.cuento).indexOf(q);
+    const titulo = desde < 0 ? esc(t.cuento)
+      : esc(t.cuento.slice(0, desde)) + '<b>' + esc(t.cuento.slice(desde, desde + q.length)) +
+        '</b>' + esc(t.cuento.slice(desde + q.length));
+    return `<button data-i="${i}" class="${i === resaltado ? 'on' : ''}"><span>${titulo}</span>` +
+           (variosLibros ? `<span class="lib">${esc(t.libro)}</span>` : '') + `</button>`;
+  }).join('');
+
+  $('sugerencias').querySelectorAll('button').forEach(b => {
+    b.onmousedown = (e) => { e.preventDefault(); elegirSugerencia(+b.dataset.i); };
+  });
+}
+
+function elegirSugerencia(i){
+  const t = typeof i === 'number' ? sugeridos[i] : i;
+  if(!t) return;
+  elegido = t;
+  $('inAdivinar').value = t.cuento;
+  $('sugerencias').innerHTML = '';
+  sugeridos = []; resaltado = -1;
   $('btnAdivinar').disabled = false;
+  $('btnAdivinar').textContent = 'Adivinar: ' + t.cuento;
+}
+
+function moverResaltado(paso){
+  if(!sugeridos.length) return;
+  resaltado = (resaltado + paso + sugeridos.length) % sugeridos.length;
+  $('sugerencias').querySelectorAll('button').forEach((b,i) => b.classList.toggle('on', i === resaltado));
+}
+
+/* si escribió el título entero sin tocar la lista, vale igual */
+function resolverEscrito(){
+  if(elegido) return elegido;
+  const q = plano($('inAdivinar').value).trim();
+  if(!q) return null;
+  const exacto = textosEnJuego().find(t => plano(t.cuento) === q);
+  if(exacto) return exacto;
+  return sugeridos.length === 1 ? sugeridos[0] : null;
 }
 
 /* ---------- responder ---------- */
@@ -829,8 +923,9 @@ function mostrarResultado(acierto, puntos, elegido){
       else if(elegido && t.id === elegido.id) b.classList.add('mal');
     });
   }else{
-    $('selCuento').disabled = true;
+    $('inAdivinar').disabled = true;
     $('btnAdivinar').disabled = true;
+    $('sugerencias').innerHTML = '';
   }
 
   const donde = ubicacion(ronda);
@@ -1019,10 +1114,31 @@ $('btnMas').onclick = () => {
 $('btnRindo').onclick = rendirse;
 $('btnOtra').onclick = nuevaRonda;
 $('btnAdivinar').onclick = () => {
-  const id = $('selCuento').value;
-  if(!id){ alert('Elegí un texto de la lista.'); return; }
-  responder(textos.find(t => t.id === id));
+  const t = resolverEscrito();
+  if(!t){ alert('Elegí un título de la lista.'); return; }
+  responder(t);
 };
+$('inAdivinar').addEventListener('input', () => {
+  elegido = null;
+  $('btnAdivinar').disabled = true;
+  $('btnAdivinar').textContent = 'Adivinar';
+  pintarSugerencias();
+  // si escribió el título completo, vale como elegido sin tocar la lista
+  const q = plano($('inAdivinar').value).trim();
+  const exacto = q && textosEnJuego().find(t => plano(t.cuento) === q);
+  if(exacto) elegirSugerencia(exacto);
+});
+$('inAdivinar').addEventListener('keydown', (e) => {
+  if(e.key === 'ArrowDown'){ e.preventDefault(); moverResaltado(1); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); moverResaltado(-1); }
+  else if(e.key === 'Escape'){ $('sugerencias').innerHTML = ''; sugeridos = []; }
+  else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(resaltado >= 0 && sugeridos.length){ elegirSugerencia(resaltado); return; }
+    const t = resolverEscrito();
+    if(t) responder(t);
+  }
+});
 $('btnReset').onclick = () => {
   if(!confirm('¿Reiniciar puntos, racha y jugadas?')) return;
   stats = {puntos:0, racha:0, mejorRacha:0, aciertos:0, jugadas:0};

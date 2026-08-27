@@ -6,8 +6,13 @@ cuál es. Si no sale, se puede pedir la **oración siguiente**, y una
 
 Puntaje: **3** puntos si acertás con una sola oración, **2** con dos, **1** con tres.
 
-Dos dificultades: *fácil* (cuatro opciones) y *difícil* (la lista completa de
-textos cargados). Se puede elegir con qué libros jugar.
+Dos dificultades: *fácil*, con seis títulos para elegir, y *difícil*, donde se
+escribe el título y un predictor va sugiriendo a medida que tecleás —con las
+flechas y Enter, o tocando la sugerencia; siempre hace falta confirmar, así que
+un toque de más no te cuesta la ronda.
+
+Se elige con qué libros jugar. De arranque vienen sólo *Ficciones* y *El Aleph*:
+los demás se suman con un toque.
 
 El sorteo trata de que la partida sea justa: los cuatro títulos de la versión
 fácil salen del mismo libro que la respuesta —si no, el rótulo del libro
