@@ -5,6 +5,11 @@ cuál es. Si no sale, se puede pedir la **oración siguiente**, y una
 **tercera vez** — ahí se corta.
 
 Puntaje: **3** puntos si acertás con una sola oración, **2** con dos, **1** con tres.
+En difícil vale el doble: acertar entre todos los títulos no puede pagar lo mismo
+que acertar entre seis.
+
+En la computadora se juega con el teclado: **a–f** (o 1–6) responden, **espacio**
+pide la oración siguiente y **Enter** pasa a la próxima.
 
 Dos dificultades: *fácil*, con seis títulos para elegir, y *difícil*, donde se
 escribe el título y un predictor va sugiriendo a medida que tecleás —con las
@@ -18,7 +23,10 @@ El sorteo trata de que la partida sea justa: los cuatro títulos de la versión
 fácil salen del mismo libro que la respuesta —si no, el rótulo del libro
 descartaría media lista sin leer nada—, la primera oración evita nombrar el
 título del texto al que pertenece, y los textos salen sin reposición, así que
-no se repite ninguno hasta haber pasado por todos.
+no se repite ninguno hasta haber pasado por todos. Tampoco se repiten los
+fragmentos: cada texto recuerda qué arranques ya salieron, que es lo que hace
+falta con los más cortos —*Los dos reyes y los dos laberintos* tiene ocho
+arranques posibles y *Tlön* doscientos cincuenta y ocho.
 
 ## Cargar los textos
 

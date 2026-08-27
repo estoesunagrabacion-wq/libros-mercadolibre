@@ -85,6 +85,8 @@
   .btn.full{width:100%}
   .acciones{display:flex;gap:10px;flex-wrap:wrap;margin:30px 0 0;
     padding-top:22px;border-top:1px solid var(--linea)}
+  .atajos{margin:14px 0 0;display:none}
+  @media (hover:hover) and (pointer:fine){ .atajos{display:block} }
 
   /* ── opciones ────────────────────────────────────────────── */
   .opciones{counter-reset:op;margin:26px 0 0;border-top:1px solid var(--linea)}
@@ -133,6 +135,10 @@
     border:1px solid var(--linea);border-radius:2px;padding:11px 12px;
     font-size:16px;font-family:var(--serif)}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--tinta2)}
+  /* con Tab hay que ver dónde se está parado */
+  .btn:focus-visible,.op:focus-visible,.tab:focus-visible,.chip:focus-visible,
+  .sug button:focus-visible,input:focus-visible,textarea:focus-visible,
+  .prev-fila input:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
   textarea{min-height:150px;resize:vertical;line-height:1.55;font-size:15px}
   .row{display:flex;gap:14px;flex-wrap:wrap}
   .row>*{flex:1;min-width:150px}
@@ -216,6 +222,7 @@
         <button class="btn" id="btnMas">Oración siguiente</button>
         <button class="btn" id="btnRindo">Me rindo</button>
       </div>
+      <p class="vs atajos" id="atajos">a–f responden · espacio pide otra oración · Enter sigue</p>
 
       <div id="zonaRespuesta">
         <div class="opciones" id="opciones"></div>
@@ -237,10 +244,11 @@
       <h2>La partida</h2>
       <label>Dificultad</label>
       <div class="chips" id="chipsModo">
-        <div class="chip on" data-modo="facil">Fácil · 6 opciones</div>
-        <div class="chip" data-modo="dificil">Difícil · escribir el título</div>
+        <div class="chip on" tabindex="0" role="button" data-modo="facil">Fácil · 6 opciones</div>
+        <div class="chip" tabindex="0" role="button" data-modo="dificil">Difícil · escribir el título</div>
       </div>
-      <label style="margin-top:14px">Libros en juego</label>
+      <p class="vs" style="margin:10px 0 0">En difícil los aciertos valen el doble</p>
+      <label style="margin-top:18px">Libros en juego</label>
       <div class="chips" id="chipsLibros"></div>
       <button class="btn" id="btnReset" style="margin-top:24px">Reiniciar marcador</button>
     </div>
@@ -251,8 +259,8 @@
     <div class="card">
       <h2>Agregar textos</h2>
       <div class="chips" id="chipsAlta">
-        <div class="chip on" data-alta="libro">Un libro entero</div>
-        <div class="chip" data-alta="cuento">Un cuento suelto</div>
+        <div class="chip on" tabindex="0" role="button" data-alta="libro">Un libro entero</div>
+        <div class="chip" tabindex="0" role="button" data-alta="cuento">Un cuento suelto</div>
       </div>
 
       <!-- ── libro entero ── -->
@@ -686,17 +694,29 @@ function regala(oracion, claves){
   return claves.some(c => palabras.some(p => p.startsWith(c.slice(0, 5))));
 }
 
-/* dónde empezar: una oración con cuerpo que no nombre el título.
-   Si nombrarlo es inevitable, que aparezca igual: mejor eso que no jugar. */
-function arranque(oraciones, cuento){
+/* dónde empezar: una oración con cuerpo, que no nombre el título y que no
+   haya salido todavía. Los textos cortos tienen pocos arranques posibles
+   —Los dos reyes tiene 8, Tlön 258— así que sin memoria se repiten enseguida.
+   Si nombrar el título es inevitable, se juega igual: mejor eso que no jugar. */
+const arranquesUsados = new Map();
+
+function arranque(texto, oraciones){
   const tope = oraciones.length - 3;
   const conCuerpo = [];
   for(let i = 0; i <= tope; i++) if(oraciones[i].length >= 45) conCuerpo.push(i);
   const base = conCuerpo.length ? conCuerpo : Array.from({length: tope + 1}, (_, i) => i);
-  const claves = clavesDelTitulo(cuento);
+  const claves = clavesDelTitulo(texto.cuento);
   const limpios = base.filter(i => !regala(oraciones[i], claves));
-  const pozo = limpios.length ? limpios : base;
-  return pozo[azar(pozo.length)];
+  let pozo = limpios.length ? limpios : base;
+
+  const usados = arranquesUsados.get(texto.id) || new Set();
+  const frescos = pozo.filter(i => !usados.has(i));
+  if(frescos.length) pozo = frescos; else usados.clear();   // dio la vuelta entera
+
+  const inicio = pozo[azar(pozo.length)];
+  usados.add(inicio);
+  arranquesUsados.set(texto.id, usados);
+  return inicio;
 }
 
 /* los distractores salen del mismo libro: si no, el rótulo de abajo
@@ -725,7 +745,7 @@ function nuevaRonda(){
   ultimoCuento = texto.id;
 
   const oraciones = oracionesDe(texto);
-  const inicio = arranque(oraciones, texto.cuento);
+  const inicio = arranque(texto, oraciones);
 
   ronda = {
     texto,
@@ -763,6 +783,7 @@ function pintarRonda(){
 
   $('resultado').innerHTML = '';
   $('acciones').classList.remove('hidden');
+  $('atajos').classList.remove('hidden');
   $('btnOtra').classList.add('hidden');
   $('zonaRespuesta').classList.remove('hidden');
   pintarRespuesta();
@@ -885,7 +906,9 @@ function resolverEscrito(){
 function responder(elegido){
   if(ronda.respondido) return;
   const acierto = elegido && elegido.id === ronda.texto.id;
-  const puntos = acierto ? (4 - ronda.mostradas) : 0;   // 3 · 2 · 1
+  // 3·2·1 según cuántas oraciones hicieron falta, y el doble en difícil:
+  // acertar entre todos los títulos no puede pagar lo mismo que entre seis
+  const puntos = acierto ? (4 - ronda.mostradas) * (prefs.modo === 'dificil' ? 2 : 1) : 0;
 
   ronda.respondido = true;
   stats.jugadas++;
@@ -914,6 +937,7 @@ function rendirse(){
 
 function mostrarResultado(acierto, puntos, elegido){
   $('acciones').classList.add('hidden');
+  $('atajos').classList.add('hidden');
 
   if(prefs.modo === 'facil'){
     $('opciones').querySelectorAll('.op').forEach((b,i) => {
@@ -1066,7 +1090,7 @@ function pintarChipsLibros(){
   const disp = librosDisponibles();
   const elegidos = librosElegidos();
   $('chipsLibros').innerHTML = disp.length
-    ? disp.map(l => `<div class="chip ${elegidos.includes(l)?'on':''}" data-libro="${esc(l)}">${esc(l)}</div>`).join('')
+    ? disp.map(l => `<div class="chip ${elegidos.includes(l)?'on':''}" tabindex="0" role="button" data-libro="${esc(l)}">${esc(l)}</div>`).join('')
     : '<span class="small muted">Cargá textos para elegir libros.</span>';
   $('chipsLibros').querySelectorAll('.chip').forEach(c => {
     c.onclick = () => {
@@ -1173,6 +1197,39 @@ $('inTextoLibro').addEventListener('input', () => {
 $('btnExportar').onclick = exportar;
 $('btnImportar').onclick = () => $('fileImportar').click();
 $('fileImportar').onchange = (e) => { if(e.target.files[0]) importar(e.target.files[0]); e.target.value=''; };
+
+/* ---------- teclado ---------- */
+/* Enter y espacio activan las fichas, que son <div> */
+document.addEventListener('keydown', (e) => {
+  const desde = e.target;
+  if(desde && desde.classList && desde.classList.contains('chip') && (e.key === 'Enter' || e.key === ' ')){
+    e.preventDefault(); desde.click();
+  }
+});
+
+/* atajos de la partida */
+document.addEventListener('keydown', (e) => {
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  const etiqueta = ((e.target && e.target.tagName) || '').toLowerCase();
+  if(etiqueta === 'input' || etiqueta === 'textarea' || etiqueta === 'select') return;
+  if(!ronda || $('vista-jugar').classList.contains('hidden')) return;
+
+  if(e.key === 'Enter'){
+    if(ronda.respondido){ e.preventDefault(); $('btnOtra').click(); }
+    return;
+  }
+  if(e.key === ' '){
+    if(!ronda.respondido && !$('btnMas').disabled){ e.preventDefault(); $('btnMas').click(); }
+    return;
+  }
+  if(ronda.respondido || prefs.modo !== 'facil') return;
+  // a–f, y también 1–6
+  const letra = e.key.toLowerCase();
+  const i = /^[a-f]$/.test(letra) ? letra.charCodeAt(0) - 97
+          : /^[1-6]$/.test(letra) ? +letra - 1 : -1;
+  const boton = i >= 0 && $('opciones').querySelector(`.op[data-i="${i}"]`);
+  if(boton){ e.preventDefault(); boton.click(); }
+});
 
 /* ---------- arranque ---------- */
 pintarMarcador();
